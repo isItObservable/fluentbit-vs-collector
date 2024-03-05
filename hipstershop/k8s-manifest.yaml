@@ -1,0 +1,1010 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: emailservice
+  labels:
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/instance: hipster-shop
+    app.kubernetes.io/component: emailservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: emailservice
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: emailservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: emailservice
+        product: hipster-shop
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/instance: hipster-shop
+        app.kubernetes.io/component: emailservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: emailservice
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/component: emailservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: emailservice
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: gcr.io/dynatrace-demoability/emailservice:9e830c2
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DISABLE_PROFILER
+              value: "1"
+          readinessProbe:
+            timeoutSeconds: 5
+            periodSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:8080"]
+          livenessProbe:
+            timeoutSeconds: 5
+            periodSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:8080"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: emailservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: emailservice
+  ports:
+    - name: grpc
+      port: 5000
+      targetPort: 8080
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkoutservice
+  labels:
+    app.kubernetes.io/instance: hipster-shop
+    app.kubernetes.io/component: checkoutservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: checkoutservice
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: checkoutservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: checkoutservice
+        product: hipster-shop
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/instance: hipster-shop
+        app.kubernetes.io/component: checkoutservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: checkoutservice
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/instance: hipster-shop
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: checkoutservice
+    spec:
+      containers:
+        - name: server
+          image: gcr.io/dynatrace-demoability/checkoutservice:9e830c2
+          ports:
+            - containerPort: 5050
+          readinessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:5050"]
+          livenessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:5050"]
+          env:
+            - name: PORT
+              value: "5050"
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "productcatalogservice:3550"
+            - name: SHIPPING_SERVICE_ADDR
+              value: "shippingservice:50051"
+            - name: PAYMENT_SERVICE_ADDR
+              value: "paymentservice:50051"
+            - name: EMAIL_SERVICE_ADDR
+              value: "emailservice:5000"
+            - name: CURRENCY_SERVICE_ADDR
+              value: "currencyservice:7000"
+            - name: CART_SERVICE_ADDR
+              value: "cartservice:7070"
+            - name: DISABLE_STATS
+              value: "1"
+            - name: DISABLE_TRACING
+              value: "1"
+            - name: DISABLE_PROFILER
+              value: "1"
+          # - name: JAEGER_SERVICE_ADDR
+          #   value: "jaeger-collector:14268"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkoutservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: checkoutservice
+  ports:
+    - name: grpc
+      port: 5050
+      targetPort: 5050
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendationservice
+  labels:
+    app.kubernetes.io/instance: hipster-shop
+    app.kubernetes.io/component: recommendationservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: recommendationservice
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: recommendationservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: recommendationservice
+        product: hipster-shop
+        app.kubernetes.io/instance: hipster-shop
+        app.kubernetes.io/component: recommendationservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: recommendationservice
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/instance: hipster-shop
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: recommendationservice
+    spec:
+      terminationGracePeriodSeconds: 5
+      # imagePullsecrets required for perform2019????
+      imagePullSecrets:
+        - name: demo-registry
+      containers:
+        - name: server
+          image: gcr.io/dynatrace-demoability/recommendationservice:9e830c2
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            periodSeconds: 5
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:8080"]
+          livenessProbe:
+            timeoutSeconds: 5
+            periodSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:8080"]
+          env:
+            - name: PORT
+              value: "8080"
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "productcatalogservice:3550"
+            - name: DISABLE_TRACING
+              value: "1"
+            - name: DISABLE_PROFILER
+              value: "1"
+            - name: DISABLE_DEBUGGER
+              value: "1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendationservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: recommendationservice
+  ports:
+    - name: grpc
+      port: 8080
+      targetPort: 8080
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app.kubernetes.io/instance: hipster-shop
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: frontend
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: frontend
+        product: hipster-shop
+        app.kubernetes.io/instance: hipster-shop
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: frontend
+        proxy.istio.io/config: |-
+          proxyStatsMatcher:
+            inclusionRegexps:
+            - ".*http_local_rate_limit.*"
+    spec:
+      containers:
+        - name: server
+          # both look good
+          #image: registry.lab.dynatrace.org/cloudplatform/hipster-shop-frontend
+          image: gcr.io/dynatrace-demoability/frontend:9e830c2
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            httpGet:
+              path: "/_healthz"
+              port: 8080
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-readiness-probe"
+          livenessProbe:
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            httpGet:
+              path: "/_healthz"
+              port: 8080
+              httpHeaders:
+                - name: "Cookie"
+                  value: "shop_session-id=x-liveness-probe"
+          env:
+            - name: PORT
+              value: "8080"
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "productcatalogservice:3550"
+            - name: CURRENCY_SERVICE_ADDR
+              value: "currencyservice:7000"
+            - name: CART_SERVICE_ADDR
+              value: "cartservice:7070"
+            - name: RECOMMENDATION_SERVICE_ADDR
+              value: "recommendationservice:8080"
+            - name: SHIPPING_SERVICE_ADDR
+              value: "shippingservice:50051"
+            - name: CHECKOUT_SERVICE_ADDR
+              value: "checkoutservice:5050"
+            - name: AD_SERVICE_ADDR
+              value: "adservice:9555"
+            - name: ENV_PLATFORM
+              value: "gcp"
+            - name: DISABLE_TRACING
+              value: "1"
+            - name: DISABLE_PROFILER
+              value: "1"
+          # - name: JAEGER_SERVICE_ADDR
+          #   value: "jaeger-collector:14268"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      appProtocol: http
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: loadgeneratorservice
+  labels:
+    app.kubernetes.io/component: loadgenerator
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: loadgenerator
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  schedule: "0 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: loadgenerator
+            product: k6
+            app.kubernetes.io/instance: hipster-shop
+            app.kubernetes.io/component: loadgenerator
+            app.kubernetes.io/part-of: hipster-shop
+            app.kubernetes.io/name: loadgenerator
+            app.kubernetes.io/version: "1.0.0"
+            dt.owner: hipster-shop
+          annotations:
+            oneagent.dynatrace.com/inject: "false"
+            app.kubernetes.io/part-of: hipster-shop
+            app.kubernetes.io/name: loadgenerator
+            app.kubernetes.io/version: "1.0.0"
+            sidecar.istio.io/inject: "false"
+        spec:
+          terminationGracePeriodSeconds: 5
+          restartPolicy: OnFailure
+          containers:
+            - name: k6load
+              image: hrexed/k6-onlineboutique:dtoutput
+              imagePullPolicy: Always
+              args: [ "-u", "70", "-d", "59m" ]
+              env:
+                - name: FRONTEND_ADDR
+                  value: "hipstershop.IP_TO_REPLACE.nip.io"
+                - name: K6_DYNATRACE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: dynatrace
+                      key: dynatrace_oltp_url
+                - name: K6_DYNATRACE_INSECURE_SKIP_TLS_VERIFY
+                  value: "true"
+                - name: K6_DYNATRACE_APITOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: dynatrace
+                      key: dt_api_token
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paymentservice
+  labels:
+    app.kubernetes.io/component: paymentservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: paymentservice
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: paymentservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: paymentservice
+        product: hipster-shop
+        app.kubernetes.io/component: paymentservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: paymentservice
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: paymentservice
+
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: gcr.io/dynatrace-demoability/paymentservice:9e830c2
+          ports:
+            - containerPort: 50051
+          env:
+            - name: PORT
+              value: "50051"
+            - name: MEMORYLEAK
+              value: "0"
+          readinessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:50051"]
+          livenessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:50051"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 1024Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paymentservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: paymentservice
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: productcatalogservice
+  labels:
+    app.kubernetes.io/component: productcatalogservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: productcatalogservice
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  selector:
+    matchLabels:
+      app: productcatalog
+      service: productcatalogservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: productcatalog
+        service: productcatalogservice
+        product: hipster-shop
+        app.kubernetes.io/component: productcatalogservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: productcatalogservice
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: productcatalogservice
+
+
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          # image: registry.lab.dynatrace.org/cloudplatform/hipster-shop-productcatalogservice
+          image: gcr.io/dynatrace-demoability/productcatalogservice:dd747d8-dirty
+          ports:
+            - containerPort: 3550
+          env:
+            - name: PORT
+              value: "3550"
+            - name: EXTRA_LATENCY
+              value: "1s"
+            - name: DISABLE_STATS
+              value: "1"
+            - name: DISABLE_TRACING
+              value: "1"
+            - name: DISABLE_PROFILER
+              value: "1"
+          # - name: JAEGER_SERVICE_ADDR
+          #   value: "jaeger-collector:14268"
+          readinessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:3550"]
+          livenessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:3550"]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 50m
+              memory: 120Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: productcatalogservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: productcatalog
+    service: productcatalogservice
+  ports:
+    - name: grpc
+      port: 3550
+      targetPort: 3550
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cartservice
+  labels:
+    app.kubernetes.io/component: cartservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: cartservice
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: cartservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: cartservice
+        product: hipster-shop
+        app.kubernetes.io/component: cartservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: cartservice
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: cartservice
+        app.kubernetes.io/version: "1.0.0"
+
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: hrexed/cartservice-nootel:0.1
+          ports:
+            - containerPort: 7070
+          env:
+            - name: REDIS_ADDR
+              value: "redis-cart:6379"
+            - name: PORT
+              value: "7070"
+            - name: LISTEN_ADDR
+              value: "0.0.0.0"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 1024Mi
+          readinessProbe:
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:7070", "-rpc-timeout=5s"]
+          livenessProbe:
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 10
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:7070", "-rpc-timeout=5s"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cartservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: cartservice
+  ports:
+    - name: grpc
+      port: 7070
+      targetPort: 7070
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: currencyservice
+  labels:
+    app.kubernetes.io/component: currencyservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: currencyservice
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: currencyservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: currencyservice
+        product: hipster-shop
+        app.kubernetes.io/component: currencyservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: currencyservice
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: currencyservice
+
+
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: gcr.io/dynatrace-demoability/currencyservice:9e830c2
+          ports:
+            - name: grpc
+              containerPort: 7000
+          env:
+            - name: PORT
+              value: "7000"
+            - name: DISABLE_TRACING
+              value: "1"
+            - name: DISABLE_PROFILER
+              value: "1"
+            - name: DISABLE_DEBUGGER
+              value: "1"
+          readinessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:7000"]
+          livenessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:7000"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: currencyservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: currencyservice
+  ports:
+    - name: grpc
+      port: 7000
+      targetPort: 7000
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shippingservice
+  labels:
+    app.kubernetes.io/component: shippingservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: shippingservice
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: shippingservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: shippingservice
+        product: hipster-shop
+        app.kubernetes.io/component: shippingservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: shippingservice
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: shippingservice
+
+    spec:
+      containers:
+        - name: server
+          image: gcr.io/dynatrace-demoability/shippingservice:9e830c2
+          ports:
+            - containerPort: 50051
+          env:
+            - name: PORT
+              value: "50051"
+          # - name: DISABLE_STATS
+          #   value: "1"
+          # - name: DISABLE_TRACING
+          #   value: "1"
+          # - name: DISABLE_PROFILER
+          #   value: "1"
+          # - name: JAEGER_SERVICE_ADDR
+          #   value: "jaeger-collector:14268"
+          readinessProbe:
+            timeoutSeconds: 5
+            periodSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:50051"]
+          livenessProbe:
+            timeoutSeconds: 5
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:50051"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shippingservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: shippingservice
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cart
+  labels:
+    app.kubernetes.io/component: redis-cart
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: redis-cart
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: redis-cart
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: redis-cart
+        product: hipster-shop
+        app.kubernetes.io/component: redis-cart
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: redis-cart
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: redis-cart
+
+
+    spec:
+      containers:
+        - name: redis
+          image: redis:alpine
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            timeoutSeconds: 5
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          livenessProbe:
+            timeoutSeconds: 5
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: 700m
+            requests:
+              cpu: 400m
+              memory: 200Mi
+        - name: redis-exporter
+          image: 'oliver006/redis_exporter:latest'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          ports:
+            - containerPort: 9121
+              protocol: TCP
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cart
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: redis-cart
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      appProtocol: tcp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adservice
+  labels:
+    app.kubernetes.io/component: adservice
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: adservice
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  selector:
+    matchLabels:
+      app: hipster-shop
+      service: adservice
+      product: hipster-shop
+  template:
+    metadata:
+      labels:
+        app: hipster-shop
+        service: adservice
+        product: hipster-shop
+        app.kubernetes.io/component: adservice
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: adservice
+        app.kubernetes.io/version: "1.0.0"
+        dt.owner: hipster-shop
+      annotations:
+        app.kubernetes.io/part-of: hipster-shop
+        app.kubernetes.io/name: adservice
+
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: hrexed/adservice-safe:0.1
+          ports:
+            - containerPort: 9555
+          env:
+            - name: PORT
+              value: "9555"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 200m
+              memory: 400Mi
+          readinessProbe:
+            timeoutSeconds: 5
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:9555"]
+          livenessProbe:
+            timeoutSeconds: 5
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:9555"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adservice
+  labels:
+    dt.owner: hipster-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: hipster-shop
+    service: adservice
+  ports:
+    - name: grpc
+      port: 9555
+      targetPort: 9555
+      appProtocol: grpc

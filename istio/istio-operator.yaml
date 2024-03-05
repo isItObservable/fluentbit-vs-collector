@@ -1,0 +1,33 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  profile: demo
+  meshConfig:
+    accessLogFile: /dev/stdout
+    defaultConfig:
+      tracing:
+        sampling: 100
+        openCensusAgent:
+          address: oteld-collector.default.svc.cluster.local:55678
+    defaultProviders:
+      tracing:
+        - "otelp"
+      accessLogging:
+        - "envoylogs"
+    enablePrometheusMerge: true
+    enableTracing: true
+    extensionProviders:
+      - envoyOtelAls:
+          port: 4317
+          service: "oteld-collector.default.svc.cluster.local"
+        name: "envoylogs"
+      - name: "otelp"
+        opentelemetry:
+          service: "oteld-collector.default.svc.cluster.local"
+          port: 4317
+      - name: "opencensus"
+        opencensus:
+          service: "oteld-collector.default.svc.cluster.local"
+          port: 55678
+          context:
+            - W3C_TRACE_CONTEXT

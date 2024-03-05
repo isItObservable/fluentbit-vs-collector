@@ -1,0 +1,123 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: loadtestservice
+  labels:
+    app.kubernetes.io/component: loadtest
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: loadtest
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  schedule: "0 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: loadtest
+            product: k6
+            app.kubernetes.io/instance: hipster-shop
+            app.kubernetes.io/component: loadtest
+            app.kubernetes.io/part-of: hipster-shop
+            app.kubernetes.io/name: loadtest
+            app.kubernetes.io/version: "1.0.0"
+            sidecar.istio.io/inject: "false"
+            dt.owner: hipster-shop
+          annotations:
+            oneagent.dynatrace.com/inject: "false"
+            app.kubernetes.io/part-of: hipster-shop
+            app.kubernetes.io/name: loadtest
+            app.kubernetes.io/version: "1.0.0"
+            sidecar.istio.io/inject: "false"
+        spec:
+          terminationGracePeriodSeconds: 5
+          restartPolicy: OnFailure
+          containers:
+            - name: k6load
+              image: hrexed/k6-onlineboutique:rampup-dtoutput
+              imagePullPolicy: Always
+              env:
+                - name: FRONTEND_ADDR
+                  value: "hipstershop.IP_TO_REPLACE.nip.io"
+                - name: K6_DYNATRACE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: dynatrace
+                      key: dynatrace_oltp_url
+                - name: K6_DYNATRACE_INSECURE_SKIP_TLS_VERIFY
+                  value: "true"
+                - name: K6_DYNATRACE_APITOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: dynatrace
+                      key: dt_api_token
+              resources:
+                requests:
+                  cpu: 600m
+                  memory: 512Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: loadtestservice2
+  labels:
+    app.kubernetes.io/component: loadtest
+    app.kubernetes.io/part-of: hipster-shop
+    app.kubernetes.io/name: loadtest
+    app.kubernetes.io/version: "1.0.0"
+    dt.owner: hipster-shop
+spec:
+  schedule: "10 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: loadtest
+            product: k6
+            app.kubernetes.io/instance: hipster-shop
+            app.kubernetes.io/component: loadtest
+            app.kubernetes.io/part-of: hipster-shop
+            app.kubernetes.io/name: loadtest
+            app.kubernetes.io/version: "1.0.0"
+            sidecar.istio.io/inject: "false"
+            dt.owner: hipster-shop
+          annotations:
+            oneagent.dynatrace.com/inject: "false"
+            app.kubernetes.io/part-of: hipster-shop
+            app.kubernetes.io/name: loadtest
+            app.kubernetes.io/version: "1.0.0"
+            sidecar.istio.io/inject: "false"
+        spec:
+          terminationGracePeriodSeconds: 5
+          restartPolicy: OnFailure
+          containers:
+            - name: k6load
+              image: hrexed/k6-onlineboutique:rampup-dtoutput
+              imagePullPolicy: Always
+              env:
+                - name: FRONTEND_ADDR
+                  value: "hipstershop.IP_TO_REPLACE.nip.io"
+                - name: K6_DYNATRACE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: dynatrace
+                      key: dynatrace_oltp_url
+                - name: K6_DYNATRACE_INSECURE_SKIP_TLS_VERIFY
+                  value: "true"
+                - name: K6_DYNATRACE_APITOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: dynatrace
+                      key: dt_api_token
+              resources:
+                requests:
+                  cpu: 600m
+                  memory: 512Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi

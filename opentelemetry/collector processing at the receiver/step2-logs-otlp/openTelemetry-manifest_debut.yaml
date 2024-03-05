@@ -1,0 +1,321 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: oteld
+  labels:
+    app: opentelemetry
+spec:
+  mode: daemonset
+  serviceAccount: otelcontribcol
+  image: otel/opentelemetry-collector-contrib:0.90.0
+  ports:
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+  env:
+    - name: CLUSTER_ID
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace
+          key: clusterid
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: DT_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace
+          key: dynatrace_oltp_url
+    - name: DT_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace
+          key: dt_api_token
+    - name: MY_POD_IP
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: status.podIP
+    - name: CLUSTERNAME
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace
+          key: clustername
+  volumeMounts:
+    - mountPath: /var/log
+      name: varlog
+      readOnly: true
+    - mountPath: /var/lib/docker/containers
+      name: varlibdockercontainers
+      readOnly: true
+  volumes:
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+  config: |
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+          - job_name: opentelemetry-collector
+            scrape_interval: 5s
+            static_configs:
+            - targets:
+              - ${MY_POD_IP}:8888
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        start_at: beginning
+        include_file_path: true
+        include_file_name: false
+        operators:
+          # Find out which format is used by kubernetes
+          - type: add
+            id: receivetiming
+            field: resource["receiverTime"]
+            value: 'EXPR(now().UnixMicro())'
+          - type: router
+            id: get-format
+            routes:
+              - output: parser-docker
+                expr: 'body matches "^\\{"'
+              - output: parser-crio
+                expr: 'body matches "^[^ Z]+ "'
+              - output: parser-containerd
+                expr: 'body matches "^[^ Z]+Z"'
+          # Parse CRI-O format
+          - type: regex_parser
+            id: parser-crio
+            regex: '^(?P<time>[^ Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout_type: gotime
+              layout: '2006-01-02T15:04:05.999999999Z07:00'
+          # Parse CRI-Containerd format
+          - type: regex_parser
+            id: parser-containerd
+            regex: '^(?P<time>[^ ^Z]+Z) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+          # Parse Docker format
+          - type: json_parser
+            id: parser-docker
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+          - type: move
+            from: attributes.log
+            to: body
+          # Extract metadata from file path
+          - type: regex_parser
+            id: extract_metadata_from_filepath
+            regex: '^.*\/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})\/(?P<container_name>[^\._]+)\/(?P<restart_count>\d+)\.log$'
+            parse_from: attributes["log.file.path"]
+            cache:
+              size: 128  # default maximum amount of Pods per Node is 110
+          # Rename attributes
+          - type: move
+            from: attributes.stream
+            to: attributes["log.iostream"]
+          - type: move
+            from: attributes.container_name
+            to: resource["k8s.container.name"]
+          - type: move
+            from: attributes.namespace
+            to: resource["k8s.namespace.name"]
+          - type: move
+            from: attributes.pod_name
+            to: resource["k8s.pod.name"]
+          - type: move
+            from: attributes.restart_count
+            to: resource["k8s.container.restart_count"]
+          - type: move
+            from: attributes.uid
+            to: resource["k8s.pod.uid"]
+    
+      opencensus:
+        endpoint: 0.0.0.0:55678
+      
+      otlp:
+        protocols:
+          grpc:
+          http:
+
+
+    processors:
+      batch:
+        send_batch_max_size: 1000
+        timeout: 30s
+        send_batch_size : 800
+    
+      cumulativetodelta:
+    
+      filter:
+        error_mode: ignore
+        metrics:
+          metric:
+            - 'type == METRIC_DATA_TYPE_HISTOGRAM'
+    
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        filter:
+           node_from_env_var: K8S_NODE_NAME
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.pod.start_time
+          # Pod labels which can be fetched via K8sattributeprocessor
+          labels:
+            - tag_name: key1
+              key: label1
+              from: pod
+            - tag_name: key2
+              key: label2
+              from: pod
+        # Pod association using resource attributes and connection
+        pod_association:
+          - sources:
+             - from: resource_attribute
+               name: k8s.pod.uid
+             - from: resource_attribute
+               name: k8s.pod.name
+          - sources:
+             - from: connection
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 70
+        spike_limit_percentage: 30
+      
+      resource:
+        attributes:
+        - key: k8s.cluster.name 
+          value: $CLUSTERNAME
+          action: insert
+        - key: dt.kubernetes.cluster.id
+          value: $CLUSTER_ID
+          action: insert
+    
+      transform:
+        log_statements:
+          context: log
+          statements:
+            - merge_maps(cache,ExtractPatterns(attributes["log.file.path"],"^.*/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\\-]{36})/(?P<container_name>[^\\._]+)/(?P<restart_count>\\d+)\\.log$"), "upsert") where attributes["log.file.path"] != nil
+            - set(resource.attributes["k8s.namespace"],cache["namespace"]) where cache["namespace"]!= nil
+            - set(resource.attributes["k8s.pod.name"],cache["pod_name"]) where cache["pod_name"]!= nil
+            - set(resource.attributes["k8s.pod.uid"],cache["uid"]) where cache["uid"]!= nil
+            - set(resource.attributes["k8s.container.name"],cache["container_name"]) where cache["uid"]!= nil
+      transform/docker:
+        log_statements:
+          context: log
+          statements:
+            - merge_maps(cache,ParseJSON(body), "upsert") where body!= nil
+            - set(body,cache["log"]) where cache["log"] != nil
+      transform/metrics:
+        metric_statements:
+          - context: metric
+            statements:
+              - replace_pattern(unit, "_", "") where IsMatch(unit,".*[_]{1}.*")
+              - replace_pattern(name,"^(.*)$","longer.name.$$1") where Len(name) <= 4
+              - set(resource.attributes["cumulative"],"true") where aggregation_temporality == AGGREGATION_TEMPORALITY_CUMULATIVE
+            
+      transform/crio:
+        log_statements:
+          context: log
+          statements:
+            - merge_maps(cache,ExtractPatterns(body,"^(?P<time>[^Z]+)Z (?P<stream>stdout|stderr) (?P<logtag>[^\\s]*) ?(?P<log>.*)$"), "upsert") where body != nil
+            - set(body,cache["log"]) where cache["log"] != nil      
+      transform/containerd:
+        log_statements:
+          context: log
+          statements:
+            - merge_maps(cache,ExtractPatterns(body,"^(?P<time>[^Z]+Z) (?P<stream>stdout|stderr) (?P<logtag>[^\\s]*) ?(?P<log>.*)$"), "upsert") where body != nil
+            - merge_maps(cache,ExtractPatterns(body,"^(?P<time>\\d+/\\d+/\\d+\\s+\\d+:\\d+\\d+) (?P<log>.*)$"), "upsert") where attributes["log_name"]!= "MeshAccessLog" and cache["log"]!= nil and not IsMap(cache["log"])
+            - set(body,cache["log"]) where cache["log"] != nil
+            - merge_maps(cache,ParseJSON(body), "upsert") where IsMap(body)
+            - set(body,cache["message"]) where cache["message"] != nil
+            - set(body,cache["msg"]) where cache["msg"] != nil
+            - set(severity_text,cache["level"]) where cache["level"] != nil
+            - set(severity_text,cache["severity"]) where cache["severity"] != nil
+            - set(severity_number,SEVERITY_NUMBER_INFO) where cache["level"] == "INFO"
+            - set(severity_number,SEVERITY_NUMBER_INFO) where cache["severity"] == "info"
+            - set(attributes["loggerName"],cache["loggerName"]) where cache["loggerName"] != nil
+    
+      transform/setstarttime:
+        log_statements:
+              context: log
+              statements:
+                - set(resource.attributes["processing.startime"],UnixMicro(Now()))  where resource.attributes["receiverTime"] != nil
+    
+      transform/setendtime:
+        log_statements:
+              context: log
+              statements:
+                - set(resource.attributes["processing.endtime"],UnixMicro(Now())) where resource.attributes["receiverTime"] != nil
+    
+    connectors:
+      routing:
+        default_pipelines:  [logs/default]
+        error_mode: ignore
+        table:
+          - statement: route() where attributes["container.runtime"] == "crio"
+            pipelines: [logs/crio]
+          - statement: route() where attributes["container.runtime"] == "docker"
+            pipelines: [logs/docker]
+          - statement: route() where attributes["container.runtime"] == "containerd"
+            pipelines: [logs/containerd]
+      routing/metrics:
+        default_pipelines: [metrics/default]
+        error_mode: ignore
+        table:
+          - statement: route() where attributes["cumulative"]=="true"
+            pipelines: [metrics/conversion]
+    
+    exporters:
+      logging:
+        verbosity: detailed
+     
+      otlphttp:
+        endpoint: $DT_ENDPOINT/api/v2/otlp
+        headers:
+          Authorization: "Api-Token $DT_API_TOKEN"
+      
+    
+    
+    service:
+      pipelines:
+        logs:
+          receivers: [filelog,otlp]
+          processors: [transform/setstarttime,memory_limiter,k8sattributes,resource,transform/setendtime,batch]
+          exporters: [otlphttp]
+        metrics:
+          receivers: [otlp,prometheus]
+          processors: [memory_limiter,filter,resource, transform/metrics,k8sattributes]
+          exporters: [routing/metrics]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter,k8sattributes,resource,batch]
+          exporters: [otlphttp]
+        metrics/default:
+          receivers: [routing/metrics]
+          processors: [batch]
+          exporters: [otlphttp]
+        metrics/conversion:
+          receivers: [routing/metrics]
+          processors: [cumulativetodelta,batch]
+          exporters: [otlphttp]
+      telemetry:
+        metrics:
+          address: $MY_POD_IP:8888

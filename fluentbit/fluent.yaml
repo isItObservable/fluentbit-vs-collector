@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    meta.helm.sh/release-name: fluent-bit
+    meta.helm.sh/release-namespace: fluentbit1
+  labels:
+    app.kubernetes.io/instance: fluent-bit
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fluent-bit
+    app.kubernetes.io/version: 2.2.1
+    helm.sh/chart: fluent-bit-0.42.0
+  name: fluent-bit
+  namespace: fluentbit
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: fluent-bit
+      app.kubernetes.io/name: fluent-bit
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: fluent-bit
+        app.kubernetes.io/name: fluent-bit
+      annotations:
+        metrics.dynatrace.com/scrape: "true"
+        metrics.dynatrace.com/port: "2021"
+    spec:
+      containers:
+      - args:
+        - --workdir=/fluent-bit/etc
+        - --config=/fluent-bit/etc/conf/fluent-bit.yaml
+
+        command:
+        - /fluent-bit/bin/fluent-bit
+        image: cr.fluentbit.io/fluent/fluent-bit:2.2.1
+        imagePullPolicy: Always
+        env:
+          - name: CLUSTER_ID
+            valueFrom:
+              secretKeyRef:
+                name: dynatrace
+                key: clusterid
+          - name: CLUSTERNAME
+            valueFrom:
+              secretKeyRef:
+                name: dynatrace
+                key: clustername
+          - name: DT_ENDPOINT_HOST
+            valueFrom:
+              secretKeyRef:
+                name: dynatrace
+                key: dynatrace_oltp_host
+          - name: DT_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: dynatrace
+                key: dt_api_token
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.podIP
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: fluent-bit
+        ports:
+        - containerPort: 2020
+          name: http
+          protocol: TCP
+        - containerPort: 2021
+          name: prom
+          protocol: TCP
+        - containerPort: 4318
+          name: otel
+          protocol: TCP
+        - containerPort: 4317
+          name: otelhttp
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /api/v1/health
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 6
+        volumeMounts:
+        - mountPath: /fluent-bit/etc/conf
+          name: config
+        - mountPath: /var/log
+          name: varlog
+        - mountPath: /var/lib/docker/containers
+          name: varlibdockercontainers
+          readOnly: true
+        - mountPath: /etc/machine-id
+          name: etcmachineid
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccount: fluent-bit
+      serviceAccountName: fluent-bit
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: fluent-bit
+        name: config
+      - hostPath:
+          path: /var/log
+          type: ""
+        name: varlog
+      - hostPath:
+          path: /var/lib/docker/containers
+          type: ""
+        name: varlibdockercontainers
+      - hostPath:
+          path: /etc/machine-id
+          type: File
+        name: etcmachineid

@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    meta.helm.sh/release-name: fluent-bit
+    meta.helm.sh/release-namespace: fluentbit
+  labels:
+    app.kubernetes.io/instance: fluent-bit
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fluent-bit
+    app.kubernetes.io/version: 2.2.1
+    helm.sh/chart: fluent-bit-0.42.0
+  name: fluent-bit
+  namespace: fluentbit
+data:
+  custom_parsers.conf: |
+    [PARSER]
+        Name docker_no_time
+        Format json
+        Time_Keep Off
+        Time_Key time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+  fluent-bit.yaml: |
+    service:
+      http_server: "on"
+      Health_Check: "on"
+
+
+
+    pipeline:
+      inputs:
+        - name: tail
+          path: /var/log/containers/*.log
+          multiline.parser: docker, cri
+          tag: kube.*
+          mem_Buf_Limit: 5MB
+          skip_Long_Lines: On
+          processors:
+            logs:
+              - name: grep
+                match: kube.*
+                exclude: kubernetes_container_name fluent-bit
+              - name: modify
+                match: "kube.*"
+                add: 
+                  - k8s.cluster.name ${CLUSTERNAME}
+                  - dt.kubernetes.cluster.id ${CLUSTER_ID}
+              
+        - name: prometheus_scrape
+          host: kepler.kepler.svc.cluster.local
+          port: 9102
+          tag: metric.kepler 
+                 
+        - name: fluentbit_metrics
+          tag:  metric.fluent
+          scrape_interval: 2
+        - name: opentelemetry
+          listen: ${MY_POD_IP}
+          port: 4318
+          tag: otel.otlphttp
+        - name:  prometheus_scrape
+          host: prometheus-prometheus-node-exporter.default.svc.cluster.local
+          port: 9100
+          tag:   metric.node_metrics
+          scrape_interval: 5
+        - name:  prometheus_scrape
+          host: prometheus-kube-state-metrics.default.svc.cluster.local
+          port: 8080
+          tag:   metric.kube_state_metric
+          scrape_interval: 5
+     
+      filters:
+        
+        - name: kubernetes
+          match: kube.*
+          merge_log: on
+          keep_log: off
+          k8s-logging.parser : on
+          k8S-logging.exclude: on
+
+        - name: nest
+          match: kube.*
+          operation: lift
+          nested_under: kubernetes
+          add_prefix :  kubernetes_
+        - name: nest
+          match: kube.*
+          operation: lift
+          nested_under: kubernetes_labels
+        - name: modify
+          match: kube.*
+          rename: 
+            - log content
+            - kubernetes_pod_name k8s.pod.name
+            - kubernetes_namespace_name k8s.namespace.name
+            - kubernetes_container_name k8S.container.name
+            - kubernetes_pod_id k8s.pod.uid
+          remove: 
+             - kubernetes_container_image
+             - kubernetes_docker_id
+             - kubernetes_annotations
+             - kubernetes_host
+             - time
+             - kubernetes_container_hash
+        - name: throttle
+          match: "*"
+          rate:     800
+          window:   3
+          print_Status: true
+          interval: 30s
+        
+        
+
+      outputs:
+        - name: opentelemetry
+          host: ${DT_ENDPOINT_HOST}
+          port: 443
+          match: "otel.*"
+          metrics_uri: /api/v2/otlp/v1/metrics
+          traces_uri:  /api/v2/otlp/v1/traces
+          logs_uri: /api/v2/otlp/v1/logs
+          log_response_payload: true
+          tls:  On
+          tls.verify: Off
+          header:
+            - Authorization Api-Token ${DT_API_TOKEN}
+            - Content-type application/x-protobuf
+        - name: opentelemetry
+          host: ${DT_ENDPOINT_HOST}
+          port: 443
+          match: "kube.*"
+          metrics_uri: /api/v2/otlp/v1/metrics
+          traces_uri:  /api/v2/otlp/v1/traces
+          logs_uri: /api/v2/otlp/v1/logs
+          log_response_payload: true
+          tls:  On
+          tls.verify: Off
+          header:
+            - Authorization Api-Token ${DT_API_TOKEN}
+            - Content-type application/x-protobuf
+    
+        - name: prometheus_exporter
+          match: "metric.*"
+          host: 0.0.0.0
+          port: 2021
+     
+          
+    
+        
+
+

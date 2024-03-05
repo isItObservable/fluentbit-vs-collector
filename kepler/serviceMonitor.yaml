@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kepler-monitor
+  labels:
+    app.kubernetes.io/part-of: kepler
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: exporter
+      app.kubernetes.io/name: kepler
+  namespaceSelector:
+    matchNames:
+      - kepler
+  endpoints:
+    - port: http
+      interval: 15s
+      metricRelabelings:
+        - sourceLabels: [ __name__ ]
+          regex: 'kepler_process_uncore_joules'
+          action: drop
+        - sourceLabels: [ __name__ ]
+          regex: 'go_*'
+          action: drop
+        - action: labeldrop
+          regex: container_id
+        - action: labeldrop
+          regex: pid
