@@ -8,7 +8,7 @@ spec:
       tracing:
         sampling: 100
         openCensusAgent:
-          address: oteld-collector.default.svc.cluster.local:55678
+          address: otel-collector.default.svc.cluster.local:55678
     defaultProviders:
       tracing:
         - "otelp"
@@ -19,15 +19,15 @@ spec:
     extensionProviders:
       - envoyOtelAls:
           port: 4317
-          service: "oteld-collector.default.svc.cluster.local"
+          service: "otel-collector.default.svc.cluster.local"
         name: "envoylogs"
       - name: "otelp"
         opentelemetry:
-          service: "oteld-collector.default.svc.cluster.local"
+          service: "otel-collector.default.svc.cluster.local"
           port: 4317
       - name: "opencensus"
         opencensus:
-          service: "oteld-collector.default.svc.cluster.local"
+          service: "otel-collector.default.svc.cluster.local"
           port: 55678
           context:
             - W3C_TRACE_CONTEXT

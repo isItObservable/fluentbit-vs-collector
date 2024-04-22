@@ -32,7 +32,7 @@ cloudprofiler.googleapis.com \
 ### 2.Create a GKE cluster
 ```shell
 ZONE=europe-west3-a
-NAME=isitobservable-fluentbitcollectorbench
+NAME=isitobservable-fluentbitcollectorbenchv3
 gcloud container clusters create ${NAME} --zone=${ZONE} --machine-type=e2-standard-4 --num-nodes=2
 ```
 
@@ -91,7 +91,7 @@ curl -L https://istio.io/downloadIstio | sh -
 This command download the latest version of istio ( in our case istio 1.18.2) compatible with our operating system.
 2. Add istioctl to you PATH
 ```shell
-cd istio-1.20.1
+cd istio-1.21.0
 ```
 this directory contains samples with addons . We will refer to it later.
 ```shell

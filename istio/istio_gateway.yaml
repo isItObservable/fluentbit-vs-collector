@@ -69,39 +69,3 @@ spec:
             port:
               number: 8080
             host: opentelemetry-demo-frontend
----
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: grafana-gateway
-  namespace: default
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-    - port:
-        number: 80
-        name: http
-        protocol: HTTP
-      hosts:
-        - "grafana.IP_TO_REPLACE.nip.io"
----
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: grafana-httproute
-  namespace: default
-spec:
-  hosts:
-    - "grafana.IP_TO_REPLACE.nip.io"
-  gateways:
-    - grafana-gateway
-  http:
-    - match:
-        - uri:
-            prefix: /
-      route:
-        - destination:
-            port:
-              number: 80
-            host: prometheus-grafana

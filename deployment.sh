@@ -103,21 +103,21 @@ if [  "$TYPE" = 'fluent' ]; then
   echo "************************************************************************"
   echo "***      DEPLOYMENT MODDE SELECTED : Fluentbit                       ***"
   echo "************************************************************************"
-  DT_HOST=$(echo $DTURL | grep -oP 'https://\K\S+')
   kubectl create ns fluentbit
-  helm repo add fluent https://fluent.github.io/helm-charts
-  helm upgrade --install fluent-bit fluent/fluent-bit --namespace fluentbit
-  istioctl install -f istio/istio-operator_fluentbit.yaml --skip-confirmation
+  kubectl apply -f fluentbit/rbac.yaml -n fluentbit
+  DT_HOST=$(echo $DTURL | grep -oP 'https://\K\S+')
   kubectl create secret generic dynatrace -n fluentbit  --from-literal=clustername="$CLUSTERNAME" --from-literal=dynatrace_oltp_url="$DTURL" --from-literal=dynatrace_oltp_host="$DT_HOST" --from-literal=clusterid=$CLUSTERID  --from-literal=dt_api_token="$DTTOKEN"
+  kubectl apply -f fluentbit/pipeline/fluentbit.yaml -n fluentbit
+  kubectl apply -f  fluentbit/rbac.yaml -n fluentbit
+  kubectl apply -f fluentbit/fluent.yaml -n fluentbit
+  kubectl apply -f fluentbit/fluentbitsvc.yaml -n fluentbit
 
-else
-   echo "************************************************************************"
-    echo "***      DEPLOYMENT MODDE SELECTED : Collector                      ***"
-    echo "************************************************************************"
-  istioctl install -f istio/istio-operator.yaml --skip-confirmation
+
+
+
 fi
 
-
+istioctl install -f istio/istio-operator.yaml --skip-confirmation
 
 ### get the ip adress of ingress ####
 IP=""
@@ -133,17 +133,16 @@ echo 'Found external IP: '$IP
 sed -i "s,IP_TO_REPLACE,$IP," istio/istio_gateway.yaml
 sed -i "s,IP_TO_REPLACE,$IP," hipstershop/k8s-manifest.yaml
 sed -i "s,IP_TO_REPLACE,$IP," opentelemetry/deployment.yaml
-sed -i "s,IP_TO_REPLACE,$IP," opentelemetry/deployment_fluentbit.yaml
-sed -i "s,IP_TO_REPLACE,$IP," hipstershop/k8s-manifest_fluentbit.yaml
-
+sed -i "s,IP_TO_REPLACE,$IP," hipstershop/loadtest_job.yaml
+sed -i "s,IP_TO_REPLACE,$IP," opentelemetry/loadtest_job.yaml
 helm install prometheus prometheus-community/kube-prometheus-stack
 
 
 
 #### Deploy the Dynatrace Operator
-kubectl create namespace dynatrace
-kubectl apply -f https://github.com/Dynatrace/dynatrace-operator/releases/download/v0.15.0/kubernetes.yaml
-kubectl apply -f https://github.com/Dynatrace/dynatrace-operator/releases/download/v0.15.0/kubernetes-csi.yaml
+kubectl create ns dynatrace
+kubectl apply -f https://github.com/Dynatrace/dynatrace-operator/releases/download/v1.0.0/kubernetes.yaml
+kubectl apply -f https://github.com/Dynatrace/dynatrace-operator/releases/download/v1.0.0/kubernetes-csi.yaml
 kubectl -n dynatrace wait pod --for=condition=ready --selector=app.kubernetes.io/name=dynatrace-operator,app.kubernetes.io/component=webhook --timeout=300s
 kubectl -n dynatrace create secret generic dynakube --from-literal="apiToken=$DTOPERATORTOKEN" --from-literal="dataIngestToken=$DTTOKEN"
 sed -i "s,TENANTURL_TOREPLACE,$DTURL," dynatrace/dynakube.yaml
@@ -168,23 +167,21 @@ kubectl create secret generic dynatrace  --from-literal=dynatrace_oltp_url="$DTU
 
 if [  "$TYPE" = 'fluent' ]; then
   echo "Deploy Demo Application for Fluentbit"
-  kubectl apply -f opentelemetry/opentelemetry_collector_sidecar.yaml -n hipster-shop
-  kubectl apply -f opentelemetry/opentelemetry_collector_sidecar.yaml -n otel-demo
-  kubectl apply -f opentelemetry/deployment_fluentbit.yaml -n otel-demo
-  kubectl apply -f hipstershop/k8s-manifest_fluentbit.yaml -n hipster-shop
+   kubectl apply -f opentelemetry/opentelemetry_collector_fluentbit.yaml
+
 else
   echo "Deploy Demo Application for Collector"
-  kubectl apply -f openTelemetry/deployment.yaml -n otel-demo
-  kubectl apply -f hipstershop/k8s-manifest.yaml -n hipster-shop
+  kubectl apply -f opentelemetry/targetallocator/openTelemetry-manifest_debut.yaml
+  kubectl apply -f opentelemetry/targetallocator/openTelemetry-manifest_statefulset_sd_config.yaml
 fi
-
+kubectl apply -f openTelemetry/deployment.yaml -n otel-demo
+kubectl apply -f hipstershop/k8s-manifest.yaml -n hipster-shop
 kubectl apply -f istio/istio_gateway.yaml
 
 echo "--------------Demo--------------------"
 echo "url of the demo: "
 echo "hipstershop url: http://hipstershop.$IP.nip.io"
 echo "oteldemo url: http://oteldemo.$IP.nip.io"
-echo "grafana url: http://grafana.$IP.nip.io"
 echo "========================================================"
 
 

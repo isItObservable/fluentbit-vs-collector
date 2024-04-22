@@ -37,11 +37,19 @@ data:
           skip_Long_Lines: On
           processors:
             logs:
-              - name: modify
-                match: "kube.*"
-                add: 
-                  - k8s.cluster.name ${CLUSTERNAME}
-                  - dt.kubernetes.cluster.id ${CLUSTER_ID}
+              - name: content_modifier
+                action: insert
+                key: k8s.cluster.name 
+                value: ${CLUSTERNAME}
+              - name: content_modifier
+                action: insert
+                key: dt.kubernetes.cluster.id
+                value: ${CLUSTER_ID}
+              - name: content_modifier
+                context: attributes
+                action: upsert
+                key: "agent"
+                value: "fluentbitv3"
         
         - name: fluentbit_metrics
           tag:  metric.fluent

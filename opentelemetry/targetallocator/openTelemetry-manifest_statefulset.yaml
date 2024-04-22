@@ -100,8 +100,10 @@ spec:
           
       otlp:
         protocols:
-          grpc:
-          http:
+          grpc: 
+            endpoint: "$MY_POD_IP:4317"
+          http: 
+            endpoint: "$MY_POD_IP:4318"
 
 
     processors:
@@ -193,9 +195,13 @@ spec:
     
     
     service:
-      pipelines:       
+      pipelines:     
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter,k8sattributes,resource,batch]
+          exporters: [otlphttp]
         metrics:
-          receivers: [prometheus]
+          receivers: [prometheus,otlp]
           processors: [memory_limiter,filter, resource,transform/metrics,k8sattributes]
           exporters: [routing/metrics]
         metrics/conversion:

@@ -76,7 +76,7 @@ spec:
           # Find out which format is used by kubernetes
           - type: add
             id: receivetiming
-            field: resource["receiverTime]
+            field: resource["receiverTime"]
             value: 'EXPR(now())'
           - type: router
             id: get-format
@@ -257,27 +257,13 @@ spec:
     
     service:
       pipelines:
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter,k8sattributes,resource,batch]
-          exporters: [otlphttp]
-        metrics:
-          receivers: [otlp,prometheus]
-          processors: [memory_limiter,filter,resource, transform/metrics,k8sattributes]
-          exporters: [routing/metrics]
+       
         logs:
-          receivers: [otlp,filelog]
+          receivers: [filelog]
           processors: [transform/setstarttime,memory_limiter,resource, transform/metrics,k8sattributes,transform/setendtime,batch]
           exporters: [otlphttp]
         
-        metrics/default:
-          receivers: [routing/metrics]
-          processors: [batch]
-          exporters: [otlphttp]
-        metrics/conversion:
-          receivers: [routing/metrics]
-          processors: [cumulativetodelta,batch]
-          exporters: [otlphttp]
+     
       telemetry:
         metrics:
           address: $MY_POD_IP:8888

@@ -58,7 +58,11 @@ spec:
         path: /var/lib/docker/containers
   config: |
     receivers:
-       prometheus:
+      otlp:
+        protocols:
+          grpc:
+          http:
+      prometheus:
         config:
           scrape_configs:
           - job_name: opentelemetry-collector
@@ -73,10 +77,9 @@ spec:
         include_file_path: true
         include_file_name: false
         operators:
-          # Find out which format is used by kubernetes
           - type: add
             id: receivetiming
-            field: resource["receiverTime]
+            field: resource["receiverTime"]
             value: 'EXPR(now())'
           - type: router
             id: get-format
@@ -103,10 +106,7 @@ spec:
     
      
       
-      otlp:
-        protocols:
-          grpc:
-          http:
+     
 
 
     processors:
@@ -120,15 +120,15 @@ spec:
     
       transform/setstarttime:
         log_statements:
-              context: log
-              statements:
-                - set(resource.attributes["processing.startime"],Now()) 
+          context: log
+          statements:
+            - set(resource.attributes["processing.startime"],Now()) 
     
       transform/setendtime:
         log_statements:
-              context: log
-              statements:
-                - set(resource.attributes["processing.endtime"],Now()) 
+          context: log
+          statements:
+            - set(resource.attributes["processing.endtime"],Now()) 
     
       filter:
         error_mode: ignore
@@ -251,8 +251,7 @@ spec:
             pipelines: [metrics/conversion]
     
     exporters:
-      logging:
-        verbosity: detailed
+
      
       otlphttp:
         endpoint: $DT_ENDPOINT/api/v2/otlp
@@ -262,13 +261,9 @@ spec:
     
     
     service:
-      pipelines:
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter,k8sattributes,resource,batch]
-          exporters: [otlphttp]
+      pipelines:    
         metrics:
-          receivers: [otlp,prometheus]
+          receivers: [prometheus]
           processors: [memory_limiter,filter,resource, transform/metrics,k8sattributes]
           exporters: [routing/metrics]
         logs:

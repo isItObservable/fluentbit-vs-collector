@@ -521,7 +521,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_PROPAGATORS
               value: b3,tracecontext,baggage
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
@@ -612,7 +612,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_PROPAGATORS
               value: b3,tracecontext,baggage
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
@@ -701,7 +701,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_PROPAGATORS
@@ -797,7 +797,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_PROPAGATORS
@@ -902,7 +902,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc.cluster'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: CURRENCY_SERVICE_PORT
@@ -986,7 +986,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc.cluster'
             - name: OTEL_PROPAGATORS
               value: b3,tracecontext,baggage
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
@@ -1073,7 +1073,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc.cluster'
             - name: OTEL_PROPAGATORS
               value: b3,tracecontext,baggage
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
@@ -1177,7 +1177,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc.cluster'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: POSTGRES_DB
@@ -1260,7 +1260,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_PROPAGATORS
               value: b3,tracecontext,baggage
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
@@ -1351,7 +1351,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: FRONTEND_PORT
@@ -1458,7 +1458,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: ENVOY_PORT
@@ -1569,7 +1569,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_PROPAGATORS
@@ -1660,7 +1660,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: LOCUST_WEB_PORT
@@ -1754,7 +1754,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_PROPAGATORS
@@ -1843,7 +1843,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_PROPAGATORS
@@ -1930,7 +1930,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_PROPAGATORS
@@ -2021,7 +2021,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: RECOMMENDATION_SERVICE_PORT
@@ -2114,7 +2114,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_RESOURCE_ATTRIBUTES
@@ -2194,7 +2194,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.uid
             - name: OTEL_COLLECTOR_NAME
-              value: 'oteld-collector.default.svc.cluster.local'
+              value: 'otel-collector.default.svc'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: SHIPPING_SERVICE_PORT

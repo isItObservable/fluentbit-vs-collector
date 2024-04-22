@@ -37,37 +37,129 @@ data:
           skip_Long_Lines: On
           processors:
             logs:
-              - name: grep
-                match: kube.*
-                exclude: kubernetes_container_name fluent-bit
-              - name: modify
-                match: "kube.*"
-                add: 
-                  - k8s.cluster.name ${CLUSTERNAME}
-                  - dt.kubernetes.cluster.id ${CLUSTER_ID}
+              - name: content_modifier
+                action: insert
+                key: k8s.cluster.name 
+                value: ${CLUSTERNAME}
+              - name: content_modifier
+                action: insert
+                key: dt.kubernetes.cluster.id
+                value: ${CLUSTER_ID}
+              - name: content_modifier
+                context: attributes
+                action: upsert
+                key: "agent"
+                value: "fluentbitv3"
               
-        - name: prometheus_scrape
-          host: kepler.kepler.svc.cluster.local
-          port: 9102
-          tag: metric.kepler 
-                 
+        
         - name: fluentbit_metrics
           tag:  metric.fluent
           scrape_interval: 2
+    
         - name: opentelemetry
           listen: ${MY_POD_IP}
           port: 4318
           tag: otel.otlphttp
+          processors:
+            traces:
+              - name: content_modifier
+                context: span_attributes
+                action: upsert
+                key: "agent"
+                value: "fluentbitv3"
+            logs:
+              - name: content_modifier
+                action: insert
+                key: k8s.cluster.name 
+                value: ${CLUSTERNAME}
+              - name: content_modifier
+                action: insert
+                key: dt.kubernetes.cluster.id
+                value: ${CLUSTER_ID}
+              - name: content_modifier
+                context: attributes
+                action: upsert
+                key: "agent"
+                value: "fluentbitv3"
+    
         - name:  prometheus_scrape
           host: prometheus-prometheus-node-exporter.default.svc.cluster.local
           port: 9100
           tag:   metric.node_metrics
           scrape_interval: 5
+          processors:
+            metrics:
+              - name: metrics_selector
+                metric_name: /scrape_/
+                action: exclude
+              - name: metrics_selector
+                metric_name: /go_/
+                action: exclude
+              - name: metrics_selector
+                metric_name: /up/
+                action: exclude
+    
+    
+    
+    
         - name:  prometheus_scrape
           host: prometheus-kube-state-metrics.default.svc.cluster.local
           port: 8080
           tag:   metric.kube_state_metric
-          scrape_interval: 5
+          scrape_interval: 5       
+          processors:
+            metrics:
+              - name: metrics_selector
+                metric_name: /scrape_/
+                action: exclude
+              - name: metrics_selector
+                metric_name: /go_/
+                action: exclude
+              - name: metrics_selector
+                metric_name: /up/
+                action: exclude
+    
+    
+        - name: prometheus_scrape
+          host: kepler.kepler.svc.cluster.local
+          port: 9102
+          tag: metric.kepler 
+          processors:
+            metrics:
+              - name: metrics_selector
+                metric_name: /scrape_/
+                action: exclude
+              - name: metrics_selector
+                metric_name: /go_/
+                action: exclude
+              - name: metrics_selector
+                metric_name: /up/
+                action: exclude
+              - name: metrics_selector
+                metric_name: /kepler_process_uncore_joules/
+                action: exclude
+              - name: labels
+                delete: container_id
+              - name: labels
+                delete: pid
+              - name: labels
+                update:
+                   label_name: pod_name
+                   label_value: k8s.pod.name
+    
+              - name: labels
+                update: 
+                   label_name: container_namespace
+                   label_value: k8s.namespace.name
+              - name: labels
+                update: 
+                   label_name: container_name
+                   label_value: k8s.container.name
+              - name: labels
+                update: 
+                   label_name: instance
+                   label_value: k8s.node.name
+       
      
       filters:
         

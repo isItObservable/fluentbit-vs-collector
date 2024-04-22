@@ -67,7 +67,7 @@ spec:
                       apiVersion: v1
                       fieldPath: metadata.uid
                 - name: OTEL_COLLECTOR_NAME
-                  value: 'oteld-collector.default.svc.cluster.local'
+                  value: 'otel-collector.default.svc.cluster.local'
                 - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
                   value: delta
                 - name: LOCUST_WEB_PORT
@@ -160,7 +160,7 @@ spec:
                       apiVersion: v1
                       fieldPath: metadata.uid
                 - name: OTEL_COLLECTOR_NAME
-                  value: 'oteld-collector.default.svc.cluster.local'
+                  value: 'otel-collector.default.svc.cluster.local'
                 - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
                   value: delta
                 - name: LOCUST_WEB_PORT
