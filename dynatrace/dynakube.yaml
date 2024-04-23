@@ -4,7 +4,7 @@ metadata:
   name: dynakube
   namespace: dynatrace
   annotations:
-    feature.dynatrace.com/automatic-kubernetes-api-monitoring-cluster-name: "isitobservable-fluentbitcollectorbenchv3"
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring-cluster-name: "CLUSTER_NAME_TO_REPLACE"
   # Optional: necessary in case of a node using cgroup V2
   # annotations:
   #   feature.dynatrace.com/oneagent-privileged: "true"
@@ -13,7 +13,7 @@ spec:
   # For SaaS, set `YOUR_ENVIRONMENT_ID` to your environment ID.
   # For Managed, change the apiUrl address.
   # For instructions on how to determine the environment ID and how to configure the apiUrl address, see https://www.dynatrace.com/support/help/reference/dynatrace-concepts/environment-id/.
-  apiUrl: https://oat05854.dev.dynatracelabs.com/api
+  apiUrl: TENANTURL_TOREPLACE/api
 
   # Optional: Name of the secret holding the credentials required to connect to the Dynatrace tenant
   # If unset, the name of this custom resource is used
