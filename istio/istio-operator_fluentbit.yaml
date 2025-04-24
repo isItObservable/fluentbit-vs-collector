@@ -17,9 +17,9 @@ spec:
     extensionProviders:
       - envoyOtelAls:
           port: 4317
-          service: "otel-collector.default.svc.cluster.local"
+          service: "fluent-bit.fluentbit.svc.cluster.local"
         name: "envoylogs"
       - name: "otelp"
         opentelemetry:
-          service: "otel-collector.default.svc.cluster.local"
+          service: "fluent-bit.fluentbit.svc.cluster.local"
           port: 4317

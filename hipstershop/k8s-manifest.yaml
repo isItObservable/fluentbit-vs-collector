@@ -220,12 +220,19 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 5
             exec:
-              command: ["/bin/grpc_health_probe", "-addr=:8080"]
+              command: [ "/bin/grpc_health_probe", "-addr=:8080" ]
           livenessProbe:
             timeoutSeconds: 5
             periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
             exec:
-              command: ["/bin/grpc_health_probe", "-addr=:8080"]
+              command: [ "/bin/grpc_health_probe", "-addr=:8080" ]
+          startupProbe:
+            exec:
+              command: [ "/bin/grpc_health_probe", "-addr=:8080" ]
+            failureThreshold: 30
+            periodSeconds: 10
           env:
             - name: PORT
               value: "8080"
