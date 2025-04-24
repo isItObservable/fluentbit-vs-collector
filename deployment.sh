@@ -97,7 +97,8 @@ CLUSTERID=$(kubectl get namespace kube-system -o jsonpath='{.metadata.uid}');
 # Add Kepler
 echo "Deploying Kepler"
 helm repo add kepler https://sustainable-computing-io.github.io/kepler-helm-chart
-helm install kepler kepler/kepler --namespace kepler --set canMount.usrSrc=false --create-namespace
+helm repo update
+helm install kepler kepler/kepler --values kepler/values.yaml --namespace kepler --create-namespace
 
 if [  "$TYPE" = 'fluent' ]; then
   echo "************************************************************************"
@@ -105,19 +106,20 @@ if [  "$TYPE" = 'fluent' ]; then
   echo "************************************************************************"
   kubectl create ns fluentbit
   kubectl apply -f fluentbit/rbac.yaml -n fluentbit
-  DT_HOST=$(echo $DTURL | grep -oP 'https://\K\S+')
+  #DT_HOST=$(echo $DTURL | grep -oP 'https://\K\S+')
+  DT_HOST=$(echo $DTURL | cut -d'/' -f3)
   kubectl create secret generic dynatrace -n fluentbit  --from-literal=clustername="$CLUSTERNAME" --from-literal=dynatrace_oltp_url="$DTURL" --from-literal=dynatrace_oltp_host="$DT_HOST" --from-literal=clusterid=$CLUSTERID  --from-literal=dt_api_token="$DTTOKEN"
   kubectl apply -f fluentbit/pipeline/fluentbit.yaml -n fluentbit
   kubectl apply -f  fluentbit/rbac.yaml -n fluentbit
   kubectl apply -f fluentbit/fluent.yaml -n fluentbit
   kubectl apply -f fluentbit/fluentbitsvc.yaml -n fluentbit
 
-
-
-
+ istioctl install -f istio/istio-operator_fluentbit.yaml --skip-confirmation
+else
+ istioctl install -f istio/istio-operator.yaml --skip-confirmation
 fi
 
-istioctl install -f istio/istio-operator.yaml --skip-confirmation
+
 
 ### get the ip adress of ingress ####
 IP=""
@@ -130,23 +132,28 @@ echo 'Found external IP: '$IP
 
 ### Update the ip of the ip adress for the ingres
 #TODO to update this part to create the various Gateway rules
-sed -i "s,IP_TO_REPLACE,$IP," istio/istio_gateway.yaml
-sed -i "s,IP_TO_REPLACE,$IP," hipstershop/k8s-manifest.yaml
-sed -i "s,IP_TO_REPLACE,$IP," opentelemetry/deployment.yaml
-sed -i "s,IP_TO_REPLACE,$IP," hipstershop/loadtest_job.yaml
-sed -i "s,IP_TO_REPLACE,$IP," opentelemetry/loadtest_job.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," istio/istio_gateway.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," hipstershop/k8s-manifest.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/collector/deployment-otel.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/fluenbit/deployment-fluentbit.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," hipstershop/loadtest_job.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/collector/loadtest_job.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/fluenbit/loadtest_job.yaml
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm install prometheus prometheus-community/kube-prometheus-stack
 
 
 
 #### Deploy the Dynatrace Operator
-kubectl create ns dynatrace
-kubectl apply -f https://github.com/Dynatrace/dynatrace-operator/releases/download/v1.0.0/kubernetes.yaml
-kubectl apply -f https://github.com/Dynatrace/dynatrace-operator/releases/download/v1.0.0/kubernetes-csi.yaml
-kubectl -n dynatrace wait pod --for=condition=ready --selector=app.kubernetes.io/name=dynatrace-operator,app.kubernetes.io/component=webhook --timeout=300s
+helm install dynatrace-operator oci://public.ecr.aws/dynatrace/dynatrace-operator \
+    --set "csidriver.enabled=true" \
+   --create-namespace \
+   --namespace dynatrace \
+   --atomic
+
 kubectl -n dynatrace create secret generic dynakube --from-literal="apiToken=$DTOPERATORTOKEN" --from-literal="dataIngestToken=$DTTOKEN"
-sed -i "s,TENANTURL_TOREPLACE,$DTURL," dynatrace/dynakube.yaml
-sed -i "s,CLUSTER_NAME_TO_REPLACE,$CLUSTERNAME,"  dynatrace/dynakube.yaml
+sed -i '' "s,TENANTURL_TOREPLACE,$DTURL," dynatrace/dynakube.yaml
+sed -i '' "s,CLUSTER_NAME_TO_REPLACE,$CLUSTERNAME,"  dynatrace/dynakube.yaml
 kubectl apply -f dynatrace/dynakube.yaml -n dynatrace
 # Deploy collector
 kubectl create secret generic dynatrace  --from-literal=dynatrace_oltp_url="$DTURL" --from-literal=clustername="$CLUSTERNAME"  --from-literal=clusterid=$CLUSTERID  --from-literal=dt_api_token="$DTTOKEN"
@@ -163,18 +170,21 @@ kubectl label namespace  otel-demo oneagent=false
 
 kubectl create ns hipster-shop
 kubectl label namespace hipster-shop istio-injection=enabled
+kubectl label namespace hipster-shop oneagent=true
 kubectl create secret generic dynatrace  --from-literal=dynatrace_oltp_url="$DTURL"  --from-literal=dt_api_token="$DTTOKEN" -n hipster-shop
 
 if [  "$TYPE" = 'fluent' ]; then
   echo "Deploy Demo Application for Fluentbit"
-   kubectl apply -f opentelemetry/opentelemetry_collector_fluentbit.yaml
-
+   kubectl apply -f opentelemetry/fluenbit/openTelemetry-manifest_statefulset_fluentbit.yaml
+   kubectl apply -f opentelemetry/fluenbit/deployment-fluentbit.yaml -n otel-demo
 else
   echo "Deploy Demo Application for Collector"
-  kubectl apply -f opentelemetry/targetallocator/openTelemetry-manifest_debut.yaml
-  kubectl apply -f opentelemetry/targetallocator/openTelemetry-manifest_statefulset_sd_config.yaml
+  kubectl apply -f opentelemetry/collector/openTelemetry-manifest_ds.yaml
+  kubectl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset.yaml
+  kubectl apply -f opentelemetry/collector/deployment-otel.yaml -n otel-demo
 fi
-kubectl apply -f openTelemetry/deployment.yaml -n otel-demo
+
+
 kubectl apply -f hipstershop/k8s-manifest.yaml -n hipster-shop
 kubectl apply -f istio/istio_gateway.yaml
 

@@ -40,9 +40,11 @@ data:
               - name: content_modifier
                 action: insert
                 key: k8s.cluster.name 
+                context: attributes
                 value: ${CLUSTERNAME}
               - name: content_modifier
                 action: insert
+                context: attributes
                 key: dt.kubernetes.cluster.id
                 value: ${CLUSTER_ID}
               - name: content_modifier
@@ -58,6 +60,54 @@ data:
     
         - name: opentelemetry
           listen: ${MY_POD_IP}
+          port: 4317
+          tag: otel.otlphttp
+          processors:
+            traces:
+              - name: content_modifier
+                context: span_attributes
+                action: upsert
+                key: "agent"
+                value: "fluentbitv3"
+           
+              - name: sampling
+                type: tail
+                sampling_settings:
+                  decision_wait: 5s
+                conditions:
+                  - type: latency
+                    threshold_ms_high: 200
+                  - type: status_code
+                    status_codes: [ "ERROR" , "UNSET" ]
+              
+                    
+
+            logs:
+              - name: content_modifier
+                action: insert
+                key: k8s.cluster.name 
+                context: attributes
+                value: ${CLUSTERNAME}
+              - name: content_modifier
+                action: insert
+                context: attributes
+                key: dt.kubernetes.cluster.id
+                value: ${CLUSTER_ID}
+              - name: content_modifier
+                context: attributes
+                action: upsert
+                key: "agent"
+                value: "fluentbitv3"
+            metrics:
+              - name: labels
+                insert: k8s.cluster.name ${CLUSTERNAME}
+              - name: labels
+                insert: dt.kubernetes.cluster.id ${CLUSTER_ID}
+              - name: labels
+                upsert: agent fluentbitv3
+    
+        - name: opentelemetry
+          listen: ${MY_POD_IP}
           port: 4318
           tag: otel.otlphttp
           processors:
@@ -67,13 +117,25 @@ data:
                 action: upsert
                 key: "agent"
                 value: "fluentbitv3"
+              - name: sampling
+                type: tail
+                sampling_settings:
+                  decision_wait: 5s
+                conditions:
+                  - type: latency
+                    threshold_ms_high: 200
+                  - type: status_code
+                    status_codes: [ "ERROR" , "UNSET" ]
+                
             logs:
               - name: content_modifier
                 action: insert
                 key: k8s.cluster.name 
                 value: ${CLUSTERNAME}
+                context: attributes
               - name: content_modifier
                 action: insert
+                context: attributes
                 key: dt.kubernetes.cluster.id
                 value: ${CLUSTER_ID}
               - name: content_modifier
@@ -81,6 +143,13 @@ data:
                 action: upsert
                 key: "agent"
                 value: "fluentbitv3"
+            metrics:
+              - name: labels
+                insert: k8s.cluster.name ${CLUSTERNAME}
+              - name: labels
+                insert: dt.kubernetes.cluster.id ${CLUSTER_ID}
+              - name: labels
+                upsert: agent fluentbitv3
     
         - name:  prometheus_scrape
           host: prometheus-prometheus-node-exporter.default.svc.cluster.local
@@ -89,6 +158,7 @@ data:
           scrape_interval: 5
           processors:
             metrics:
+              - name: opentelemetry_envelope
               - name: metrics_selector
                 metric_name: /scrape_/
                 action: exclude
@@ -109,6 +179,7 @@ data:
           scrape_interval: 5       
           processors:
             metrics:
+              - name: opentelemetry_envelope
               - name: metrics_selector
                 metric_name: /scrape_/
                 action: exclude
@@ -126,6 +197,7 @@ data:
           tag: metric.kepler 
           processors:
             metrics:
+              - name: opentelemetry_envelope
               - name: metrics_selector
                 metric_name: /scrape_/
                 action: exclude
@@ -142,24 +214,7 @@ data:
                 delete: container_id
               - name: labels
                 delete: pid
-              - name: labels
-                update:
-                   label_name: pod_name
-                   label_value: k8s.pod.name
-    
-              - name: labels
-                update: 
-                   label_name: container_namespace
-                   label_value: k8s.namespace.name
-              - name: labels
-                update: 
-                   label_name: container_name
-                   label_value: k8s.container.name
-              - name: labels
-                update: 
-                   label_name: instance
-                   label_value: k8s.node.name
-       
+
      
       filters:
         
@@ -168,7 +223,7 @@ data:
           merge_log: on
           keep_log: off
           k8s-logging.parser : on
-          k8S-logging.exclude: on
+          k8s-logging.exclude: on
 
         - name: nest
           match: kube.*
@@ -217,6 +272,7 @@ data:
           header:
             - Authorization Api-Token ${DT_API_TOKEN}
             - Content-type application/x-protobuf
+    
         - name: opentelemetry
           host: ${DT_ENDPOINT_HOST}
           port: 443
@@ -230,11 +286,22 @@ data:
           header:
             - Authorization Api-Token ${DT_API_TOKEN}
             - Content-type application/x-protobuf
-    
-        - name: prometheus_exporter
+          processors:
+            logs:
+               - name: opentelemetry_envelope
+        - name: opentelemetry
+          host: otel-collector.default.svc.cluster.local
+          port: 4318
           match: "metric.*"
-          host: 0.0.0.0
-          port: 2021
+          metrics_uri: /v1/metrics
+          traces_uri:  /v1/traces
+          logs_uri: /v1/logs
+          log_response_payload: true
+          tls:  Off
+          tls.verify: Off
+          header:
+            - Content-type application/x-protobuf
+       
      
           
     

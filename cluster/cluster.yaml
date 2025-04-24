@@ -1,0 +1,15 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: CLUSTER_NAME_TO_REPLACE
+  region: REGION_TO_REPLACE
+  tags:
+    owner: OWNER_TO_REPLACE
+
+managedNodeGroups:
+  - name: ng-1-workers
+    labels: { role: workers }
+    instanceType: m5.2xlarge
+    desiredCapacity: 2
+    privateNetworking: true

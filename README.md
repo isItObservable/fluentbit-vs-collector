@@ -19,7 +19,7 @@ The following tools need to be install on your machine :
 - Helm
 
 
-### 1.Create a Google Cloud Platform Project
+### GKE 1.Create a Google Cloud Platform Project
 ```shell
 PROJECT_ID="<your-project-id>"
 gcloud services enable container.googleapis.com --project ${PROJECT_ID}
@@ -29,11 +29,29 @@ clouddebugger.googleapis.com \
 cloudprofiler.googleapis.com \
 --project ${PROJECT_ID}
 ```
-### 2.Create a GKE cluster
+### GKE 2.Create a GKE cluster
 ```shell
 ZONE=europe-west3-a
-NAME=isitobservable-fluentbitcollectorbenchv3
+NAME=isitobservable-fluentbitcollectorbenchv4
 gcloud container clusters create ${NAME} --zone=${ZONE} --machine-type=e2-standard-4 --num-nodes=2
+```
+
+
+
+### EKS 2.Create a eks cluster
+First run the following cmd:
+
+```shell
+ZONE=eu-west-3
+NAME=isitobservable-fluentbitcollectorbenchv4
+OWNER=henrik.rexed
+```
+* For all the tests that are not related to cilium ( istio, ambientmesh, traefikmesh, kuma, linkerd) :
+```shell
+sed -i  '' "s,CLUSTER_NAME_TO_REPLACE,$NAME,"  cluster/cluster.yaml
+sed -i  '' "s,REGION_TO_REPLACE,$ZONE,"  cluster/cluster.yaml
+sed -i  '' "s,OWNER_TO_REPLACE,$OWNER,"  cluster/cluster.yaml
+eksctl create cluster -f cluster/cluster.yaml
 ```
 
 ## Getting started
@@ -91,7 +109,7 @@ curl -L https://istio.io/downloadIstio | sh -
 This command download the latest version of istio ( in our case istio 1.18.2) compatible with our operating system.
 2. Add istioctl to you PATH
 ```shell
-cd istio-1.21.0
+cd istio-1.23.3
 ```
 this directory contains samples with addons . We will refer to it later.
 ```shell
@@ -149,14 +167,13 @@ kubectl delete -f fluentbit/fluent.yaml -n fluentbit
 kubectl apply -f fluentbit/pipeline/step3-logs-otlp-prometheus/fluentbit.yaml -n fluentbit
 kubectl apply -f fluentbit/fluent.yaml -n fluentbit
 ```
-If you are
 
 ### Deploy most of the components for The collector
 The application will deploy the entire environment:
 ```shell
 chmod 777 deployment.sh
 TYPE=collector
-./deployment.sh  --clustername "${NAME}" --dturl "${DT_TENANT_URL}" --dtingesttoken "${DATA_INGEST_TOKEN}" --dtoperatortoken "${API_TOKEN}" --agentype="${TYPE}"
+./deployment.sh  --clustername "${NAME}" --dturl "${DT_TENANT_URL}" --dtingesttoken "${DATA_INGEST_TOKEN}" --dtoperatortoken "${API_TOKEN}" --agentype "${TYPE}"
 ```
 #### A. with processing at the receiver level
 ##### 1. Run the test collecting logs
