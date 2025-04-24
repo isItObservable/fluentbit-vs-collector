@@ -148,66 +148,35 @@ edit the Prometheus CRD with the following command:
 ```shell
  kubectl edit prometheus prometheus-kube-prometheus-prometheus
 ```
-### 2. Run the test collecting logs
+
+### 1. Run the test collecting logs, traces and metrics on fluenbbit
+
+#### 1. cosntant load
+    The applications are already deployed with a constant load.
+    Let's wait 45 min to collect enought data
+
+#### 2. Run Load test
 ```shell
-kubectl apply -f fluentbit/fluentbitsvc.yaml -n fluentbit
-kubectl delete -f fluentbit/fluent.yaml -n fluentbit
-kubectl apply -f fluentbit/pipeline/step1-logs/fluentbit.yaml -n fluentbit
-kubectl apply -f fluentbit/fluent.yaml -n fluentbit
-```
-### 3. Run the test collecting logs and traces
-```shell
-kubectl delete -f fluentbit/fluent.yaml -n fluentbit
-kubectl apply -f fluentbit/pipeline/step2-logs-otlp/fluentbit.yaml -n fluentbit
-kubectl apply -f fluentbit/fluent.yaml -n fluentbit
-```
-### 4. Run the test collecting logs, traces and metrics
-```shell
-kubectl delete -f fluentbit/fluent.yaml -n fluentbit
-kubectl apply -f fluentbit/pipeline/step3-logs-otlp-prometheus/fluentbit.yaml -n fluentbit
-kubectl apply -f fluentbit/fluent.yaml -n fluentbit
+ kubectl apply -f opentelemetry/fluenbit/loadtest_job.yaml -n otel-demo
+ kbuectl apply -f hipstershop/loadtest_job.yaml -n hipser-shop
 ```
 
-### Deploy most of the components for The collector
+### 2. Deploy most of the components for The collector
 The application will deploy the entire environment:
 ```shell
 chmod 777 deployment.sh
 TYPE=collector
 ./deployment.sh  --clustername "${NAME}" --dturl "${DT_TENANT_URL}" --dtingesttoken "${DATA_INGEST_TOKEN}" --dtoperatortoken "${API_TOKEN}" --agentype "${TYPE}"
 ```
-#### A. with processing at the receiver level
-##### 1. Run the test collecting logs
-```shell
-kubectl apply -f opentelemetry/collector processing after receiving/step1-logs/openTelemetry-manifest_debut.yaml
-```
-##### 2. Run the test collecting logs and traces
-```shell
-kubectl apply -f opentelemetry/collector processing after receiving//step2-logs-otlp/openTelemetry-manifest_debut.yaml
-```
-##### 3. Run the test collecting logs, traces and metrics
-```shell
-kubectl apply -f opentelemetry/collector processing after receiving/step3-logs-otlp-prometheus/openTelemetry-manifest_debut.yaml
-```
 
-#### B. with processing at the processor level
-##### 1. Run the test collecting logs
-```shell
-kubectl apply -f opentelemetry/collector processing at the receiver/step1-logs/openTelemetry-manifest_debut.yaml
-```
-##### 2. Run the test collecting logs and traces
-```shell
-kubectl apply -f opentelemetry/collector processing at the receiver/step1-logs/openTelemetry-manifest_debut.yaml
-```
-##### 3. Run the test collecting logs, traces and metrics
-```shell
-kubectl apply -f opentelemetry/collector processing at the receiver/step1-logs/openTelemetry-manifest_debut.yaml
-```
-#### C. using the targetAllocator for metrics
+### 2. Run the test collecting logs, traes and metrics on the collector 
 
-#### Create a Collector with the target Allocator
+#### 1. cosntant load
+    The applications are already deployed with a constant load.
+    Let's wait 45 min to collect enought data
+
+#### 2. Run load test
 ```shell
-kubectl apply -f istio/podmonitor.yaml
-kubectl apply -f kepler/serviceMonitor.yaml -n kepler
-kubectl apply -f  opentelemetry/targetallocator/openTelemetry-manifest_debut.yaml
-kubectl apply -f opentelemetry/targetallocator/openTelemetry-manifest_statefulset.yaml
+ kubectl apply -f opentelemetry/collector/loadtest_job.yaml -n otel-demo
+ kbuectl apply -f hipstershop/loadtest_job.yaml -n hipser-shop
 ```
