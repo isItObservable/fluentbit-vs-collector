@@ -590,7 +590,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: KAFKA_SERVICE_ADDR
@@ -658,7 +658,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: AD_SERVICE_PORT
@@ -724,7 +724,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: CART_SERVICE_PORT
@@ -800,7 +800,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: CHECKOUT_SERVICE_PORT
@@ -886,7 +886,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: CURRENCY_SERVICE_PORT
@@ -948,7 +948,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: EMAIL_SERVICE_PORT
@@ -1015,7 +1015,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'fotelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: FLAGD_METRICS_EXPORTER
@@ -1044,7 +1044,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: FLAGD_METRICS_EXPORTER
@@ -1119,7 +1119,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: KAFKA_SERVICE_ADDR
@@ -1191,7 +1191,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: FRONTEND_PORT
@@ -1281,7 +1281,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: ENVOY_PORT
@@ -1377,7 +1377,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: IMAGE_PROVIDER_PORT
@@ -1441,7 +1441,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: KAFKA_ADVERTISED_LISTENERS
@@ -1507,7 +1507,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: LOCUST_WEB_PORT
@@ -1517,7 +1517,7 @@ spec:
             - name: LOCUST_SPAWN_RATE
               value: "1"
             - name: LOCUST_HOST
-              value: http://opentelemetry-demo-frontend:8080
+              value: http://oteldemo.34.107.76.14.nip.io
             - name: LOCUST_HEADLESS
               value: "false"
             - name: LOCUST_AUTOSTART
@@ -1585,7 +1585,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: PAYMENT_SERVICE_PORT
@@ -1653,7 +1653,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: PRODUCT_CATALOG_SERVICE_PORT
@@ -1717,7 +1717,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: QUOTE_SERVICE_PORT
@@ -1783,7 +1783,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: RECOMMENDATION_SERVICE_PORT
@@ -1853,7 +1853,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: SHIPPING_SERVICE_PORT
@@ -1915,7 +1915,7 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.labels['app.kubernetes.io/component']
             - name: OTEL_COLLECTOR_NAME
-              value: 'fluent-bit.fluentbit.svc.cluster.local'
+              value: 'otelmirror-collector.default.svc.cluster.local'
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: delta
             - name: OTEL_RESOURCE_ATTRIBUTES

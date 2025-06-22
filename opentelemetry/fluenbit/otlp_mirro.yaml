@@ -1,0 +1,105 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otelmirror
+  labels:
+    app: opentelemetry
+    app.kubernetes.io/component: oteld-statefullset
+spec:
+  mode: statefulset
+  replicas: 1
+  serviceAccount: otelcontribcol
+  image: otel/opentelemetry-collector-contrib:0.123.0
+  observability:
+    metrics:
+      enableMetrics: true
+  args:
+    feature-gates: "service.profilesSupport"
+  env:
+  - name: AWS_ACCESS_KEY_ID
+    valueFrom:
+      secretKeyRef:
+        name: s3
+        key: accesskey
+  - name: AWS_SECRET_ACCESS_KEY
+    valueFrom:
+      secretKeyRef:
+        name: s3
+        key: secretkey
+
+  config:
+    receivers:
+
+
+
+
+
+      otlp:
+        protocols:
+          grpc: {}
+          http: {}
+
+
+
+
+
+    exporters:
+
+
+      awss3/trace:
+        s3uploader:
+          endpoint: 'http://SVC_TO_REPLACE.minio-system.svc.cluster.local:9000/traces'
+          s3_prefix: 'trace'
+          region: 'REGION_TO_REPLACE'
+          disable_ssl: true
+
+
+      awss3/logs:
+        s3uploader:
+          endpoint: 'http://SVC_TO_REPLACE.minio-system.svc.cluster.local:9000/logs'
+          s3_prefix: 'logs'
+          region: 'REGION_TO_REPLACE'
+          disable_ssl: true
+      awss3/metrics:
+        s3uploader:
+          endpoint: 'http://SVC_TO_REPLACE.minio-system.svc.cluster.local:9000/metrics'
+          s3_prefix: 'metrics'
+          region: 'REGION_TO_REPLACE'
+          disable_ssl: true
+
+      otlp:
+        endpoint: fluent-bit.fluentbit.svc.cluster.local:4317
+        tls:
+          insecure: true
+
+
+    service:
+      pipelines:
+
+
+        traces:
+          receivers: [otlp]
+          processors: [ ]
+          exporters: [  awss3/trace,otlp]
+
+
+
+
+        metrics:
+          receivers: [ otlp ]
+          processors: [  ]
+          exporters: [ awss3/metrics,otlp ]
+
+        logs:
+          receivers: [otlp]
+          processors: []
+          exporters: [awss3/logs,otlp]
+
+
+
+      telemetry:
+
+        metrics:
+          address: ${MY_POD_IP}:8888
+
+

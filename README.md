@@ -33,7 +33,7 @@ cloudprofiler.googleapis.com \
 ```shell
 ZONE=europe-west3-a
 NAME=isitobservable-fluentbitcollectorbenchv4
-gcloud container clusters create ${NAME} --zone=${ZONE} --machine-type=e2-standard-4 --num-nodes=2
+gcloud container clusters create ${NAME} --zone=${ZONE} --machine-type=e2-standard-4 --num-nodes=2 --monitoring=NONE --logging=NONE
 ```
 
 
@@ -180,3 +180,92 @@ TYPE=collector
  kubectl apply -f opentelemetry/collector/loadtest_job.yaml -n otel-demo
  kbuectl apply -f hipstershop/loadtest_job.yaml -n hipser-shop
 ```
+
+
+# In case of any Bug related to any of the components: 
+
+to help the community let's produce oltpjson files of the data generated in this environment.
+
+for this we will use minio :
+lets first install it:
+```shell
+helm repo add minio https://helm.min.io/
+helm install --namespace minio-v --create-namespace --generate-name -f minio/values.yaml minio/minio
+```
+
+To be able to create our s3bucket let's retrieve the console password :
+```shell
+SECRET=$(kubectl get secrets -l app=minio -n minio-system --output jsonpath='{.items[0].metadata.name}')
+PASSWORD=$(kubectl get secrets/$SECRET -n minio-system --template={{.data.rootPassword}} | base64 -d)
+USER=$(kubectl get secrets/$SECRET -n minio-system --template={{.data.rootUser}} | base64 -d)
+echo user: $USER
+echo pwd :$PASSWORD
+```
+Let's expose the minio console and log to create a bucket and a access key:
+```shell
+SVC=$(kubectl get svc -n minio-system -o name | grep 'console$')
+kubectl port-forward $SVC 9001 -n minio-system            
+```
+
+Now let's crete the secret to connect to the bucket by opening your browser on http://localhost:9001
+Create 3 buckets:
+- one for metrics : metrics
+- one for logs : logs
+- one for traces: traces
+<p align="center"><img src="/image/bucket.png" width="40%" alt="bucket" /></p>
+
+Then Generate a Access key and save the key and the secret key in the following variable:
+```shell
+KEY=<ACCESS KEY>
+SECRET_KEY=<SECRET KEY>
+```
+<p align="center"><img src="/image/accesskey.png" width="40%" alt="accesskuy" /></p>
+
+create the following access Policy to your acces key:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:PutObjectTagging",
+                "s3:GetObject"
+            ],
+            "Resource": [
+              "arn:aws:s3:::*"
+            ]
+        }
+  ]
+}
+```
+<p align="center"><img src="/image/policy.png.png" width="40%" alt="accesskuy" /></p>
+
+In the settings on minio create region for your minio tenant:
+<p align="center"><img src="/image/region.png" width="40%" alt="accesskuy" /></p>
+Store your region name in the following variable:
+
+```shell
+REGION=<YOUR REGION NAME>
+```
+
+let's create the secret with our credentials:
+```shell
+kubectl create secret generic s3   --from-literal=accesskey="$KEY" --from-literal=secretkey="$SECRET_KEY" 
+```
+let's get our minio service :
+```shell
+MINIO_SVC=$(kubectl get svc -n minio-namespace --output jsonpath='{.items[0].metadata.name}' | grep -v 'console$')
+sed -i '' "s,SVC_TO_REPLACE,$MINIO_SVC," opentelemetry/fluenbit/otlp_mirro.yaml
+sed -i '' "s,REGION_TO_REPLACE,$REGION=," opentelemetry/fluenbit/otlp_mirro.yaml
+
+```
+let's deploy our collector:
+```shell
+kubectl apply -f opentelemetry/fluenbit/otlp_mirro.yaml
+kubectl apply -f opentelemetry/fluenbit/deployment-fluentbit_debug.yaml
+```
+
+Wait few minutes and download the data stored in the various buckets:
+<p align="center"><img src="/image/donwload.png" width="40%" alt="accesskuy" /></p>

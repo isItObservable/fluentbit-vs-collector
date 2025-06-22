@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/name: fluent-bit
     app.kubernetes.io/version: 2.2.1
     helm.sh/chart: fluent-bit-0.42.0
-  name: fluent-bit
+  name: fluent-bit-sampling
   namespace: fluentbit
 data:
   custom_parsers.conf: |
@@ -29,29 +29,7 @@ data:
 
     pipeline:
       inputs:
-        - name: tail
-          path: /var/log/containers/*.log
-          multiline.parser: docker, cri
-          tag: kube.*
-          mem_Buf_Limit: 5MB
-          skip_Long_Lines: On
-          processors:
-            logs:
-              - name: content_modifier
-                action: insert
-                key: k8s.cluster.name 
-                context: attributes
-                value: ${CLUSTERNAME}
-              - name: content_modifier
-                action: insert
-                context: attributes
-                key: dt.kubernetes.cluster.id
-                value: ${CLUSTER_ID}
-              - name: content_modifier
-                context: attributes
-                action: upsert
-                key: "agent"
-                value: "fluentbitv3"
+      
               
         
         - name: fluentbit_metrics
@@ -73,15 +51,21 @@ data:
               - name: sampling
                 type: tail
                 sampling_settings:
-                  decision_wait: 5s
+                  decision_wait: 10s
                 conditions:
                   - type: latency
-                    threshold_ms_high: 50
-                    threshold_ms_high: 5000
+                    threshold_ms_low: 100
                   - type: status_code
                     status_codes: [ "ERROR" , "UNSET" ]
-              
-                    
+                  - type: numeric_attribute
+                    key: "http.status_code"
+                    min_value: 400
+                    max_value: 504
+                  - type: numeric_attribute
+                    key: "rpc.grpc.status.code"
+                    min_value: 1
+                    max_value: 50
+  
 
             logs:
               - name: content_modifier
@@ -99,6 +83,7 @@ data:
                 action: upsert
                 key: "agent"
                 value: "fluentbitv3"
+    
             metrics:
               - name: labels
                 insert: k8s.cluster.name ${CLUSTERNAME}
@@ -121,13 +106,23 @@ data:
               - name: sampling
                 type: tail
                 sampling_settings:
-                  decision_wait: 5s
+                  decision_wait: 10s
                 conditions:
                   - type: latency
-                    threshold_ms_high: 50
-                    threshold_ms_high: 5000
+                    threshold_ms_low: 100
+                  
                   - type: status_code
                     status_codes: [ "ERROR" , "UNSET" ]
+    
+                  - type: numeric_attribute
+                    key: "http.status_code"
+                    min_value: 400
+                    max_value: 504
+    
+                  - type: numeric_attribute
+                    key: "rpc.grpc.status.code"
+                    min_value: 1
+                    max_value: 50
                 
             logs:
               - name: content_modifier
@@ -218,45 +213,7 @@ data:
                 delete: pid
 
      
-      filters:
-        
-        - name: kubernetes
-          match: kube.*
-          merge_log: on
-          keep_log: off
-          k8s-logging.parser : on
-          k8s-logging.exclude: on
-
-        - name: nest
-          match: kube.*
-          operation: lift
-          nested_under: kubernetes
-          add_prefix :  kubernetes_
-        - name: nest
-          match: kube.*
-          operation: lift
-          nested_under: kubernetes_labels
-        - name: modify
-          match: kube.*
-          rename: 
-            - log content
-            - kubernetes_pod_name k8s.pod.name
-            - kubernetes_namespace_name k8s.namespace.name
-            - kubernetes_container_name k8S.container.name
-            - kubernetes_pod_id k8s.pod.uid
-          remove: 
-             - kubernetes_container_image
-             - kubernetes_docker_id
-             - kubernetes_annotations
-             - kubernetes_host
-             - time
-             - kubernetes_container_hash
-        - name: throttle
-          match: "*"
-          rate:     800
-          window:   3
-          print_Status: true
-          interval: 30s
+   
         
         
 
@@ -275,22 +232,7 @@ data:
             - Authorization Api-Token ${DT_API_TOKEN}
             - Content-type application/x-protobuf
     
-        - name: opentelemetry
-          host: ${DT_ENDPOINT_HOST}
-          port: 443
-          match: "kube.*"
-          metrics_uri: /api/v2/otlp/v1/metrics
-          traces_uri:  /api/v2/otlp/v1/traces
-          logs_uri: /api/v2/otlp/v1/logs
-          log_response_payload: true
-          tls:  On
-          tls.verify: Off
-          header:
-            - Authorization Api-Token ${DT_API_TOKEN}
-            - Content-type application/x-protobuf
-          processors:
-            logs:
-               - name: opentelemetry_envelope
+       
     
         - name: opentelemetry
           host: otel-collector.default.svc.cluster.local

@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   annotations:
     meta.helm.sh/release-name: fluent-bit
@@ -10,24 +10,25 @@ metadata:
     app.kubernetes.io/name: fluent-bit
     app.kubernetes.io/version: 3.0.0
     helm.sh/chart: fluent-bit-0.42.0
-  name: fluent-bit
+  name: fluent-bit-sampling
   namespace: fluentbit
 spec:
+  replicas: 1
+  revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app.kubernetes.io/instance: fluent-bit
-      app.kubernetes.io/name: fluent-bit
+      app.kubernetes.io/instance: fluent-bit-sampling
+      app.kubernetes.io/name: fluent-bit-sampling
   template:
     metadata:
       labels:
-        app.kubernetes.io/instance: fluent-bit
-        app.kubernetes.io/name: fluent-bit
+        app.kubernetes.io/instance: fluent-bit-sampling
+        app.kubernetes.io/name: fluent-bit-sampling
     spec:
       containers:
         - args:
             - --workdir=/fluent-bit/etc
             - --config=/fluent-bit/etc/conf/fluent-bit.yaml
-
           command:
             - /fluent-bit/bin/fluent-bit
           image: edsiper/fluent-bit:4.0.3-sampling-reconcile-fix-2
@@ -93,11 +94,6 @@ spec:
           volumeMounts:
             - mountPath: /fluent-bit/etc/conf
               name: config
-            - mountPath: /var/log
-              name: varlog
-            - mountPath: /var/lib/docker/containers
-              name: varlibdockercontainers
-              readOnly: true
             - mountPath: /etc/machine-id
               name: etcmachineid
               readOnly: true
@@ -110,16 +106,8 @@ spec:
       volumes:
         - configMap:
             defaultMode: 420
-            name: fluent-bit-nosampling
+            name: fluent-bit-sampling
           name: config
-        - hostPath:
-            path: /var/log
-            type: ""
-          name: varlog
-        - hostPath:
-            path: /var/lib/docker/containers
-            type: ""
-          name: varlibdockercontainers
         - hostPath:
             path: /etc/machine-id
             type: File

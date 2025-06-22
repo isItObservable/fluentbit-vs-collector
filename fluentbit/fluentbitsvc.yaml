@@ -36,7 +36,7 @@ spec:
     targetPort: 2021
     appProtocol: http
   selector:
-    app.kubernetes.io/instance: fluent-bit
-    app.kubernetes.io/name: fluent-bit
+    app.kubernetes.io/instance: fluent-bit-sampling
+    app.kubernetes.io/name: fluent-bit-sampling
   type: ClusterIP
 

@@ -1,3 +1,4 @@
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,6 +34,7 @@ spec:
         app.kubernetes.io/name: emailservice
     spec:
       terminationGracePeriodSeconds: 5
+
       containers:
         - name: server
           image: gcr.io/dynatrace-demoability/emailservice:9e830c2
@@ -44,11 +46,15 @@ spec:
             - name: DISABLE_PROFILER
               value: "1"
           readinessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             periodSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:8080"]
           livenessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             periodSeconds: 5
             exec:
@@ -112,6 +118,7 @@ spec:
         app.kubernetes.io/part-of: hipster-shop
         app.kubernetes.io/name: checkoutservice
     spec:
+
       containers:
         - name: server
           image: gcr.io/dynatrace-demoability/checkoutservice:9e830c2
@@ -207,27 +214,15 @@ spec:
         app.kubernetes.io/part-of: hipster-shop
         app.kubernetes.io/name: recommendationservice
     spec:
+
       terminationGracePeriodSeconds: 5
-      # imagePullsecrets required for perform2019????
-      imagePullSecrets:
-        - name: demo-registry
+
       containers:
         - name: server
           image: gcr.io/dynatrace-demoability/recommendationservice:9e830c2
           ports:
             - containerPort: 8080
-          readinessProbe:
-            periodSeconds: 5
-            timeoutSeconds: 5
-            exec:
-              command: [ "/bin/grpc_health_probe", "-addr=:8080" ]
-          livenessProbe:
-            timeoutSeconds: 5
-            periodSeconds: 5
-            successThreshold: 1
-            failureThreshold: 3
-            exec:
-              command: [ "/bin/grpc_health_probe", "-addr=:8080" ]
+
           startupProbe:
             exec:
               command: [ "/bin/grpc_health_probe", "-addr=:8080" ]
@@ -306,6 +301,7 @@ spec:
             inclusionRegexps:
             - ".*http_local_rate_limit.*"
     spec:
+
       containers:
         - name: server
           # both look good
@@ -315,6 +311,7 @@ spec:
             - containerPort: 8080
           readinessProbe:
             initialDelaySeconds: 10
+
             timeoutSeconds: 5
             httpGet:
               path: "/_healthz"
@@ -413,6 +410,7 @@ spec:
             app.kubernetes.io/version: "1.0.0"
             sidecar.istio.io/inject: "false"
         spec:
+
           terminationGracePeriodSeconds: 5
           restartPolicy: OnFailure
           containers:
@@ -422,7 +420,7 @@ spec:
               args: [ "-u", "70", "-d", "59m" ]
               env:
                 - name: FRONTEND_ADDR
-                  value: "hipstershop.IP_TO_REPLACE.nip.io"
+                  value: "frontend"
                 - name: K6_DYNATRACE_URL
                   valueFrom:
                     secretKeyRef:
@@ -475,6 +473,7 @@ spec:
         app.kubernetes.io/name: paymentservice
 
     spec:
+
       terminationGracePeriodSeconds: 5
       containers:
         - name: server
@@ -487,11 +486,15 @@ spec:
             - name: MEMORYLEAK
               value: "0"
           readinessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:50051"]
           livenessProbe:
             timeoutSeconds: 5
+            initialDelaySeconds: 10
+
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:50051"]
           resources:
@@ -551,6 +554,7 @@ spec:
 
 
     spec:
+
       terminationGracePeriodSeconds: 5
       containers:
         - name: server
@@ -572,10 +576,14 @@ spec:
           # - name: JAEGER_SERVICE_ADDR
           #   value: "jaeger-collector:14268"
           readinessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:3550"]
           livenessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:3550"]
@@ -637,6 +645,7 @@ spec:
         app.kubernetes.io/version: "1.0.0"
 
     spec:
+
       terminationGracePeriodSeconds: 5
       containers:
         - name: server
@@ -719,6 +728,7 @@ spec:
 
 
     spec:
+
       terminationGracePeriodSeconds: 5
       containers:
         - name: server
@@ -736,10 +746,14 @@ spec:
             - name: DISABLE_DEBUGGER
               value: "1"
           readinessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:7000"]
           livenessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:7000"]
@@ -800,6 +814,7 @@ spec:
         app.kubernetes.io/name: shippingservice
 
     spec:
+
       containers:
         - name: server
           image: gcr.io/dynatrace-demoability/shippingservice:9e830c2
@@ -817,11 +832,15 @@ spec:
           # - name: JAEGER_SERVICE_ADDR
           #   value: "jaeger-collector:14268"
           readinessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             periodSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:50051"]
           livenessProbe:
+            initialDelaySeconds: 10
+
             timeoutSeconds: 5
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:50051"]
@@ -883,6 +902,7 @@ spec:
 
 
     spec:
+
       containers:
         - name: redis
           image: redis:alpine
@@ -936,7 +956,7 @@ spec:
     - name: redis
       port: 6379
       targetPort: 6379
-      appProtocol: tcp
+      appProtocol: redis
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -971,6 +991,7 @@ spec:
 
     spec:
       terminationGracePeriodSeconds: 5
+
       containers:
         - name: server
           image: hrexed/adservice-safe:0.1

@@ -109,9 +109,11 @@ if [  "$TYPE" = 'fluent' ]; then
   #DT_HOST=$(echo $DTURL | grep -oP 'https://\K\S+')
   DT_HOST=$(echo $DTURL | cut -d'/' -f3)
   kubectl create secret generic dynatrace -n fluentbit  --from-literal=clustername="$CLUSTERNAME" --from-literal=dynatrace_oltp_url="$DTURL" --from-literal=dynatrace_oltp_host="$DT_HOST" --from-literal=clusterid=$CLUSTERID  --from-literal=dt_api_token="$DTTOKEN"
-  kubectl apply -f fluentbit/pipeline/fluentbit.yaml -n fluentbit
+  kubectl apply -f fluentbit/pipeline/fluentbit_nosampling.yaml -n fluentbit
+  kubectl apply -f fluentbit/pipeline/fluentbit_traces.yaml -n fluentbit
   kubectl apply -f  fluentbit/rbac.yaml -n fluentbit
   kubectl apply -f fluentbit/fluent.yaml -n fluentbit
+  kubectl apply -f fluentbit/fluent_gateway.yaml
   kubectl apply -f fluentbit/fluentbitsvc.yaml -n fluentbit
 
  istioctl install -f istio/istio-operator_fluentbit.yaml --skip-confirmation
@@ -139,6 +141,8 @@ sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/fluenbit/deployment-fluentbit.yam
 sed -i '' "s,IP_TO_REPLACE,$IP," hipstershop/loadtest_job.yaml
 sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/collector/loadtest_job.yaml
 sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/fluenbit/loadtest_job.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/fluenbit/deployment-fluentbit_debug.yaml
+sed -i '' "s,IP_TO_REPLACE,$IP," opentelemetry/fluenbit/loadtest_job_debug.yaml
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm install prometheus prometheus-community/kube-prometheus-stack
 
@@ -180,7 +184,8 @@ if [  "$TYPE" = 'fluent' ]; then
 else
   echo "Deploy Demo Application for Collector"
   kubectl apply -f opentelemetry/collector/openTelemetry-manifest_ds.yaml
-  kubectl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset.yaml
+  kubectl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset_sampling.yaml
+  kubdecl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset_withlg.yaml
   kubectl apply -f opentelemetry/collector/deployment-otel.yaml -n otel-demo
 fi
 

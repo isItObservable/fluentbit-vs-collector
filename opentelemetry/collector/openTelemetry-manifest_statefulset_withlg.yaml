@@ -48,7 +48,6 @@ spec:
   config:
     receivers:
 
-
       prometheus:
         config:
           scrape_configs:
@@ -62,11 +61,11 @@ spec:
                 - role: endpoints
                   namespaces:
                     names:
-                    - istio-system
+                      - istio-system
               relabel_configs:
-              - source_labels: [ __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name ]
-                action: keep
-                regex: istiod;http-monitoring
+                - source_labels: [ __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name ]
+                  action: keep
+                  regex: istiod;http-monitoring
             - job_name: kepler
               scrape_interval: 5s
               static_configs:
@@ -135,6 +134,7 @@ spec:
 
 
 
+
       otlp:
         protocols:
           grpc: {}
@@ -151,15 +151,6 @@ spec:
         spike_limit_percentage: 30
 
 
-
-      k8sattributes/k8S:
-        extract:
-          metadata:
-            - k8s.cluster.uid
-        pod_association:
-          - sources:
-              - from: resource_attribute
-                name: k8s.namespace.name
       k8sattributes:
         extract:
           metadata:
@@ -172,6 +163,10 @@ spec:
             - k8s.namespace.name
             - k8s.node.name
             - k8s.cluster.uid
+          annotations:
+            - from: pod
+              key_regex: metadata.dynatrace.com/(.*)
+              tag_name: $$1
         pod_association:
           - sources:
               - from: resource_attribute
@@ -248,68 +243,48 @@ spec:
               - set(attributes["dt.kubernetes.workload.name"], attributes["k8s.daemonset.name"]) where IsString(attributes["k8s.daemonset.name"])
               - set(attributes["dt.kubernetes.cluster.id"], attributes["k8s.cluster.uid"]) where IsString(attributes["k8s.cluster.uid"])
 
-      cumulativetodelta: {}
 
       filter:
         error_mode: ignore
         metrics:
           metric:
             - 'IsMatch(name, "kafka.consumer.*")'
-
-      tail_sampling:
-
-        policies: [
-
-          {
-            name: test-policy-2,
-            type: latency,
-            latency: { threshold_ms: 100 }
-          },
-          {
-            # Rule 2: low sampling for the otelcollector trances
-            name: team_oteldemo,
-            type: and,
-            and:
-              {
-                and_sub_policy:
-                  [
-                    {
-                      # filter by service name
-                      name: service-name-policy,
-                      type: string_attribute,
-                      string_attribute:
-                        {
-                          key: service.name,
-                          values: [ otelcol-contrib ],
-                        }
-                    },
-                    {
-                      # apply probabilistic sampling
-                      name: probabilistic-policy,
-                      type: probabilistic,
-                      probabilistic: { sampling_percentage: 0.1 },
-                    }
-                  ]
-              }
-          },
+            - 'type == METRIC_DATA_TYPE_SUMMARY'
 
 
 
-          {
 
 
-            name: trace-status-policy,
-            type: status_code,
-            status_code: { status_codes: [ ERROR , UNSET ] },
 
-
-          },
-
-
-        ]
 
     exporters:
 
+      loadbalancing:
+        routing_key: "service"
+        protocol:
+          otlp:
+            # all options from the OTLP exporter are supported
+            # except the endpoint
+            timeout: 1s
+            tls:
+              insecure: true
+        resolver:
+          # use k8s service resolver, if collector runs in kubernetes environment
+          k8s:
+            service: otelback-collector.default
+      loadbalancing/metrics:
+        routing_key: "metric"
+        protocol:
+          otlp:
+            # all options from the OTLP exporter are supported
+            # except the endpoint
+            timeout: 1s
+            tls:
+              insecure: true
+        resolver:
+          # use k8s service resolver, if collector runs in kubernetes environment
+          k8s:
+            service: otelback-collector.default
 
       otlphttp:
         endpoint: ${DT_ENDPOINT}/api/v2/otlp
@@ -321,17 +296,17 @@ spec:
     service:
       pipelines:
         traces:
-          receivers: [otlp]
-          processors: [memory_limiter,k8sattributes,transform,tail_sampling,batch]
-          exporters: [otlphttp]
+          receivers: [ otlp ]
+          processors: [ memory_limiter,k8sattributes,transform,batch ]
+          exporters: [ loadbalancing ]
         metrics:
-          receivers: [otlp,prometheus]
-          processors: [memory_limiter,k8sattributes,filter,transform,cumulativetodelta,batch]
-          exporters: [otlphttp]
-          logs:
-            receivers: [otlp]
-            processors: [memory_limiter,k8sattributes,transform,batch]
-            exporters: [otlphttp]
+          receivers: [ otlp, prometheus]
+          processors: [ memory_limiter,k8sattributes,transform,filter,batch ]
+          exporters: [ loadbalancing/metrics ]
+        logs:
+          receivers: [ otlp ]
+          processors: [ memory_limiter,k8sattributes,transform,batch ]
+          exporters: [ otlphttp ]
 
       telemetry:
         metrics:

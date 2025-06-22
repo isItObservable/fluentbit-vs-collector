@@ -1,0 +1,222 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otelback
+  labels:
+    app: opentelemetry
+    app.kubernetes.io/component: oteld-statefullset
+spec:
+  mode: statefulset
+  replicas: 2
+  serviceAccount: otelcontribcol
+  image: otel/opentelemetry-collector-contrib:0.126.0
+  args:
+    feature-gates: "processor.tailsamplingprocessor.metricstatcountspanssampled"
+
+  observability:
+    metrics:
+      enableMetrics: true
+  env:
+    - name: MY_POD_IP
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: status.podIP
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: DT_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace
+          key: dynatrace_oltp_url
+    - name: DT_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace
+          key: dt_api_token
+    - name: CLUSTERNAME
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace
+          key: clustername
+    - name: OTEL_SERVICE_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: metadata.labels['app.kubernetes.io/component']
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: service.name=$(OTEL_SERVICE_NAME)
+  config:
+    receivers:
+
+
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: opentelemetry-collector
+              scrape_interval: 5s
+              static_configs:
+                - targets:
+                    - ${MY_POD_IP}:8888
+
+      otlp:
+        protocols:
+          grpc: {}
+          http: {}
+
+    processors:
+      batch:
+        send_batch_max_size: 1000
+        timeout: 30s
+        send_batch_size : 800
+
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 70
+        spike_limit_percentage: 30
+
+      k8sattributes:
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.statefulset.name
+            - k8s.daemonset.name
+            - k8s.cronjob.name
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.cluster.uid
+          annotations:
+            - from: pod
+              key_regex: metadata.dynatrace.com/(.*)
+              tag_name: $$1
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.name
+              - from: resource_attribute
+                name: k8s.namespace.name
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: connection
+      resource:
+        attributes:
+          - key: k8s.cluster.name
+            value: ${CLUSTERNAME}
+            action: insert
+
+
+
+
+      transform:
+        error_mode: ignore
+
+        metric_statements:
+          - context: resource
+            statements:
+              - set(attributes["dt.kubernetes.workload.kind"], "statefulset") where IsString(attributes["k8s.statefulset.name"])
+              - set(attributes["dt.kubernetes.workload.name"], attributes["k8s.statefulset.name"]) where IsString(attributes["k8s.statefulset.name"])
+              - set(attributes["dt.kubernetes.workload.kind"], "deployment") where IsString(attributes["k8s.deployment.name"])
+              - set(attributes["dt.kubernetes.workload.name"], attributes["k8s.deployment.name"]) where IsString(attributes["k8s.deployment.name"])
+              - set(attributes["dt.kubernetes.workload.kind"], "daemonset") where IsString(attributes["k8s.daemonset.name"])
+              - set(attributes["dt.kubernetes.workload.name"], attributes["k8s.daemonset.name"]) where IsString(attributes["k8s.daemonset.name"])
+              - set(attributes["dt.kubernetes.cluster.id"], attributes["k8s.cluster.uid"]) where IsString(attributes["k8s.cluster.uid"])
+
+
+
+
+
+
+      cumulativetodelta: { }
+
+
+
+      tail_sampling:
+
+        policies: [
+
+          {
+            name: test-latency,
+            type: latency,
+            latency: { threshold_ms: 100 }
+          },
+          {
+            # Rule 2: low sampling for the otelcollector trances
+            name: team_oteldemo,
+            type: and,
+            and:
+              {
+                and_sub_policy:
+                  [
+                    {
+                      # filter by service name
+                      name: service-name-policy,
+                      type: string_attribute,
+                      string_attribute:
+                        {
+                          key: service.name,
+                          values: [ otelcol-contrib ],
+                        }
+                    },
+                    {
+                      # apply probabilistic sampling
+                      name: probabilistic-policy,
+                      type: probabilistic,
+                      probabilistic: { sampling_percentage: 5 },
+                    }
+                  ]
+              }
+          },
+
+
+
+
+
+        ]
+
+
+    exporters:
+
+
+      otlphttp:
+        endpoint: ${DT_ENDPOINT}/api/v2/otlp
+        headers:
+          Authorization: "Api-Token ${DT_API_TOKEN}"
+      debug:
+        verbosity: detailed
+
+    service:
+      pipelines:
+        traces:
+          receivers: [ otlp ]
+          processors: [ memory_limiter,tail_sampling,batch ]
+          exporters: [ otlphttp ]
+        metrics:
+          receivers: [ otlp ]
+          processors: [ memory_limiter,cumulativetodelta,batch ]
+          exporters: [ otlphttp ]
+        metrics/collector:
+          receivers: [ prometheus ]
+          processors: [ memory_limiter,k8sattributes,transform,cumulativetodelta,batch ]
+          exporters: [ otlphttp ]
+
+
+      telemetry:
+        metrics:
+          address: ${MY_POD_IP}:8888
+        traces:
+          processors:
+            - batch:
+                exporter:
+                  otlp:
+                    protocol: grpc
+                    endpoint: http://localhost:4317
+

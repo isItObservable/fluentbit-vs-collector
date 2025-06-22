@@ -39,7 +39,7 @@ spec:
               imagePullPolicy: Always
               env:
                 - name: FRONTEND_ADDR
-                  value: "hipstershop.IP_TO_REPLACE.nip.io"
+                  value: "frontend"
                 - name: K6_DYNATRACE_URL
                   valueFrom:
                     secretKeyRef:
@@ -101,7 +101,7 @@ spec:
               imagePullPolicy: Always
               env:
                 - name: FRONTEND_ADDR
-                  value: "hipstershop.IP_TO_REPLACE.nip.io"
+                  value: "frontend"
                 - name: K6_DYNATRACE_URL
                   valueFrom:
                     secretKeyRef:

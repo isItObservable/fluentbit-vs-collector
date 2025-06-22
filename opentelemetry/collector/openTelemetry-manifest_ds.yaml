@@ -8,7 +8,7 @@ metadata:
 spec:
   mode: daemonset
   serviceAccount: otelcontribcol
-  image: otel/opentelemetry-collector-contrib:0.124.0
+  image: otel/opentelemetry-collector-contrib:0.126.0
   ports:
     - name: prometheus
       port: 9090
@@ -190,6 +190,10 @@ spec:
             - k8s.namespace.name
             - k8s.node.name
             - k8s.cluster.uid
+          annotations:
+            - from: pod
+              key_regex: metadata.dynatrace.com/(.*)
+              tag_name: $$1
         pod_association:
           - sources:
             - from: resource_attribute
@@ -283,5 +287,5 @@ spec:
             - batch:
                 exporter:
                   otlp:
-                    protocol: grpc/protobuf
+                    protocol: grpc
                     endpoint: http://localhost:4317
