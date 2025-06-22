@@ -184,8 +184,8 @@ if [  "$TYPE" = 'fluent' ]; then
 else
   echo "Deploy Demo Application for Collector"
   kubectl apply -f opentelemetry/collector/openTelemetry-manifest_ds.yaml
-  kubectl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset_sampling.yaml
-  kubdecl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset_withlg.yaml
+  kubectl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset_sampling_policy6_1replicas.yaml
+  kubdecl apply -f opentelemetry/collector/openTelemetry-manifest_statefulset_withlg_span2metrics.yaml
   kubectl apply -f opentelemetry/collector/deployment-otel.yaml -n otel-demo
 fi
 

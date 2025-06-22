@@ -162,7 +162,8 @@ edit the Prometheus CRD with the following command:
 ```
 
 ### 2. Deploy most of the components for The collector
-The application will deploy the entire environment:
+
+Create a new cluster to make sure istio is propperly configured to send data tot hte colellector and  deploy the entire environment:
 ```shell
 chmod 777 deployment.sh
 TYPE=collector
