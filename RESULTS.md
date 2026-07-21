@@ -7,7 +7,7 @@ Demo's always-on load generator. Measurement window: see `TS=` in the snapshot f
 
 Sources: records + loss from each shipper's self-telemetry; CPU / memory / wire-bytes
 from per-pod cAdvisor (uniform across all three). Compute with
-`scripts/compute.py snap_t0.txt snap_t1.txt`.
+`scripts/diff.sh snap_t0.txt snap_t1.txt`.
 
 ## Headline finding (verified live, 2026-07-20)
 
@@ -32,6 +32,16 @@ Verified at t0: `send_failed_log_records` / `output_dropped_records_total` /
 few hundred records sitting in the in-flight batch/buffer (not loss).
 
 ## Per-variant comparison — MEASURED (window ≈ 5.98 h steady state)
+
+> **Pipeline note (feature parity, 2026-07-21):** this window was captured with the
+> **enrich-only** pipeline (k8sattributes/kubernetes + resource, no transform). All three
+> variants now also run the identical **`transform`/`redact`** step (severity
+> normalization + e-mail redaction + drop file-path — OTTL on A/B, Lua on C; deployed &
+> validated live). Adding equal processing to all three raises every **CPU** figure but
+> leaves the **wire** story intact (redaction slightly shrinks the body; the transport
+> ratio OTAP↔OTLP is unchanged). Treat the CPU column below as the enrich-only reference;
+> the **feature-on** CPU/mem is re-captured at record time alongside the phased load
+> (⟨CAPTURE-AT-RECORD⟩ table below), from the now-live feature-parity DaemonSets.
 
 `scripts/compute.py snap_t0.txt snap_t1.txt` — window `2026-07-20T20:08:30Z →
 2026-07-21T02:07:13Z` (21,523 s). DaemonSet totals summed across its 3 pods; CPU/mem/wire

@@ -53,6 +53,17 @@ data:
         Match      kube.*
         Add        k8s.cluster.name observable-otelarrow
 
+    # REALISTIC PROCESSING (ISI-1779, feature-parity): the Fluent Bit equivalent
+    # of the collector variants' OTTL `transform/redact` — same three operations
+    # (normalize severity, redact e-mail PII, drop the file-path key) so all
+    # three shippers do identical transformation work and the benchmark reflects
+    # a real pipeline's CPU cost, not a bare tail+ship.
+    [FILTER]
+        Name       lua
+        Match      kube.*
+        script     redact.lua
+        call       redact
+
     [OUTPUT]
         Name              opentelemetry
         Match             *
@@ -63,3 +74,29 @@ data:
         # Baseline: no gzip (matches an uncompressed OTLP send). Add
         # `compress gzip` to measure Fluent Bit's compressed wire cost as a
         # second data point. (The plugin rejects `compress Off` — omit instead.)
+
+  # Lua equivalent of the collector variants' OTTL transform/redact — mounted at
+  # /fluent-bit/etc/redact.lua (same configmap dir as fluent-bit.conf).
+  redact.lua: |
+    function redact(tag, ts, record)
+        local msg = record["log"] or record["message"] or ""
+        local lower = string.lower(msg)
+        -- 1. normalize severity from the message body
+        if string.find(lower, "error") or string.find(lower, "exception")
+           or string.find(lower, "panic") or string.find(lower, "fatal") then
+            record["severity_text"] = "ERROR"
+        elseif string.find(lower, "warn") then
+            record["severity_text"] = "WARN"
+        else
+            record["severity_text"] = "INFO"
+        end
+        -- 2. redact e-mail PII in the body
+        if record["log"] ~= nil then
+            record["log"] = string.gsub(record["log"],
+                "[%w._%%+-]+@[%w.-]+%.%a%a+", "***@redacted")
+        end
+        -- 3. drop the high-cardinality file-path key (parity with delete_key)
+        record["log.file.path"] = nil
+        -- return code 2 = record modified
+        return 2, ts, record
+    end

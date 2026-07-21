@@ -59,6 +59,24 @@ spec:
           - action: upsert
             key: k8s.cluster.name
             value: ${env:K8S_CLUSTER_NAME}
+      # REALISTIC PROCESSING (ISI-1779, feature-parity): a production log
+      # pipeline doesn't just tail+enrich+ship — it transforms. This OTTL
+      # `transform` does the representative work all three variants now run
+      # identically, so the benchmark reflects a real pipeline's CPU cost:
+      #   1. normalize severity from the message body,
+      #   2. redact e-mail PII in the body,
+      #   3. drop the high-cardinality file path once enrichment is done.
+      # OTAP is orthogonal to this — it's the wire hop; OTTL runs before encoding.
+      transform/redact:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(severity_text, "ERROR") where IsMatch(body, "(?i)(error|exception|panic|fatal)")
+              - set(severity_text, "WARN")  where severity_text == "" and IsMatch(body, "(?i)(warn)")
+              - set(severity_text, "INFO")  where severity_text == ""
+              - replace_pattern(body, "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "***@redacted")
+              - delete_key(attributes, "log.file.path")
       # CRITICAL: batch MUST be the last processor.
       batch: {}
     exporters:
@@ -74,7 +92,7 @@ spec:
       pipelines:
         logs:
           receivers: [filelog]
-          processors: [memory_limiter, k8sattributes, resource, batch]
+          processors: [memory_limiter, k8sattributes, resource, transform/redact, batch]
           exporters: [otelarrow/gateway]
         metrics:
           receivers: [otlp]

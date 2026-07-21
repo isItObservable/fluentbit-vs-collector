@@ -51,12 +51,30 @@ shippers still tail the same host logs, the log stream stays identical across
 variants — the phased profile controls the *volume vs time* and adds the two-app +
 24 h-leak axes; the legacy always-on `loadtest_job.yaml` is superseded.
 
+### Realistic feature parity (all three variants)
+
+A benchmark of a *bare* tail→ship pipeline isn't representative — real deployments
+enrich **and transform**. So every variant runs the **same production-shaped feature
+set**, applied identically, so the only variable stays the edge→gateway transport:
+
+| Feature | otel-arrow / otel-collector | fluentbit v5 |
+|---------|-----------------------------|--------------|
+| K8s metadata enrichment | `k8sattributes` processor | `kubernetes` filter |
+| Cluster attribute | `resource` processor | `modify` filter |
+| **Transform** — severity normalization, e-mail PII redaction, drop file-path key | `transform` (OTTL `log_statements`) | `lua` filter (`redact.lua`) |
+
+The three transform operations are byte-for-byte equivalent across shippers, so the
+extra CPU is charged to *all* variants equally and the comparison stays honest. OTTL
+runs **before** OTAP encoding, so the wire format is orthogonal to it.
+
 ### Scope limits (deliberate)
 
 - **No tail sampling.** The v4 episode compared Fluent Bit's tail-sampling build against
   the collector's `tail_sampling` processor across six policies. OTAP is a **transport**
-  optimization, not a sampling one, so tail sampling (and OTTL transforms) are out of
-  scope — they'd add a second variable. Logs/metrics/traces go straight through.
+  optimization, not a sampling one, so tail sampling stays out of scope — it'd add a
+  second variable. (OTTL transforms are *in* — see feature parity above — because they
+  run identically on all three and reflect a real pipeline; sampling would change the
+  *volume* each variant ships and break the identical-stream control.)
 - **Isolated sinks.** Each variant's gateway drops received data (`nop`) so we measure
   the edge→gateway transport only, with no Dynatrace double-ingest skew. (The
   production otel-arrow stack in ISI-1783 keeps its real Dynatrace egress; these
