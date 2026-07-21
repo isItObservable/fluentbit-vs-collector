@@ -1,0 +1,37 @@
+# Deploy the Hipster Shop / Online Boutique (Google microservices-demo) into
+# its own `hipster-shop` namespace, pinned to a release. We REMOVE the demo's
+# bundled loadgenerator (loadgenerator Deployment) because the ISI-1779
+# harness drives load itself (loadgen-hipster-shop) with the phased
+# BenchmarkShape — a second, uncontrolled load source would corrupt the
+# 50-VU-per-app methodology.
+#
+#   kubectl create namespace hipster-shop --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl apply -k hipster-shop/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hipster-shop
+
+resources:
+  - https://raw.githubusercontent.com/GoogleCloudPlatform/microservices-demo/v0.10.2/release/kubernetes-manifests.yaml
+
+# Strip the bundled loadgenerator (Deployment + its ServiceAccount) — we own the load.
+patches:
+  - target:
+      kind: Deployment
+      name: loadgenerator
+    patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: loadgenerator
+  - target:
+      kind: ServiceAccount
+      name: loadgenerator
+    patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: loadgenerator

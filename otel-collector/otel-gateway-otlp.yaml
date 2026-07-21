@@ -1,0 +1,38 @@
+# Gateway for Variant B (OTLP baseline). Receives the OTLP/gRPC stream and drops
+# it (nop) — the benchmark measures the EDGE->gateway transport, so the sink is
+# isolated to avoid Dynatrace double-ingest. Receiver-side counters here are used
+# only to cross-check loss against the edge agent's sent counters.
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-gateway-otlp
+  namespace: default
+spec:
+  mode: statefulset
+  replicas: 1
+  image: otel/opentelemetry-collector-contrib:0.154.0
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      protocol: TCP
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+    exporters:
+      nop: {}
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp]
+          exporters: [nop]
+      telemetry:
+        metrics:
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 0.0.0.0
+                    port: 8888

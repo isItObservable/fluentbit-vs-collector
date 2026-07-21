@@ -1,0 +1,94 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-agent
+  namespace: default
+spec:
+  mode: daemonset
+  image: otel/opentelemetry-collector-contrib:0.154.0
+  # Needs the host log path to tail pod logs.
+  volumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+  volumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods
+  env:
+    - name: K8S_CLUSTER_NAME
+      value: observable-otelarrow
+  config:
+    receivers:
+      # otel-demo apps push OTLP here (node-local). The agent then re-transmits
+      # everything to the gateway over OTAP.
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      # Pod log collection — the signal used for the otel-arrow vs fluentbit v5 vs
+      # otel-collector benchmark (ISI-1779, see ../benchmark/).
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        include_file_path: true
+        operators:
+          - id: container-parser
+            type: container
+    processors:
+      # CRITICAL: memory_limiter MUST be the first processor.
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      # k8sattributesprocessor ONLY for Kubernetes (this is the edge/K8s tier).
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.deployment.name
+      resource:
+        attributes:
+          - action: upsert
+            key: k8s.cluster.name
+            value: ${env:K8S_CLUSTER_NAME}
+      # CRITICAL: batch MUST be the last processor.
+      batch: {}
+    exporters:
+      # ---- THE OTAP HOP ----
+      # Ship to the gateway over OTel-Arrow (columnar Apache Arrow over a long-lived
+      # gRPC stream). This is the edge->gateway transport the episode benchmarks
+      # against plain OTLP. The arrow stream is enabled by default.
+      otelarrow/gateway:
+        endpoint: otel-gateway-collector.default.svc.cluster.local:4317
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        logs:
+          receivers: [filelog]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otelarrow/gateway]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otelarrow/gateway]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otelarrow/gateway]
+      telemetry:
+        metrics:
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 0.0.0.0
+                    port: 8888

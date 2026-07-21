@@ -1,0 +1,86 @@
+# ============================================================================
+# BENCHMARK VARIANT B — otel-collector (plain OTLP/gRPC transport)
+# ----------------------------------------------------------------------------
+# Identical collector build + identical processing pipeline as the otel-arrow
+# variant. The ONLY variable is the edge->gateway transport:
+#     otelarrow exporter  (Variant A / OTAP, columnar Apache Arrow stream)
+#         --->  otlp exporter  (Variant B, protobuf OTLP with zstd compression)
+#
+# This is the apples-to-apples baseline for the OTAP wire-efficiency headline.
+# zstd is enabled so we compare OTAP against a *realistically compressed* OTLP
+# baseline (per ISI-1776 number discipline — never quote the vs-uncompressed
+# figure bare).
+# ============================================================================
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-agent-otlp
+  namespace: default
+spec:
+  mode: daemonset
+  image: otel/opentelemetry-collector-contrib:0.154.0
+  # No explicit serviceAccount → the operator provisions one named
+  # `otel-agent-otlp-collector`, which otel-agent-otlp-rbac.yaml binds.
+  volumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+  volumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods
+  env:
+    - name: K8S_CLUSTER_NAME
+      value: observable-otelarrow
+  config:
+    receivers:
+      # Tail the SAME host pod logs as Variant A — identical input signal.
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        include_file_path: true
+        operators:
+          - id: container-parser
+            type: container
+    processors:
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.deployment.name
+      resource:
+        attributes:
+          - action: upsert
+            key: k8s.cluster.name
+            value: ${env:K8S_CLUSTER_NAME}
+      batch: {}
+    exporters:
+      # ---- THE OTLP HOP (baseline transport) ----
+      otlp/gateway:
+        endpoint: otel-gateway-otlp-collector.default.svc.cluster.local:4317
+        compression: zstd
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        logs:
+          receivers: [filelog]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otlp/gateway]
+      telemetry:
+        metrics:
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 0.0.0.0
+                    port: 8888
