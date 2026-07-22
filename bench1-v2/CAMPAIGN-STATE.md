@@ -5,7 +5,8 @@ the ISI-1779 B1-v2 benchmark campaign. Each one leaves a cluster in a non-defaul
 state that no `kubectl delete -f` in this repo will undo. **Revert every row below
 after the last phase (R2P3) completes**, before closing ISI-1779.
 
-Tracked as a campaign-end issue so it cannot be lost with an individual phase issue.
+Tracked as **ISI-1826** (backlog, do-not-self-start) so it cannot be lost with an
+individual phase issue.
 
 ---
 
