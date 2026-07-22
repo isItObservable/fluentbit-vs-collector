@@ -145,6 +145,26 @@ data:
                 action: upsert
                 key: benchmark.run
                 value: isi1779-b1v2
+              # cumulative -> delta, the Fluent Bit half of the board decision
+              # (ISI-1815, 2026-07-22). The tenant permanently rejects cumulative
+              # Sum/Histogram and Summary with `400 The message is malformed`,
+              # and the one remaining emitter (otel-demo `currency`, C++) cannot
+              # be configured off — the OTel C++ SDK ignores both
+              # OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE and
+              # OTEL_METRICS_EXPORTER.
+              #
+              # CONFIRMED PRESENT IN THE BINARY, not assumed: `fluent-bit --help`
+              # on fluent/fluent-bit:5.0.9 lists
+              #   cumulative_to_delta  Convert cumulative monotonic sums and
+              #                        histograms to delta
+              # Matches the Collector's `cumulativetodelta`, and like it is
+              # applied unconditionally (no name selector) so the work stays
+              # input-independent and the engines stay comparable (plan §2).
+              #
+              # Scope caveat, true of BOTH engines: monotonic Sums and
+              # Histograms only. Neither converts Summary — nothing in this
+              # benchmark emits Summary, but do not read this as full coverage.
+              - name: cumulative_to_delta
 
       outputs:
         - name: opentelemetry

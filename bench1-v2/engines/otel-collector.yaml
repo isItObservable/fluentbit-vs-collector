@@ -30,6 +30,13 @@
 #   3. PII redact             -> transform/parity  (e-mail address)
 #   4. drop a key             -> transform/parity  (log.file.path)
 #   5. batch
+# Plus, METRICS PIPELINE ONLY (board decision ISI-1815, 2026-07-22):
+#   cumulative -> delta  -> cumulativetodelta
+# The tenant permanently rejects cumulative Sum/Histogram and Summary, and the
+# one remaining emitter (otel-demo `currency`, C++) cannot be configured off.
+# Collector and Fluent Bit CONVERT; otel-arrow-native DROPS if its filter can
+# express the predicate. Applied with no include/exclude so the work is
+# unconditional on every point rather than input-dependent.
 # Fluent Bit and df_engine run the same five steps in their own idiom. The one
 # known semantic asymmetry, to state on camera: content_modifier has no inline
 # regex substitution, so Fluent Bit HASHES the matched value where the other
@@ -107,6 +114,24 @@ spec:
             statements:
               - delete_key(attributes, "log.file.path")
 
+      # 5. cumulative -> delta (METRICS PIPELINE ONLY)
+      # Board decision (ISI-1815, 2026-07-22): the collector and Fluent Bit
+      # CONVERT cumulative metrics; otel-arrow-native drops them if its filter
+      # can express the predicate.
+      #
+      # This tenant permanently rejects cumulative Sum, cumulative Histogram and
+      # Summary with a bare `400 The message is malformed` (proven by sending one
+      # datapoint of each type through an isolated probe collector). The only
+      # emitter left is otel-demo `currency`, which is C++: the OTel C++ SDK
+      # builds its meter provider programmatically and ignores BOTH
+      # OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE and
+      # OTEL_METRICS_EXPORTER, so it cannot be fixed at the source.
+      #
+      # No `include`/`exclude`: converting everything is unconditional work on
+      # every metric point, which is what keeps the three engines comparable
+      # under plan section 2. A name filter would make the work input-dependent.
+      cumulativetodelta: {}
+
       # --- MUST be last ---
       batch:
         send_batch_size: 8192
@@ -129,7 +154,7 @@ spec:
           exporters:  [otlphttp/dynatrace]
         metrics:
           receivers:  [otlp]
-          processors: [memory_limiter, resource/static, batch]
+          processors: [memory_limiter, resource/static, cumulativetodelta, batch]
           exporters:  [otlphttp/dynatrace]
         logs:
           receivers:  [otlp]
