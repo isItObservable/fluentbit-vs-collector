@@ -66,6 +66,45 @@ Rules that make a row trustworthy:
 5. The row is **mirrored into a comment on the phase issue** (ISI-1815…ISI-1820) as it is written, so the
    timestamps survive independently of this file.
 
+## Recovering the window if the End was not captured live (`capture-window.sh`)
+
+The timed run is 120 minutes; an agent heartbeat is 30. **The heartbeat that starts a
+run is never the heartbeat that ends it.** Reconstructing `End` from "when I next woke
+up" bakes idle tail into the window — the exact failure rule 2 above calls out.
+
+You do not need a capture loop for this (D8 forbids one, and a loop perturbs what it
+measures). **Kubernetes already records the instant every ramp pod stopped**, to the
+second. `./capture-window.sh <run-id>` reads it back.
+
+Measured live on `observable-otelarrow`, 2026-07-22T14:40Z, with two throwaway Jobs —
+one exiting 0, one exiting 1:
+
+| Field | exit 0 | exit 1 |
+|---|---|---|
+| `Job.status.completionTime` | `14:40:41Z` | **`None`** |
+| pod `.state.terminated.finishedAt` | `14:40:37Z` | `14:40:46Z` |
+
+So **End comes from the pod, not the Job**:
+
+1. **`Job.status.completionTime` is only set on success.** `--exit-code-on-error 0` is
+   supposed to stop Locust failing a run over a stray 500 (ISI-1822: 13 × HTTP 500 out
+   of 78,258 requests marked a healthy ramp `Failed`). If that flag is ever missing or
+   ineffective, the Job field is null and the window becomes unrecoverable — silently.
+2. It also **lags the pod** by the controller's observation delay: 4 s here, on an idle
+   cluster.
+
+`End` = **max** `finishedAt` across all ramp pods in both namespaces — the four staggered
+steps stop at the same wall-clock, and load is over when the last one does.
+
+> ⚠️ **Teardown order.** Step 9 deletes both apps, and that deletes the ramp pods —
+> which are the only place the End timestamp lives. **Run `capture-window.sh` and
+> `pod-census.sh <run-id> end` BEFORE any teardown.** Once those pods are gone the
+> window is unrecoverable and the 120 minutes are void. `capture-window.sh` exits `2`
+> with an explicit message when no ramp pods exist, so this failure is loud rather than
+> a plausible-looking blank.
+
+---
+
 ## How to capture the pod census — copy this exact command
 
 Run it **twice**: once immediately after the Start timestamp, once immediately before the End
