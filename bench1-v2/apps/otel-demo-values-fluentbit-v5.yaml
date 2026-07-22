@@ -60,6 +60,24 @@ default:
       value: benchmark.engine=fluentbit-v5,benchmark.run=isi1779-b1v2,service.namespace=otel-demo
 
 components:
+  # DO NOT try to silence otel-demo `currency` from the environment. It is C++,
+  # and the OTel C++ SDK builds its meter provider programmatically: it ignores
+  # BOTH `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` and
+  # `OTEL_METRICS_EXPORTER`. Verified live, twice, on this cluster -- each var
+  # was confirmed present on the running pod and currency kept exporting
+  # CUMULATIVE Sums, which this tenant rejects with `400 The message is
+  # malformed`. It is the sole remaining source of those rejections
+  # (2 points/min, identical on all three engines by construction).
+  #
+  # Identified by phase-matching rather than guessing: the failures arrive as
+  # exactly 2 dropped points on a 60s phase-locked cadence, and the cadence
+  # second tracks currency's container start second across three separate
+  # restarts (:36 <- 14:56:35Z, :16 <- 15:14:16Z, :09 <- 15:21:08Z).
+  #
+  # Filtering it out in an engine pipeline would break plan section 2 -- Fluent
+  # Bit and df_engine have no equivalent of OTTL `metric.type`, so the three
+  # engines would do unequal processing work. Escalated to @BigBoss on ISI-1815
+  # as a CHECK 5 policy decision.
   load-generator:
     podAnnotations:
       sidecar.istio.io/inject: "false"
