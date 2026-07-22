@@ -36,6 +36,21 @@
 
 default:
   envOverrides:
+    # ISI-1815: Dynatrace REJECTS cumulative Sum, cumulative Histogram and
+    # Summary with HTTP 400 "The message is malformed" — proven live against
+    # oat05854 by sending one datapoint of each type through an isolated probe
+    # collector (delta Sum, Gauge and delta Histogram are accepted; the
+    # rejection is temporality, not a degenerate start/end interval, which was
+    # controlled for). The otel-demo chart ships
+    # OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative on all ~20
+    # services, so every cumulative point it emits is permanently dropped at
+    # the tenant and never reaches the dashboard.
+    # Fixed at the SOURCE rather than in an engine pipeline: filtering by
+    # metric type would have to be reimplemented per engine (Fluent Bit and
+    # df_engine have no equivalent of OTTL metric.type), which would give the
+    # three engines unequal processing work and break plan section 2.
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: delta
     # single lever: repoints OTEL_EXPORTER_OTLP_ENDPOINT for every component
     - name: OTEL_COLLECTOR_NAME
       value: bench-otel-arrow-native.default.svc.cluster.local

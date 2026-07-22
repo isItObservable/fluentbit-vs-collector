@@ -321,10 +321,34 @@ r4=$(dql "$q4")
 say "  $r4"
 n4=$(dql_num "$r4" mesh_spans)
 say "  Istio-generated spans: $n4"
+
+# 4e — PER-NAMESPACE, not the total. The aggregate above hides an app that is
+# contributing nothing. Measured on R1P1 before the appProtocol fix, same
+# window: hipster-shop 688,747 mesh spans vs otel-demo 6,820 -- ~100:1 -- and
+# CHECK 4 was GREEN on the sum. otel-demo's chart names nearly every Service
+# port `tcp-service`, which Istio cannot classify, so those hops were plain TCP
+# with no HTTP filter chain and no spans. Same aggregate-vs-per-entity blindness
+# that D12 forced us to fix for pods. Fix: apps/appprotocol.sh (run it in EVERY
+# phase, after helm/kubectl apply).
+q4e="fetch spans, from:now()-${WINDOW}
+| filter k8s.cluster.name == \"${CLUSTER}\"
+| filter benchmark.telemetry_source == \"istio-mesh\"
+| summarize mesh_spans = count(), by:{k8s.namespace.name}"
+r4e=$(dql "$q4e")
+for ns in "${APP_NS[@]}"; do
+  n=$(dql_num "$r4e" mesh_spans k8s.namespace.name "$ns")
+  say "  4e mesh spans from $ns: $n"
+  if [[ "${n:-0}" -eq 0 ]]; then
+    c4_fail=1
+    say "     -> $ns produces NO mesh spans. Run apps/appprotocol.sh --verify; a Service"
+    say "        port Istio cannot classify is treated as TCP and emits nothing."
+  fi
+done
+
 if [[ "${n4:-0}" -gt 0 && $c4_fail -eq 0 ]]; then
-  ok 4 istio-spans "$n4 mesh spans in $WINDOW, config preflight 4a/4b/4c/4d green"
+  ok 4 istio-spans "$n4 mesh spans in $WINDOW from both namespaces, preflight 4a/4b/4c/4d/4e green"
 elif [[ $c4_fail -ne 0 ]]; then
-  bad 4 istio-spans "config preflight failed (see 4a/4b/4c/4d above) — spans counted: ${n4:-0}"
+  bad 4 istio-spans "config preflight failed (see 4a/4b/4c/4d/4e above) — spans counted: ${n4:-0}"
 else
   bad 4 istio-spans "config is correct on the wire but no Istio-generated spans arrived — check the namespaces are in SIDECAR mode (ztunnel/ambient emits none) and that traffic is flowing"
 fi
