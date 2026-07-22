@@ -203,7 +203,15 @@ for p in d.get("items",[]):
     if p.get("status",{}).get("phase") in ("Succeeded","Failed"): continue
     if rx.match(name) or m.get("labels",{}).get("ramp")=="isi1779": continue
     expect+=1
-    names=[c["name"] for c in p["spec"]["containers"]]
+    # Istio 1.29 on Kubernetes >=1.29 injects istio-proxy as a NATIVE SIDECAR:
+    # an entry in spec.initContainers carrying restartPolicy: Always, NOT in
+    # spec.containers. Verified live on observable-otelarrow (k8s v1.35.3):
+    # every injected pod reads 2/2 Ready with containers=[app] and
+    # initContainers=[istio-init, istio-proxy(Always), ...]. Scanning only
+    # spec.containers reports 0/34 on a perfectly injected mesh and fails the
+    # gate. Both lists are searched so this stays correct under either mode.
+    names=[c["name"] for c in p["spec"]["containers"]] \
+        + [c["name"] for c in p["spec"].get("initContainers") or []]
     if "istio-proxy" in names: have+=1
     else: missing.append(name)
 print(expect, have, ",".join(missing) or "-")')
@@ -217,6 +225,72 @@ else bad 3 sidecars "sidecar count mismatch (see missing list above)"; fi
 # CHECK 4 — Istio-generated spans present, distinguishable from app SDK spans
 # ---------------------------------------------------------------------------
 hdr "CHECK 4: Istio/Envoy-generated spans (window $WINDOW)"
+# ---------------------------------------------------------------------------
+# 4a/4b/4c — CONFIG PREFLIGHT, added after R1P1 (ISI-1815) burned two runs on
+# this. A bare span count tells you check 4 is red but not WHY, and all three
+# causes below report success everywhere else you would look:
+#
+#   4a  The mesh ConfigMap silently loses the engine's providers. On R1P1 a
+#       `helm upgrade istiod` with a STALE values file re-applied 36s after the
+#       bench values (revisions 4 -> 5) and put back a provider pointing at a
+#       namespace that does not exist. `kubectl get telemetry` still listed the
+#       CR as applied; istiod had simply dropped a tracing spec whose provider
+#       it had never heard of. Nothing logged it.
+#   4b  `helm upgrade istiod --wait` prints "deployment successfully rolled
+#       out" WITHOUT rolling istiod, because meshConfig lives in a ConfigMap
+#       and the Deployment's pod spec never changes. A 46-hour-old control
+#       plane that has never seen the provider looks perfectly healthy.
+#       => step 3 of every phase MUST `rollout restart deploy/istiod`.
+#   4c  Only the dataplane is authoritative. Read the customTag out of a real
+#       Envoy config_dump; the sidecars are distroless, so go through
+#       pilot-agent, not curl.
+#
+# This is the same principle as D12: never read "configured" from the object
+# list when you can read it off the wire.
+c4_fail=0
+mesh=$(kubectl -n istio-system get cm istio -o jsonpath='{.data.mesh}' 2>/dev/null)
+for prov in "${ENGINE}-otel" "${ENGINE}-otel-als"; do
+  if grep -q "name: ${prov}\b" <<< "$mesh"; then
+    say "  4a meshConfig provider present: $prov"
+  else
+    c4_fail=1
+    say "  4a MISSING meshConfig provider: $prov"
+    say "     -> live meshConfig does not carry this phase's providers. Re-apply:"
+    say "        helm upgrade istiod istio/istiod -n istio-system --version 1.29.2 -f istio/values-${ENGINE}.yaml"
+    say "        kubectl -n istio-system rollout restart deploy/istiod"
+    say "     -> check 'helm history istiod -n istio-system' for a later revision that reverted it."
+  fi
+done
+
+# 4b — istiod must be YOUNGER than the live helm revision, or it never read it.
+helm_ts=$(helm history istiod -n istio-system -o json 2>/dev/null \
+  | python3 -c 'import json,sys;h=json.load(sys.stdin);d=[r for r in h if r.get("status")=="deployed"];print(d[-1]["updated"] if d else "")' 2>/dev/null)
+istiod_start=$(kubectl -n istio-system get pods -l app=istiod \
+  --sort-by=.status.startTime -o jsonpath='{.items[-1:].status.startTime}' 2>/dev/null)
+say "  4b istiod started=$istiod_start   helm revision deployed=$helm_ts"
+if [[ -n "$helm_ts" && -n "$istiod_start" ]]; then
+  if [[ $(date -d "$istiod_start" +%s 2>/dev/null || echo 0) -lt $(date -d "$helm_ts" +%s 2>/dev/null || echo 0) ]]; then
+    c4_fail=1
+    say "     -> istiod is OLDER than the deployed helm revision: it has never read this meshConfig."
+    say "        kubectl -n istio-system rollout restart deploy/istiod"
+  fi
+fi
+
+# 4c — the tag must be in a real Envoy config_dump, not just in the CR.
+cd_pod=$(kubectl -n hipster-shop get pods -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [[ -n "$cd_pod" ]]; then
+  cd_hits=$(kubectl -n hipster-shop exec "$cd_pod" -c istio-proxy -- \
+    pilot-agent request GET config_dump 2>/dev/null | grep -c 'benchmark.telemetry_source' || true)
+  say "  4c dataplane config_dump ($cd_pod): benchmark.telemetry_source x${cd_hits:-0}"
+  if [[ "${cd_hits:-0}" -eq 0 ]]; then
+    c4_fail=1
+    say "     -> the customTag is not on the wire. If 4a/4b are green, suspect a SECOND Telemetry"
+    say "        resource in istio-system: Istio applies ONE per scope and silently discards the"
+    say "        rest — no error, no event, and 'kubectl get telemetry' lists them all as applied."
+    say "        tracing + accessLogging must stay merged in one CR (istio/telemetry-${ENGINE}.yaml)."
+  fi
+fi
+
 # Discriminated by benchmark.telemetry_source == "istio-mesh", a customTag the
 # Telemetry CR sets and nothing else does. benchmark.engine CANNOT be used
 # here: all three engines stamp it onto every record they touch, app spans
@@ -229,8 +303,13 @@ r4=$(dql "$q4")
 say "  $r4"
 n4=$(dql_num "$r4" mesh_spans)
 say "  Istio-generated spans: $n4"
-if [[ "${n4:-0}" -gt 0 ]]; then ok 4 istio-spans "$n4 mesh spans in $WINDOW"
-else bad 4 istio-spans "no Istio-generated spans — check the Telemetry CR and that the namespaces are in SIDECAR mode (ztunnel/ambient emits none)"; fi
+if [[ "${n4:-0}" -gt 0 && $c4_fail -eq 0 ]]; then
+  ok 4 istio-spans "$n4 mesh spans in $WINDOW, config preflight 4a/4b/4c green"
+elif [[ $c4_fail -ne 0 ]]; then
+  bad 4 istio-spans "config preflight failed (see 4a/4b/4c above) — spans counted: ${n4:-0}"
+else
+  bad 4 istio-spans "config is correct on the wire but no Istio-generated spans arrived — check the namespaces are in SIDECAR mode (ztunnel/ambient emits none) and that traffic is flowing"
+fi
 
 # ---------------------------------------------------------------------------
 # CHECK 5 — engine healthy, non-zero accepted AND non-zero exported

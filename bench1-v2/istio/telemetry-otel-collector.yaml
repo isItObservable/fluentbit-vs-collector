@@ -25,11 +25,31 @@
 # deterministic, identical telemetry volume across the three phases; any
 # sampling below 100 makes per-phase volume a second variable alongside the
 # engine. Envoy's default is 1%.
+#
+# ----------------------------------------------------------------------------
+# ONE Telemetry RESOURCE, NOT TWO (ISI-1815) — DO NOT SPLIT THIS FILE
+# ----------------------------------------------------------------------------
+# tracing and accessLogging were originally two Telemetry CRs in istio-system.
+# Istio applies only ONE Telemetry resource per scope: with two in the mesh
+# ROOT namespace one wins and the other is SILENTLY discarded — no error, no
+# event, no istiod log line, and `kubectl get telemetry` cheerfully lists both
+# as applied. Observed live on observable-otelarrow 2026-07-22: the
+# accessLogging CR won and the tracing CR was dropped.
+#
+# What this did NOT fix (recorded so the next phase does not re-chase it):
+# merging the CRs was necessary but was NOT the reason CHECK 4 read zero mesh
+# spans. That was istiod's meshConfig losing this phase's extensionProviders —
+# an actor outside this repo re-applied an OLDER istiod Helm values set within
+# minutes of each `helm upgrade`, so the providers this file references stopped
+# existing and the tracing spec went with them. With the providers present, an
+# Envoy config_dump does carry benchmark.telemetry_source.
+# Preflight 4a/4b/4c in validate-phase.sh tells these two causes apart.
 # ============================================================================
 apiVersion: telemetry.istio.io/v1
 kind: Telemetry
 metadata:
-  name: isi1779-bench-tracing
+  # ONE resource carrying BOTH tracing and accessLogging — see the block above.
+  name: isi1779-bench
   namespace: istio-system
   labels:
     benchmark: isi1779
@@ -53,16 +73,6 @@ spec:
         benchmark.engine:
           literal:
             value: otel-collector
----
-apiVersion: telemetry.istio.io/v1
-kind: Telemetry
-metadata:
-  name: isi1779-bench-accesslog
-  namespace: istio-system
-  labels:
-    benchmark: isi1779
-    benchmark.engine: otel-collector
-spec:
   accessLogging:
     - providers:
         - name: otel-collector-otel-als
