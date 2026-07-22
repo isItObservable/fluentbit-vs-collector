@@ -271,8 +271,8 @@
       },
       "12": {
         "type": "data",
-        "title": "Pods seen per engine — must equal 'Expected replicas' in RUN-REGISTER.md",
-        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| summarize pods_in_window = countDistinctExact(k8s.pod.name), by:{engine = k8s.workload.name}\n| sort engine asc",
+        "title": "Pod count vs expected replicas — FAIL here means the window covers more than one pod lifetime",
+        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| summarize pods_in_window = countDistinctExact(k8s.pod.name), by:{engine = k8s.workload.name}\n| fieldsAdd expected_replicas = 1\n| fieldsAdd census = if(pods_in_window == 1, \"PASS - one continuous pod for the whole window\", else:\"FAIL - pod count != expected replicas -> RUN INVALID\")\n| fields engine, census, pods_in_window, expected_replicas\n| sort census desc, engine asc",
         "visualization": "table",
         "visualizationSettings": {
           "chartSettings": {},
