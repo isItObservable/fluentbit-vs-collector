@@ -1,0 +1,160 @@
+# ============================================================================
+# ISI-1814 / ISI-1779 B1-v2 — ENGINE 1: OpenTelemetry Collector (Go, contrib)
+# ----------------------------------------------------------------------------
+# Phase 1 of the sequential campaign. Receives OTLP from otel-demo,
+# hipster-shop and the Istio sidecars (spans on 4317, Envoy OTel ALS access
+# logs on 4317, app OTLP metrics/logs/traces on 4317+4318), applies the parity
+# processing set, exports OTLP/HTTP to Dynatrace.
+#
+#   kubectl apply -f engines/otel-collector.yaml
+#
+# ---------------------------------------------------------------------------
+# CREDENTIALS — nothing secret lives in this file
+# ---------------------------------------------------------------------------
+# DT_API_TOKEN comes from the in-cluster secret default/gateway-dynatrace
+# (key apiToken), which already exists on observable-otelarrow. The tenant
+# HOST is not a secret and is inlined. Never paste the token into _artifacts/.
+#
+# ---------------------------------------------------------------------------
+# PIPELINE ORDER IS NOT NEGOTIABLE
+# ---------------------------------------------------------------------------
+# memory_limiter FIRST (it can only shed load if it sees data before anything
+# else has buffered it) and batch LAST (batching before a dropping processor
+# wastes the work of building batches that then get discarded).
+#
+# ---------------------------------------------------------------------------
+# PARITY SET (plan §2 — "equal processing work")
+# ---------------------------------------------------------------------------
+#   1. static attribute add   -> resource/static
+#   2. severity normalise     -> transform/parity  (body matches /error/i)
+#   3. PII redact             -> transform/parity  (e-mail address)
+#   4. drop a key             -> transform/parity  (log.file.path)
+#   5. batch
+# Fluent Bit and df_engine run the same five steps in their own idiom. The one
+# known semantic asymmetry, to state on camera: content_modifier has no inline
+# regex substitution, so Fluent Bit HASHES the matched value where the other
+# two MASK a substring — comparable work, different result.
+#
+# Known asymmetry #2: only the Collector has a memory_limiter equivalent.
+# Fluent Bit has mem_buf_limit (storage-layer, not a processor) and df_engine
+# has channel_capacity back-pressure. The check is ~1 predicate/second and is
+# noise at benchmark throughput, but it is a real, disclosed difference.
+#
+# NO k8sattributes: live k8s enrichment is Collector-only in an OTLP-push
+# topology (Fluent Bit's kubernetes filter needs a Tail/Systemd tag; df_engine
+# has no k8sattributes node). Giving it to one engine would measure a feature
+# gap, not an engine. That comparison is Benchmark 2 (ISI-1793).
+#
+# NO serviceAccount: — the OTel operator auto-provisions
+# `bench-otel-collector-collector`; naming one that does not exist fails the CR.
+# ============================================================================
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: bench-otel-collector
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otel-collector
+spec:
+  mode: deployment
+  replicas: 1
+  image: otel/opentelemetry-collector-contrib:0.154.0
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "4",    memory: "2Gi" }
+  env:
+    - name: DT_ENDPOINT
+      value: https://oat05854.dev.dynatracelabs.com
+    - name: DT_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: gateway-dynatrace
+          key: apiToken
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+
+    processors:
+      # --- MUST be first ---
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+
+      # 1. static attribute add
+      resource/static:
+        attributes:
+          - { key: k8s.cluster.name, value: observable-otelarrow, action: upsert }
+          - { key: benchmark.engine, value: otel-collector,       action: upsert }
+          - { key: benchmark.run,    value: isi1779-b1v2,         action: upsert }
+
+      # 2-4. severity normalise / PII redact / drop a key
+      # Regexes use [.] instead of \. so nothing depends on OTTL string escaping.
+      transform/parity:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(severity_text, "ERROR") where IsMatch(body, "(?i)error")
+              - replace_pattern(body, "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}", "***REDACTED***")
+              - delete_key(attributes, "log.file.path")
+        trace_statements:
+          - context: span
+            statements:
+              - delete_key(attributes, "log.file.path")
+
+      # --- MUST be last ---
+      batch:
+        send_batch_size: 8192
+        send_batch_max_size: 16384
+        timeout: 1s
+
+    exporters:
+      otlphttp/dynatrace:
+        endpoint: ${env:DT_ENDPOINT}/api/v2/otlp
+        headers:
+          Authorization: "Api-Token ${env:DT_API_TOKEN}"
+        retry_on_failure: { enabled: true }
+        sending_queue:   { enabled: true, queue_size: 5000 }
+
+    service:
+      pipelines:
+        traces:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource/static, transform/parity, batch]
+          exporters:  [otlphttp/dynatrace]
+        metrics:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource/static, batch]
+          exporters:  [otlphttp/dynatrace]
+        logs:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource/static, transform/parity, batch]
+          exporters:  [otlphttp/dynatrace]
+      telemetry:
+        metrics:
+          readers:
+            - pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } }
+---
+# Stable, engine-neutral Service name so istio/values-*.yaml and the app
+# manifests all reference `bench-otel-collector.default.svc.cluster.local`
+# regardless of what the operator names its own generated Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-otel-collector
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otel-collector
+spec:
+  selector:
+    app.kubernetes.io/component: opentelemetry-collector
+    app.kubernetes.io/instance: default.bench-otel-collector
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }

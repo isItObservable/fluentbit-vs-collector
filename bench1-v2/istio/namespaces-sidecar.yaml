@@ -1,0 +1,54 @@
+# ============================================================================
+# ISI-1814 / ISI-1779 B1-v2 — put both app namespaces into SIDECAR mode
+# ----------------------------------------------------------------------------
+#   kubectl apply -f istio/namespaces-sidecar.yaml
+#   kubectl -n otel-demo    rollout restart deploy
+#   kubectl -n hipster-shop rollout restart deploy
+#
+# ---------------------------------------------------------------------------
+# WHY THIS FILE EXISTS AT ALL — a live-cluster finding, not a plan item
+# ---------------------------------------------------------------------------
+# observable-otelarrow's Istio 1.29.2 was installed with `profile: ambient`
+# and otel-demo carries `istio.io/dataplane-mode=ambient`. hipster-shop carries
+# no Istio label at all — it is outside the mesh entirely. There is not a
+# single istio-proxy container on the cluster today.
+#
+# That breaks the campaign in two places:
+#   * Validation gate check 3 asserts an istio-proxy sidecar on every pod in
+#     both namespaces. In ambient mode there are no sidecars, ever.
+#   * Validation gate check 4 asserts Istio-generated spans. ztunnel is an L4
+#     proxy: it does not parse HTTP and does not emit spans, so the Telemetry
+#     API's tracing provider is a silent no-op in ambient. The campaign would
+#     have produced zero mesh spans in all three phases and the fault would
+#     have looked like an engine problem.
+#
+# So the benchmark runs in sidecar mode. Ambient stays installed (ztunnel and
+# istio-cni are untouched, and istiod keeps PILOT_ENABLE_AMBIENT) but no
+# namespace opts into it any more — removing the label is what moves otel-demo
+# out of ambient. The istio-sidecar-injector MutatingWebhookConfiguration is
+# already present on the cluster, so nothing needs installing.
+#
+# The two per-pod exclusions (otel-demo load-generator and frontend-proxy) are
+# set in the otel-demo Helm values, not here. The ramp-job load drivers exclude
+# themselves via the same annotation; validate-phase.sh treats any pod labelled
+# `ramp: isi1779` as an expected exclusion.
+# ============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: otel-demo
+  labels:
+    istio-injection: enabled
+    benchmark: isi1779
+    # `istio.io/dataplane-mode: null` cannot be expressed in a plain manifest —
+    # kubectl apply will not remove a label that is simply absent from the file.
+    # Remove it explicitly, once, before applying this:
+    #   kubectl label ns otel-demo istio.io/dataplane-mode-
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hipster-shop
+  labels:
+    istio-injection: enabled
+    benchmark: isi1779

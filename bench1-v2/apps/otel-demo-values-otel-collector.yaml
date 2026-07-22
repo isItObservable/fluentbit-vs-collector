@@ -1,0 +1,66 @@
+# ============================================================================
+# ISI-1814 / ISI-1779 B1-v2 — otel-demo Helm values, ENGINE = otel-collector
+# ----------------------------------------------------------------------------
+# GENERATED FROM _templates/otel-demo-values.tmpl.yaml by render.sh — DO NOT EDIT.
+# Chart: open-telemetry/opentelemetry-demo 0.40.10 (appVersion 2.2.0) — the
+# version already installed on observable-otelarrow.
+#
+#   helm upgrade --install otel-demo open-telemetry/opentelemetry-demo \
+#     --version 0.40.10 -n otel-demo --create-namespace \
+#     -f apps/otel-demo-values-otel-collector.yaml --wait
+#
+# ---------------------------------------------------------------------------
+# HOW THE OTLP ENDPOINT IS REPOINTED
+# ---------------------------------------------------------------------------
+# The chart wires every component with
+#     OTEL_EXPORTER_OTLP_ENDPOINT = http://$(OTEL_COLLECTOR_NAME):4317
+# so overriding the single variable OTEL_COLLECTOR_NAME in default.envOverrides
+# repoints all ~20 services at once. That is the chart's own indirection, not
+# a hack — and it is why the endpoint diff between the three phases is one line.
+#
+# ---------------------------------------------------------------------------
+# SIDECAR EXCLUSIONS (validation gate check 3)
+# ---------------------------------------------------------------------------
+# Exactly two components are excluded from injection:
+#   load-generator  — Locust; the sidecar intercepts and re-times the very
+#                     traffic we are using as the independent variable, and it
+#                     would attribute load-driver latency to the mesh.
+#   frontend-proxy  — is itself an Envoy; sidecar-in-front-of-Envoy double-
+#                     proxies every request into the demo and breaks the
+#                     browser-facing 8080 listener.
+# podAnnotations is deep-merged by Helm, so the chart's own annotations on
+# these two components (resource.opentelemetry.io/service.namespace, the
+# io.opentelemetry.discovery.metrics/* set on frontend-proxy) are preserved.
+# EVERYTHING ELSE gets a sidecar — that is what the gate asserts.
+# ============================================================================
+
+default:
+  envOverrides:
+    # single lever: repoints OTEL_EXPORTER_OTLP_ENDPOINT for every component
+    - name: OTEL_COLLECTOR_NAME
+      value: bench-otel-collector.default.svc.cluster.local
+    # tag every record so DT can attribute volume to the phase without
+    # relying on wall-clock windows alone
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: benchmark.engine=otel-collector,benchmark.run=isi1779-b1v2,service.namespace=otel-demo
+
+components:
+  load-generator:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+  frontend-proxy:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+
+# The demo's bundled observability backends are all off — the engine under
+# test is the only telemetry path, and a second consumer would distort load.
+grafana:
+  enabled: false
+jaeger:
+  enabled: false
+opensearch:
+  enabled: false
+prometheus:
+  enabled: false
+opentelemetry-collector:
+  enabled: false

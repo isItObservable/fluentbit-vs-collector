@@ -1,0 +1,237 @@
+# ============================================================================
+# ISI-1814 / ISI-1779 B1-v2 — ENGINE 2: Fluent Bit v5
+# ----------------------------------------------------------------------------
+# Phase 2 of the sequential campaign. Same job as the Collector: receive OTLP
+# from both apps and from the Istio sidecars, apply the parity processing set,
+# export OTLP/HTTP to Dynatrace.
+#
+#   kubectl apply -f engines/fluentbit-v5.yaml
+#
+# ---------------------------------------------------------------------------
+# WHY A Deployment AND NOT A DaemonSet
+# ---------------------------------------------------------------------------
+# In the OTLP-push topology Fluent Bit is a cluster-singleton receiver, not a
+# per-node log tailer. The DaemonSet shape belongs to Benchmark 2 (ISI-1793),
+# where filelog tailing is the point.
+#
+# ---------------------------------------------------------------------------
+# PORTS — 4317 IS A SERVICE-LEVEL REMAP, NOT A SECOND LISTENER
+# ---------------------------------------------------------------------------
+# Fluent Bit's `opentelemetry` input serves OTLP/HTTP *and* OTLP/gRPC on ONE
+# port (default 4318, http2 on). Istio's tracing and envoyOtelAls providers
+# both speak OTLP/gRPC and the values files point them at :4317 for all three
+# engines, so the Service maps 4317 -> targetPort 4318. One listener, two
+# service ports — the engines stay addressable identically without giving
+# Fluent Bit a second input (which would duplicate the processor chain and
+# quietly double its per-record work).
+#
+# ---------------------------------------------------------------------------
+# PARITY SET — v5 NATIVE PROCESSORS, NO LUA
+# ---------------------------------------------------------------------------
+#   1. static attribute add -> content_modifier upsert x3
+#   2. severity normalise   -> content_modifier upsert + regex condition
+#   3. PII redact           -> content_modifier hash  + regex condition
+#   4. drop a key           -> content_modifier delete
+#   5. batch                -> the output plugin's own batching (flush 1s)
+#
+# DISCLOSED ASYMMETRY: content_modifier has no inline regex substitution.
+# Its only native redaction verb is `hash` (SHA-256 of the whole value), so
+# Fluent Bit hashes a record whose body matches the e-mail pattern where the
+# Collector and df_engine mask just the matched substring. Comparable work,
+# different semantics — this goes on camera, it is not swept under the rug.
+#
+# GOTCHA (paid for on 2026-07-21): content_modifier is a v5 PROCESSOR attached
+# under the input's `processors:` block, per signal. Putting it in a top-level
+# `filters:` entry yields
+#   "sequence-start-event in group-val" at parse time.
+# The DaemonSet/Deployment must also pass `-c .../fluent-bit.yaml` explicitly —
+# the default entrypoint reads the classic .conf.
+#
+# CREDENTIALS: DT_API_TOKEN from secret default/gateway-dynatrace (key
+# apiToken). Tenant host is not a secret and is inlined.
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-fluentbit-v5-config
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: fluentbit-v5
+data:
+  fluent-bit.yaml: |
+    service:
+      flush: 1
+      daemon: off
+      log_level: info
+      http_server: on
+      http_listen: 0.0.0.0
+      http_port: 2020
+
+    pipeline:
+      inputs:
+        - name: opentelemetry
+          listen: 0.0.0.0
+          port: 4318
+          http2: on
+          tag: otlp
+          # v5 native processors, per signal. Order mirrors the Collector's.
+          processors:
+            logs:
+              # 1. static attribute add
+              - name: content_modifier
+                action: upsert
+                key: k8s.cluster.name
+                value: observable-otelarrow
+              - name: content_modifier
+                action: upsert
+                key: benchmark.engine
+                value: fluentbit-v5
+              - name: content_modifier
+                action: upsert
+                key: benchmark.run
+                value: isi1779-b1v2
+              # 2. severity normalise
+              - name: content_modifier
+                action: upsert
+                key: severity_text
+                value: ERROR
+                condition:
+                  op: and
+                  rules:
+                    - field: "$log"
+                      op: regex
+                      value: "(?i)error"
+              # 3. PII redact — hash, see DISCLOSED ASYMMETRY above
+              - name: content_modifier
+                action: hash
+                key: "log"
+                condition:
+                  op: and
+                  rules:
+                    - field: "$log"
+                      op: regex
+                      value: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}"
+              # 4. drop a key
+              - name: content_modifier
+                action: delete
+                key: log.file.path
+            traces:
+              - name: content_modifier
+                action: upsert
+                key: k8s.cluster.name
+                value: observable-otelarrow
+              - name: content_modifier
+                action: upsert
+                key: benchmark.engine
+                value: fluentbit-v5
+              - name: content_modifier
+                action: upsert
+                key: benchmark.run
+                value: isi1779-b1v2
+              - name: content_modifier
+                action: delete
+                key: log.file.path
+            metrics:
+              - name: content_modifier
+                action: upsert
+                key: k8s.cluster.name
+                value: observable-otelarrow
+              - name: content_modifier
+                action: upsert
+                key: benchmark.engine
+                value: fluentbit-v5
+              - name: content_modifier
+                action: upsert
+                key: benchmark.run
+                value: isi1779-b1v2
+
+      outputs:
+        - name: opentelemetry
+          match: '*'
+          host: ${DT_HOST}
+          port: 443
+          tls: on
+          tls.verify: on
+          logs_uri: /api/v2/otlp/v1/logs
+          traces_uri: /api/v2/otlp/v1/traces
+          metrics_uri: /api/v2/otlp/v1/metrics
+          header: Authorization Api-Token ${DT_API_TOKEN}
+          retry_limit: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-fluentbit-v5
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: fluentbit-v5
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: bench-fluentbit-v5 }
+  template:
+    metadata:
+      labels:
+        app: bench-fluentbit-v5
+        benchmark: isi1779
+        benchmark.engine: fluentbit-v5
+      annotations:
+        # the engine under test must not be inside the mesh it is measuring
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: fluent-bit
+          # v5, not v4. The whole benchmark is "Fluent Bit v5"; a 4.x tag here
+          # would silently measure the wrong engine while every label, comment
+          # and file name still said v5. Verified present on Docker Hub.
+          image: fluent/fluent-bit:5.0.9
+          args: ["-c", "/fluent-bit/etc/fluent-bit.yaml"]
+          env:
+            - name: DT_HOST
+              value: oat05854.dev.dynatracelabs.com
+            - name: DT_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-dynatrace
+                  key: apiToken
+          ports:
+            - { name: otlp, containerPort: 4318 }
+            - { name: metrics, containerPort: 2020 }
+          resources:
+            requests: { cpu: "500m", memory: "256Mi" }
+            limits:   { cpu: "4",    memory: "2Gi" }
+          volumeMounts:
+            - { name: config, mountPath: /fluent-bit/etc }
+      volumes:
+        - name: config
+          configMap: { name: bench-fluentbit-v5-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-fluentbit-v5
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: fluentbit-v5
+spec:
+  selector: { app: bench-fluentbit-v5 }
+  ports:
+    # 4317 -> 4318: one listener serves both OTLP transports (see header note)
+    - { name: otlp-grpc, port: 4317, targetPort: 4318 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-fluentbit-v5-metrics
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: fluentbit-v5
+spec:
+  selector: { app: bench-fluentbit-v5 }
+  ports:
+    - { name: metrics, port: 2020, targetPort: 2020 }

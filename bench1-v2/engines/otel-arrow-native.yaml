@@ -1,0 +1,111 @@
+# ============================================================================
+# ISI-1814 / ISI-1779 B1-v2 — ENGINE 3: OTel-Arrow native (df_engine / otap-dataflow)
+# ----------------------------------------------------------------------------
+# Phase 3 of the sequential campaign. Image ghcr.io/isitobservable/df_engine:0.50.0
+# (built by ISI-1795, publicly pullable, no pull secret).
+#
+#   ./engines/render-df-engine-config.sh   # creates the ConfigMap in-cluster
+#   kubectl apply -f engines/otel-arrow-native.yaml
+#
+# ---------------------------------------------------------------------------
+# WHY THE CONFIG IS NOT IN THIS FILE
+# ---------------------------------------------------------------------------
+# df_engine has no ${env:VAR} expansion in its config, so the Dynatrace API
+# token has to be literal text inside the pipeline YAML. That YAML therefore
+# never lands in _artifacts/. `render-df-engine-config.sh` reads the token from
+# the in-cluster secret default/gateway-dynatrace and creates the ConfigMap
+# `bench-otel-arrow-native-config` directly — the token exists only in the
+# cluster, exactly as the issue requires. The pipeline shape lives in
+# engines/df-engine-config.tmpl.yaml with a __DT_API_TOKEN__ placeholder.
+#
+# ---------------------------------------------------------------------------
+# PARITY GAP — MEASURED, NOT ASSUMED (see README §"df_engine transform")
+# ---------------------------------------------------------------------------
+# df_engine 0.50.0's `processor:transform` (KQL) can WRITE a field but cannot
+# READ one. Verified live on observable-otelarrow 2026-07-22 with a console
+# exporter and a control run:
+#     WORKS   logs | extend severity_text = 'ERROR'          (literal assign)
+#     WORKS   logs | extend body = 'REDACTED-LITERAL'        (body is assignable)
+#     WORKS   logs | extend severity_text = iff(true, 'ERROR', 'INFO')
+#     FAILS   ... iff(body contains 'error', ...)            runtime error
+#     FAILS   ... iff(body == '<exact literal>', ...)        runtime error
+#     FAILS   ... replace_regex(body, '<re>', '***')         runtime error
+#     FAILS   ... body matches regex '(?i)error'             runtime error
+# Every failure surfaces only as an opaque
+#     otap-df-state::state.observed_error  Pipeline encountered a runtime error
+# and `--validate-and-exit` reports the config as VALID in all of them — it
+# checks URNs and node config shape, never the KQL body. Do not trust
+# --validate-and-exit as a parity check; boot the pipeline and push records.
+#
+# CONSEQUENCE: Phase 3 cannot do the plan's conditional severity normalisation
+# or regex PII redaction. It does a constant field write instead — a real
+# per-record column write, but not the same semantics. Phase 3 therefore does
+# strictly LESS processing work than Phases 1-2 unless the board levels the
+# other two down (see the PARITY LEVEL block in engines/otel-collector.yaml
+# and engines/fluentbit-v5.yaml). Flagged to @BigBoss.
+#
+# ---------------------------------------------------------------------------
+# NO ISTIO SIDECAR ON THE ENGINE
+# ---------------------------------------------------------------------------
+# The engine under test must not sit inside the mesh it is measuring — a
+# sidecar would add its own spans and access logs to the very stream we are
+# counting, and route the engine's egress through Envoy.
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-otel-arrow-native
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otel-arrow-native
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: bench-otel-arrow-native }
+  template:
+    metadata:
+      labels:
+        app: bench-otel-arrow-native
+        benchmark: isi1779
+        benchmark.engine: otel-arrow-native
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: df-engine
+          image: ghcr.io/isitobservable/df_engine:0.50.0
+          args:
+            - "--config"
+            - "file:/etc/df-engine/config.yaml"
+            - "--http-admin-bind"
+            - "0.0.0.0:8080"
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: admin,     containerPort: 8080 }
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "4",    memory: "2Gi" }
+          volumeMounts:
+            - { name: cfg, mountPath: /etc/df-engine, readOnly: true }
+      volumes:
+        - name: cfg
+          configMap:
+            # created by engines/render-df-engine-config.sh — NOT in this file
+            name: bench-otel-arrow-native-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-otel-arrow-native
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otel-arrow-native
+spec:
+  selector: { app: bench-otel-arrow-native }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
+    - { name: admin,     port: 8080, targetPort: 8080 }

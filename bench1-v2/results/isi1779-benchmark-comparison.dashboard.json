@@ -1,0 +1,252 @@
+{
+  "name": "Fluent Bit v5 vs OTel-Collector vs OTel-Arrow — Benchmark Comparison (ISI-1779 B1-v2, timeframe-driven)",
+  "type": "dashboard",
+  "content": {
+    "importedWithCode": false,
+    "layouts": {
+      "0": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "1": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "10": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "2": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "3": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "4": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 22
+      },
+      "5": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 22
+      },
+      "6": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 22
+      },
+      "7": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "8": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "9": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      }
+    },
+    "settings": {},
+    "tiles": {
+      "0": {
+        "markdown": "# Fluent Bit v5 vs OTel Collector vs OTel-Arrow — benchmark comparison\n\n**This dashboard is the measurement surface for ISI-1779 (plan rev 5 §5). There are no snapshots — set the timeframe and read the run.**\n\n### How to read a run\n1. Open `results/RUN-REGISTER.md` on branch `fluentbit-v5-vs-otel-arrow` and pick a row (`R1-P1-collector` … `R2-P3-arrow`).\n2. Paste that row's **Start (UTC)** and **End (UTC)** into the dashboard timeframe picker, verbatim.\n3. Every tile below is timeframe-driven and sliced by `k8s.workload.name` / `benchmark.engine`, so the window alone selects the engine and the round. **No tile carries its own `from:` clause** — if you see numbers without setting a timeframe, you are reading the default window, not a run.\n4. Compare `R1-P<n>-<engine>` with `R2-P<n>-<engine>` for replication; compare engines *within one round* for the headline.\n\n### What is on the grid\nEngine workloads are the three `bench-*` deployments on cluster `observable-otelarrow`: `bench-otel-collector-collector`, `bench-fluentbit-v5`, `bench-otel-arrow-native`. Only one is deployed at a time (plan §1) — **a correctly-scoped window contains exactly one engine workload. If you see two, the window is wrong**, most likely an End timestamp captured after the next phase started.\n\nCPU is in **millicores**, memory in **MiB**.",
+        "title": "",
+        "type": "markdown"
+      },
+      "1": {
+        "query": "timeseries cpu = avg(dt.kubernetes.container.cpu_usage), by:{k8s.workload.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")",
+        "title": "CPU per engine (millicores) — timeframe = the run window",
+        "type": "data",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoryOverrides": {},
+            "fieldMapping": {
+              "leftAxisValues": [
+                "cpu"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "hiddenLegendFields": [],
+            "leftYAxisSettings": {},
+            "valueRepresentation": "absolute"
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "10": {
+        "markdown": "### Caveats that change how these numbers are read\n\n- **Restarts / OOM kills** use `arrayMax`, not `arraySum`. The Dynatrace k8s counters report the container's restart count and are only emitted when non-zero; summing them across intervals double-counts one restart once per sample. The tile is driven off the CPU metric and looks the counters up, so a healthy engine shows an explicit **0** rather than a blank tile you cannot distinguish from a broken query.\n- **Ingest volume by signal covers spans and logs.** Those are record-countable in Grail. OTLP **metric datapoints** are not — a metric arrives as a series, not a countable record — so the metrics signal is represented by the *series-arriving-per-engine* tile (liveness and breadth), and datapoint throughput is taken from the engine's own exported-datapoint counter at gate time (`validate-phase.sh` check 5). Do not read the metric-series count as a volume comparison.\n- **`app-sdk` vs `istio-mesh`** is split on `benchmark.telemetry_source`, which only the Istio `Telemetry` CR sets. `benchmark.engine` cannot make this split — the engines stamp it on every record they process, app and mesh alike.\n- **Scope exclusion D1 (board, 2026-07-22):** Istio/Envoy Prometheus metrics are excluded from every run — no Prometheus receiver, no ServiceMonitor, no Envoy scrape, on any engine, in any phase. App-emitted OTLP metrics **are** in scope and are measured. Istio-generated spans and access logs are in scope.\n- **Workload names collide across clusters** on this tenant (`observable-kagent`, `observable-agentsandbox`, `observable-otelarrow` all report `dt.kubernetes.container.*`). Every resource tile is therefore scoped by `k8s.cluster.name == \"observable-otelarrow\"`. Do not remove that filter.\n- Every ratio quoted from this dashboard must state its baseline: **vs OTLP+zstd** is the honest comparison; vs uncompressed is a different, much larger number and must be labelled.",
+        "title": "",
+        "type": "markdown"
+      },
+      "2": {
+        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd mem_mib = mem[] / 1048576\n| fields k8s.workload.name, timeframe, interval, mem_mib",
+        "title": "Memory working set per engine (MiB) — slope across the run is the leak signal",
+        "type": "data",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoryOverrides": {},
+            "fieldMapping": {
+              "leftAxisValues": [
+                "mem_mib"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "hiddenLegendFields": [],
+            "leftYAxisSettings": {},
+            "valueRepresentation": "absolute"
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "3": {
+        "query": "timeseries { cpu = avg(dt.kubernetes.container.cpu_usage), mem = avg(dt.kubernetes.container.memory_working_set) }, by:{k8s.workload.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd cpu_avg_mc = arrayAvg(cpu), cpu_p95_mc = arrayPercentile(cpu, 95), cpu_max_mc = arrayMax(cpu),\n            mem_avg_mib = arrayAvg(mem) / 1048576, mem_peak_mib = arrayMax(mem) / 1048576\n| fields engine = k8s.workload.name, cpu_avg_mc, cpu_p95_mc, cpu_max_mc, mem_avg_mib, mem_peak_mib\n| sort cpu_avg_mc desc",
+        "title": "Resource summary — CPU avg/p95/max (mc) and memory avg/peak (MiB) over the window",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "4": {
+        "query": "timeseries cpu = avg(dt.kubernetes.container.cpu_usage), by:{k8s.workload.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| fields engine = k8s.workload.name\n| lookup [ timeseries { r = sum(dt.kubernetes.container.restarts), o = sum(dt.kubernetes.container.oom_kills) }, by:{k8s.workload.name}, filter: k8s.cluster.name == \"observable-otelarrow\"\n           | fieldsAdd restarts = arrayMax(r), oom_kills = arrayMax(o)\n           | fields k8s.workload.name, restarts, oom_kills ],\n         sourceField: engine, lookupField: k8s.workload.name\n| fieldsAdd restarts = coalesce(lookup.restarts, 0), oom_kills = coalesce(lookup.oom_kills, 0)\n| fields engine, restarts, oom_kills\n| sort engine asc",
+        "title": "Stability — restarts & OOM kills in the window (0 = healthy, blank = no engine in window)",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "5": {
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"spans\"\n| summarize records = count(), by:{ engine = benchmark.engine, signal }\n| append [ fetch logs | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"logs\"\n           | summarize records = count(), by:{ engine = benchmark.engine, signal } ]\n| sort records desc",
+        "title": "Ingest volume by signal — records reaching Dynatrace through the engine",
+        "type": "data",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoricalBarChartSettings": {
+              "categoryAxis": "signal",
+              "categoryAxisLabel": "signal",
+              "valueAxis": "records",
+              "valueAxisLabel": "records"
+            },
+            "categoryOverrides": {},
+            "hiddenLegendFields": []
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "6": {
+        "query": "timeseries v = avg(system.cpu.utilization), by:{ benchmark.engine, service.name }, filter: isNotNull(benchmark.engine)\n| summarize metric_series = count(), by:{ engine = benchmark.engine }\n| sort metric_series desc",
+        "title": "OTLP metric series arriving per engine (liveness/breadth, NOT a volume comparison)",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "7": {
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"spans\", ts = timestamp\n| append [ fetch logs | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"logs\", ts = timestamp ]\n| makeTimeseries records = count(), by:{ benchmark.engine, signal }, interval: 1m, time: ts",
+        "title": "Ingest rate over the run (records/min by signal)",
+        "type": "data",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoryOverrides": {},
+            "fieldMapping": {
+              "leftAxisValues": [
+                "records"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "hiddenLegendFields": [],
+            "leftYAxisSettings": {},
+            "valueRepresentation": "absolute"
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "8": {
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd source = if(benchmark.telemetry_source == \"istio-mesh\", \"istio-mesh\", else: \"app-sdk\")\n| summarize spans = count(), by:{ engine = benchmark.engine, source }\n| sort spans desc",
+        "title": "App SDK vs Istio mesh spans — both must be non-zero for a valid phase (gate checks 2 & 4)",
+        "type": "data",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoricalBarChartSettings": {
+              "categoryAxis": "source",
+              "categoryAxisLabel": "source",
+              "valueAxis": "spans",
+              "valueAxisLabel": "spans"
+            },
+            "categoryOverrides": {},
+            "hiddenLegendFields": []
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "9": {
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd app = coalesce(service.namespace, \"unlabelled\")\n| summarize spans = count(), by:{ engine = benchmark.engine, app }\n| sort spans desc",
+        "title": "Spans by app — otel-demo and hipster-shop must BOTH appear (gate check 2)",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      }
+    },
+    "variables": [],
+    "version": 19
+  }
+}

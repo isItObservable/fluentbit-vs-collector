@@ -1,0 +1,69 @@
+# ============================================================================
+# ISI-1814 / ISI-1779 B1-v2 — Istio Telemetry CRs, ENGINE = otel-arrow-native
+# ----------------------------------------------------------------------------
+# GENERATED FROM _templates/istio-telemetry.tmpl.yaml by render.sh — DO NOT EDIT.
+#
+# Applied AFTER the matching istio/values-otel-arrow-native.yaml helm upgrade, because
+# the providers referenced here (otel-arrow-native-otel, otel-arrow-native-otel-als) only
+# exist once that MeshConfig is live. Referencing a provider that does not
+# exist makes istiod reject the Telemetry — which is deliberate: it fails LOUD
+# if a phase forgets the helm upgrade, instead of silently shipping the
+# previous phase's telemetry to the previous phase's engine.
+#
+#   kubectl apply -f istio/telemetry-otel-arrow-native.yaml
+#
+# Mesh-wide because it lives in the Istio root namespace (istio-system) with no
+# selector — one CR covers otel-demo and hipster-shop identically.
+#
+# TRACING AND ACCESSLOGGING ONLY. There is deliberately no `metrics:` section
+# here and there must never be one: mesh metrics are out of scope for all six
+# timed runs (board D1, plan rev 4 §3/§9). See the SCOPE EXCLUSION block in
+# istio/values-otel-arrow-native.yaml. Istio-generated SPANS are still in scope and
+# are check 4 of validate-phase.sh.
+#
+# randomSamplingPercentage: 100 — NOT a production setting. The benchmark needs
+# deterministic, identical telemetry volume across the three phases; any
+# sampling below 100 makes per-phase volume a second variable alongside the
+# engine. Envoy's default is 1%.
+# ============================================================================
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: isi1779-bench-tracing
+  namespace: istio-system
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otel-arrow-native
+spec:
+  # no selector => mesh-wide (root namespace)
+  tracing:
+    - providers:
+        - name: otel-arrow-native-otel
+      randomSamplingPercentage: 100.00
+      customTags:
+        # benchmark.telemetry_source is the ONLY reliable way to tell an
+        # Envoy-generated span from an app SDK span here: the engines stamp
+        # benchmark.engine onto EVERY record they process, app and mesh alike,
+        # so that attribute cannot discriminate. Only Istio sets this one, and
+        # only on spans it generates itself — which is exactly what validation
+        # gate check 4 has to count.
+        benchmark.telemetry_source:
+          literal:
+            value: istio-mesh
+        benchmark.engine:
+          literal:
+            value: otel-arrow-native
+---
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: isi1779-bench-accesslog
+  namespace: istio-system
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otel-arrow-native
+spec:
+  accessLogging:
+    - providers:
+        - name: otel-arrow-native-otel-als
+      disabled: false
