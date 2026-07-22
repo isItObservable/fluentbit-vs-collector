@@ -154,7 +154,7 @@ Phase order is fixed by plan §1: **P1 = OTel Collector → P2 = Fluent Bit v5 �
 
 | Run ID | Engine + image tag | Round | Cluster | Expected replicas | Start (UTC) | End (UTC) | Validation gate | Census | Load profile | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `R1-P1-collector` | otel-collector contrib `0.154.0` | 1 | `observable-otelarrow` | 1 | `2026-07-22T15:58:43Z` | `2026-07-22T17:59:21Z` | `PASS 6/6 @ 2026-07-22T15:57:12Z` | `MATCH` | `rampup2h` 50→100→150→200 VU, both apps | `cumulativetodelta` added to the metrics pipeline before this run (CHECK 5 fix). CAAPH reconciliation for istiod is PAUSED for the campaign (ISI-1826). Built-in app loadgenerators run alongside the ramp, identically in every phase. Duration 120.6 min (End−Start), within the ±2 min self-check. End recovered with `capture-window.sh` from `max(pod .state.terminated.finishedAt)` across all 8 ramp pods (`otel-demo` 4 + `hipster-shop` 4), captured **before** teardown; the two namespaces' last pods stopped 17:59:21Z and 17:59:07Z. Nothing anomalous: engine pod never replaced, 0 restarts, node under no pressure. |
+| `R1-P1-collector` | otel-collector contrib `0.154.0` | 1 | `observable-otelarrow` | 1 | `2026-07-22T15:58:43Z` | `2026-07-22T17:59:21Z` | `PASS 6/6 @ 2026-07-22T15:57:12Z` | `MATCH` | `rampup2h` 50→100→150→200 VU, both apps | `cumulativetodelta` added to the metrics pipeline before this run (CHECK 5 fix). CAAPH reconciliation for istiod is PAUSED for the campaign (ISI-1826). Built-in app loadgenerators run alongside the ramp, identically in every phase — see the ⚠️ note below on `hipster-shop/loadgenerator`, which is a pre-campaign leftover that **must be left running**. Duration 120.6 min (End−Start), within the ±2 min self-check. End recovered with `capture-window.sh` from `max(pod .state.terminated.finishedAt)` across all 8 ramp pods (`otel-demo` 4 + `hipster-shop` 4), captured **before** teardown; the two namespaces' last pods stopped 17:59:21Z and 17:59:07Z. Nothing anomalous: engine pod never replaced, 0 restarts, node under no pressure. |
 | `R1-P2-fluentbit` | fluent-bit `5.0.9` | 1 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R1-P3-arrow` | `ghcr.io/isitobservable/df_engine:0.50.0` | 1 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R2-P1-collector` | otel-collector contrib `0.154.0` | 2 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
@@ -163,6 +163,30 @@ Phase order is fixed by plan §1: **P1 = OTel Collector → P2 = Fluent Bit v5 �
 
 **Owning issue per row:** R1-P1 = ISI-1815 · R1-P2 = ISI-1816 · R1-P3 = ISI-1817 ·
 R2-P1 = ISI-1818 · R2-P2 = ISI-1819 · R2-P3 = ISI-1820.
+
+> ⚠️ **`hipster-shop/loadgenerator` — a second load source exists. LEAVE IT RUNNING.**
+> Found during R1-P1 teardown (2026-07-22T18:1xZ). The hipster-shop overlay deliberately
+> **deletes** the bundled loadgenerator — its own comment says *"a second, uncontrolled load
+> source would corrupt the methodology"* — and none of `hipster-shop-{otel-collector,
+> fluentbit-v5,otel-arrow-native}.yaml` contains one (`grep -c 'name: loadgenerator'` = 0 on
+> all three). But a `loadgenerator` Deployment applied **before the campaign** (deployment
+> created `2026-07-21T15:59:35Z`, 10 VU against `frontend:80`) is live in the namespace, and
+> its `last-applied-configuration` carries none of the overlay's kustomize labels — so it is
+> not ours. Its pod (`…-g7pxd`, created `2026-07-22T14:54:47Z`, 0 restarts) was up
+> continuously **before and through the whole R1-P1 window**.
+>
+> **Do not delete it as part of any teardown.** Because it is in no phase manifest, teardown
+> never removes it and redeploy never recreates it — it therefore persists **identically
+> across all six runs**, which is exactly the condition cross-phase comparison needs. Removing
+> it now would give P1 more hipster-shop load than P2/P3 and *create* the asymmetry the
+> overlay comment warns about. It is a constant, not a variable.
+>
+> Two things it is honest to record rather than wave away: it drives ~10 VU of hipster-shop
+> traffic that the ramp ladder does not account for, and **unlike otel-demo's `load-generator`
+> it has an Istio sidecar** (`2/2`), so its traffic does produce mesh spans and access logs —
+> otel-demo's is sidecar-excluded precisely so the load driver is not measured. So absolute
+> hipster-shop volumes carry a constant offset. **Engine-vs-engine comparison is unaffected**;
+> any *absolute* hipster-shop ingest figure should be read with this in mind.
 
 ### Pod census — one block per run, captured at Start AND at End (D12)
 

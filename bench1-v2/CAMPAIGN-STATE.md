@@ -81,3 +81,41 @@ hides — that is how the CHECK 4 root cause was found (see
 `engines/README-port-naming.md`). It is a per-pod parity deviation under plan §2, so it
 was removed immediately after the diagnosis. **No action needed**; recorded here only
 so the parity audit has a complete list.
+
+---
+
+## 3. `hipster-shop/loadgenerator` — pre-campaign leftover, **DO NOT DELETE MID-CAMPAIGN**
+
+| | |
+|---|---|
+| **Found** | 2026-07-22, ISI-1815 (R1P1) teardown — it survived `kubectl delete -f apps/hipster-shop-otel-collector.yaml` |
+| **Cluster** | workload cluster `observable-otelarrow`, namespace `hipster-shop` |
+| **Object** | `Deployment/loadgenerator`, created `2026-07-21T15:59:35Z`, 10 VU → `frontend:80` |
+| **Revert owner** | campaign end (R2P3), **not** any phase teardown |
+
+### What it is
+
+Not ours. The hipster-shop overlay *deliberately deletes* the bundled loadgenerator, and
+its own comment gives the reason: **"a second, uncontrolled load source would corrupt the
+methodology."** `grep -c 'name: loadgenerator'` returns `0` on all three phase manifests,
+and this object's `last-applied-configuration` carries none of the overlay's kustomize
+labels. It was applied by hand before the campaign started.
+
+### Why it must be left alone until R2P3
+
+Because it is in no phase manifest, **teardown never removes it and redeploy never
+recreates it** — so it is present, unchanged, for all six runs. That makes it a constant,
+and constants cancel in an engine-vs-engine comparison. Deleting it at a phase boundary is
+the harmful move: R1P1 would have run with ~10 extra VU of hipster-shop load and every
+later phase without, manufacturing exactly the asymmetry the overlay comment warns about.
+
+Its pod (`loadgenerator-d9d8bf757-g7pxd`, created `2026-07-22T14:54:47Z`, 0 restarts) was
+up before and throughout the entire R1P1 window, so R1P1 itself is internally consistent.
+
+### The caveat to carry into the readout
+
+Unlike otel-demo's `load-generator`, which is **sidecar-excluded** specifically so the load
+driver is not itself measured, this one runs `2/2` **with** an Istio sidecar — its traffic
+therefore emits mesh spans and access logs into the engine under test. **Absolute**
+hipster-shop ingest volumes carry a constant offset because of it. Relative engine
+comparison is unaffected.
