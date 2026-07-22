@@ -86,23 +86,92 @@ Variant B's wire cost (and A's/C's for uniformity) is pod cAdvisor
 `container_network_transmit_bytes_total`. Only the `otelarrow` exporter exposes
 `otelcol_exporter_sent_wire` natively; we report both for A as a cross-check.
 
-## Phased load results — ⟨CAPTURE-AT-RECORD⟩
+## FEATURE-ON results — MEASURED (23.6 h, includes the two-app ramp)
 
-The table above is the always-on-loadgen steady-state A/B/C. The phased profile
-(ISI-1779, 2026-07-21) adds a two-app (otel-demo + hipster-shop) load, a ramp,
-and a 24 h leak soak — run via `loadtest/run-benchmark.sh` at record time. Fill
-each cell from the phase snapshots (`compute.py snap_<phase>_t0 snap_<phase>_t1`):
+**This is the headline table for the episode**: captured with the full
+feature-parity pipeline live (k8s enrichment **+ `transform`/`redact`** on all three)
+and covering the two-app staggered ramp that ran `2026-07-21 16:26→18:27Z`
+(otel-demo × 4 jobs + hipster-shop × 4 jobs). Cumulative counters since agent-pod
+start (`08:16:57Z` collectors / `08:59:58Z` fluentbit) → snapshot at `2026-07-22 07:15Z`.
 
-| Phase | VU/app | Variant | Throughput (recs/s) | CPU (cores/DS) | Mem (MiB/pod) | Loss |
-|-------|-------:|---------|--------------------:|---------------:|--------------:|-----:|
-| Stable 30 min | 50 | A · arrow / B · otlp / C · flb | ⟨…⟩ | ⟨…⟩ | ⟨…⟩ | ⟨…⟩ |
-| Ramp peak (200) | 200 | A / B / C | ⟨…⟩ | ⟨…⟩ | ⟨…⟩ | ⟨…⟩ |
-| Leak soak (24 h) | 50 | A / B / C | ⟨…⟩ | ⟨start → end⟩ | ⟨start → end⟩ | ⟨…⟩ |
+| Variant | Transport | Records | Throughput (recs/s) | Wire bytes/record | CPU (cores/DS) | Mem (MiB/pod) | Loss |
+|---------|-----------|--------:|--------------------:|------------------:|---------------:|--------------:|-----:|
+| **A · otel-arrow**   | OTAP (Arrow/gRPC stream) | 680,622,969 | 7,997.5 | **8.6** | 0.357 | 116.2 | 0 |
+| **B · otel-collector** | OTLP/gRPC + zstd       | 680,661,389 | 7,998.0 | **15.6** | 0.337 | 85.9 | 0 |
+| **C · fluentbit v5** | OTLP/HTTP (uncompressed) | 663,113,926 | 8,035.5 | **214.4** | 1.733 | 18.8 | 18 |
+
+### Feature-on vs enrich-only — what the transform cost
+
+| Metric | A · arrow | B · otlp | C · fluentbit |
+|--------|----------:|---------:|--------------:|
+| Wire B/rec (enrich-only → feature-on) | 9.2 → **8.6** | 17.0 → **15.6** | 214.7 → **214.4** |
+| CPU cores/DS | 0.242 → **0.357** (+48 %) | 0.216 → **0.337** (+56 %) | 1.516 → **1.733** (+14 %) |
+| Mem MiB/pod | 175.1 → **116.2** | 86.4 → **85.9** | 14.5 → **18.8** |
+
+- **The OTAP headline holds under a realistic pipeline:** **8.6 vs 15.6 B/rec = ~1.81×
+  leaner than OTLP+zstd** (was 1.85× enrich-only). Transformation doesn't erode the
+  transport win — OTTL runs before OTAP encoding.
+- **The transform is not free, and it's charged to everyone:** CPU rose on all three.
+  Relative cost is *largest on the collectors* (+48 %/+56 %, OTTL over 680 M records)
+  and smallest in relative terms on Fluent Bit (+14 %) — but Fluent Bit still burns
+  **~5× the collectors' CPU** in absolute terms (1.733 vs 0.357/0.337 cores).
+- **Wire bytes fell slightly** for A and B: redaction shortens bodies, so the transform
+  pays for a sliver of its own CPU in transport.
+- **Loss:** A and B still exactly 0. Fluent Bit shows **18** records
+  (dropped + retries_failed) out of 663 M = **0.0000027 %** — effectively lossless, but
+  no longer a clean zero once the Lua filter is in the path.
+- The `accepted − sent` gap on A (2,208 over 680 M = 0.0003 %) is in-flight buffer at the
+  sampling instant, **not** loss.
+
+### Not yet captured — per-phase split and the 24 h leak soak
+
+The ramp **ran** but no per-phase snapshots were taken while it was in flight, so the
+table above is a **lifetime-cumulative** measure: it *includes* the 2 h ramp blended with
+~21 h of baseline load. All three variants get identical treatment, so the comparison is
+fair — but it does **not** isolate stable-vs-ramp-vs-peak. Still outstanding:
+
+| Phase | VU/app | Status |
+|-------|-------:|--------|
+| Stable 30 min | 50 | ran (not separately snapshotted) |
+| Ramp to peak | →200 | **ran** 2026-07-21 16:26→18:27Z, both apps (not separately snapshotted) |
+| Leak soak (24 h) | 50 | **NOT RUN** — memory-leak trend still uncaptured |
+
+To split by phase, re-run `loadtest/run-benchmark.sh` and snapshot at each boundary
+(`compute.py snap_<phase>_t0 snap_<phase>_t1`).
 
 **Memory-leak read:** compare each edge pod's `container_memory_working_set_bytes`
 at `snap_p3_leak_t0` vs `snap_p3_leak_end` under a flat 50-VU input. A healthy
 transport plateaus; a monotonic rise across the 2 h intermediate points
 (`snap_p3_leak_<Ns>`) = leak. Report the slope, not just the endpoints.
+
+## CPU / memory comparison surface — Dynatrace dashboard (authoritative)
+
+Per Henrik (2026-07-21), CPU/memory are reported from **Dynatrace** and the
+comparison is done on a **DT dashboard** — not the local `collect.sh` cAdvisor
+snapshot (which stays as an independent cross-check).
+
+- **Dashboard:** *"Fluent Bit v5 vs OTel-Collector vs OTel-Arrow — Resource
+  Comparison"* — `764f7082-0039-4f3f-ad39-47b5abc5bb73` on `oat05854`.
+  Built from Henrik's own "fluentbit comparison" dashboard schema; source JSON
+  staged at `dt-dashboard-resource-comparison.json`.
+- **Source metrics:** `dt.kubernetes.container.cpu_usage` (millicores) +
+  `dt.kubernetes.container.memory_working_set` (bytes), sliced by
+  `k8s.workload.name`: `otel-agent-collector`=A OTAP · `otel-agent-otlp-collector`=B
+  OTLP+zstd · `fluent-bit-v5`=C. Plus `restarts` + `oom_kills` as the leak signal.
+- **DT corroborates the cAdvisor table** (live, avg/pod over 2 h):
+
+  | Shipper | CPU (millicores/pod) | Mem (MiB/pod) |
+  |---------|---------------------:|--------------:|
+  | A · otel-arrow (OTAP)   | ~60  | **~205** (fattest RAM) |
+  | B · otel-collector (OTLP+zstd) | ~80  | ~86 |
+  | C · fluent bit v5       | **~513** (CPU-hungry) | **~13** (leanest RAM) |
+
+  Same story as the cAdvisor 5.98 h table (§ above): OTAP buys wire with RAM;
+  fluentbit buys RAM-leanness with CPU; OTLP+zstd is the middle. Two independent
+  sources (DT container metrics + cAdvisor) agreeing = high confidence.
+
+The 24 h leak soak's memory trend is read directly off the dashboard's
+memory-working-set line (rising = leak) and the restarts/oom tiles.
 
 ### Teardown (restore ISI-1783 clean state)
 
