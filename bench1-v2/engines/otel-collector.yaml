@@ -156,5 +156,9 @@ spec:
     app.kubernetes.io/component: opentelemetry-collector
     app.kubernetes.io/instance: default.bench-otel-collector
   ports:
-    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
-    - { name: otlp-http, port: 4318, targetPort: 4318 }
+    # PORT NAMES ARE LOAD-BEARING — see engines/README-port-naming.md.
+    # Istio reads the protocol from the port name's PREFIX. `otlp-grpc` parses as
+    # protocol `otlp` (unknown) -> TCP -> outbound cluster built without HTTP/2 ->
+    # Envoy's envoy_grpc OTLP tracer fails EVERY export. Must be `grpc-otlp`.
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }

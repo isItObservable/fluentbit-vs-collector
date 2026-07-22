@@ -106,6 +106,9 @@ metadata:
 spec:
   selector: { app: bench-otel-arrow-native }
   ports:
-    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
-    - { name: otlp-http, port: 4318, targetPort: 4318 }
+    # PORT NAMES ARE LOAD-BEARING — see engines/README-port-naming.md. Istio reads
+    # the protocol from the name's PREFIX; `otlp-grpc` parses as unknown -> TCP ->
+    # no HTTP/2 -> every mesh span export fails. Must be `grpc-otlp`.
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
     - { name: admin,     port: 8080, targetPort: 8080 }

@@ -220,8 +220,11 @@ spec:
   selector: { app: bench-fluentbit-v5 }
   ports:
     # 4317 -> 4318: one listener serves both OTLP transports (see header note)
-    - { name: otlp-grpc, port: 4317, targetPort: 4318 }
-    - { name: otlp-http, port: 4318, targetPort: 4318 }
+    # PORT NAMES ARE LOAD-BEARING — see engines/README-port-naming.md. Istio reads
+    # the protocol from the name's PREFIX; `otlp-grpc` parses as unknown -> TCP ->
+    # no HTTP/2 -> every mesh span export fails. Must be `grpc-otlp`.
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4318 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
 ---
 apiVersion: v1
 kind: Service

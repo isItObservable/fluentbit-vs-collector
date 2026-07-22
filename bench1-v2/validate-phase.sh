@@ -291,6 +291,24 @@ if [[ -n "$cd_pod" ]]; then
   fi
 fi
 
+# 4d — the engine Service's OTLP/gRPC port MUST be named `grpc-otlp`. Istio reads
+# the protocol from the port name's PREFIX, so `otlp-grpc` parses as protocol
+# `otlp` (unknown) -> TCP -> outbound cluster built with NO HTTP/2 -> Envoy's
+# envoy_grpc tracer fails EVERY export. This cost R1P1 ~20% of intended span
+# volume with a fully green-looking deployment: cx_connect_fail 0 (TCP is fine),
+# rq_error 7908/7971, and `tracing.*` hidden by Istio's default stats matcher.
+# Full write-up: engines/README-port-naming.md.
+svc_port=$(kubectl -n default get svc "bench-${ENGINE}" \
+  -o jsonpath='{.spec.ports[?(@.port==4317)].name}' 2>/dev/null || true)
+svc_ap=$(kubectl -n default get svc "bench-${ENGINE}" \
+  -o jsonpath='{.spec.ports[?(@.port==4317)].appProtocol}' 2>/dev/null || true)
+say "  4d engine svc bench-${ENGINE} port 4317: name=${svc_port:-<none>} appProtocol=${svc_ap:-<none>}"
+if [[ "$svc_port" != grpc-* ]]; then
+  c4_fail=1
+  say "     -> port name '${svc_port:-<none>}' does not start with a protocol Istio knows."
+  say "        Rename to 'grpc-otlp' (+ appProtocol: grpc). See engines/README-port-naming.md."
+fi
+
 # Discriminated by benchmark.telemetry_source == "istio-mesh", a customTag the
 # Telemetry CR sets and nothing else does. benchmark.engine CANNOT be used
 # here: all three engines stamp it onto every record they touch, app spans
@@ -304,9 +322,9 @@ say "  $r4"
 n4=$(dql_num "$r4" mesh_spans)
 say "  Istio-generated spans: $n4"
 if [[ "${n4:-0}" -gt 0 && $c4_fail -eq 0 ]]; then
-  ok 4 istio-spans "$n4 mesh spans in $WINDOW, config preflight 4a/4b/4c green"
+  ok 4 istio-spans "$n4 mesh spans in $WINDOW, config preflight 4a/4b/4c/4d green"
 elif [[ $c4_fail -ne 0 ]]; then
-  bad 4 istio-spans "config preflight failed (see 4a/4b/4c above) — spans counted: ${n4:-0}"
+  bad 4 istio-spans "config preflight failed (see 4a/4b/4c/4d above) — spans counted: ${n4:-0}"
 else
   bad 4 istio-spans "config is correct on the wire but no Istio-generated spans arrived — check the namespaces are in SIDECAR mode (ztunnel/ambient emits none) and that traffic is flowing"
 fi
