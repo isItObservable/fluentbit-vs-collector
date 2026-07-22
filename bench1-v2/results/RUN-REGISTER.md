@@ -155,6 +155,32 @@ exceeds the expected replica count and the run is invalid.
 `Verdict` is `MATCH` (name and creationTimestamp identical to the Start row, count == 1) or
 `REPLACED → RUN INVALID` plus what happened. There is no third value.
 
+### Worked example — what a filled-in run looks like
+
+A valid run. Note that the register row and the census rows agree, and that the `creationTimestamp`
+is *older* than the Start timestamp — the pod was already up when the window opened, which is the
+point:
+
+| Run ID | Engine + image tag | Round | Cluster | Expected replicas | Start (UTC) | End (UTC) | Validation gate | Census | Load profile | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `R1-P1-collector` | otel-collector contrib `0.154.0` | 1 | `observable-otelarrow` | 1 | `2026-07-23T09:14:07Z` | `2026-07-23T11:14:31Z` | `PASS 6/6 — comment a1b2c3d4` | `MATCH` | `rampup2h` 50→100→150→200 VU, both apps | node `…-k5hgq-9r662` under no pressure |
+
+| Run ID | When | Pod name | `creationTimestamp` | Node | Restarts | Verdict |
+|---|---|---|---|---|---|---|
+| `R1-P1-collector` | Start | `bench-otel-collector-collector-7d9f8b6c5-x4kqp` | `2026-07-23T08:51:44Z` | `observable-otelarrow-workers-k5hgq-9r662` | 0 | baseline |
+| `R1-P1-collector` | End | `bench-otel-collector-collector-7d9f8b6c5-x4kqp` | `2026-07-23T08:51:44Z` | `observable-otelarrow-workers-k5hgq-9r662` | 0 | `MATCH` |
+
+And an invalid one. The restart count is still `0` at both ends — **it always will be**, because a
+replacement never increments it. The pod name and `creationTimestamp` are what give it away:
+
+| Run ID | When | Pod name | `creationTimestamp` | Node | Restarts | Verdict |
+|---|---|---|---|---|---|---|
+| `R1-P2-fluentbit` | Start | `bench-fluentbit-v5-6c8d47f9b-2mhpq` | `2026-07-23T12:02:11Z` | `…-k5hgq-9r662` | 0 | baseline |
+| `R1-P2-fluentbit` | End | `bench-fluentbit-v5-6c8d47f9b-tw7vl` | `2026-07-23T13:19:08Z` | `…-k5hgq-lz9mb` | 0 | `REPLACED → RUN INVALID` — rescheduled to another node at ~13:19Z, memory series restarts from ~2 MiB mid-window |
+
+`validate-phase.sh` check 6 prints the Start baseline for you in exactly this shape, and
+`./pod-census.sh <run-id> start|end` emits paste-ready rows for both captures.
+
 ### Column contract
 
 | Column | What goes in it |
@@ -166,8 +192,8 @@ exceeds the expected replica count and the run is invalid.
 | **Expected replicas** | `1` for all three engines. This is what the census pod count is checked against; without it, "one pod" is an assumption rather than a comparison. |
 | **Start (UTC)** | `date -u +%Y-%m-%dT%H:%M:%SZ`, captured before the first VU. |
 | **End (UTC)** | Same command, captured when load stops, before teardown. |
-| **Validation gate** | `PASS 5/5` plus the §4 evidence pointer (phase-issue comment ID), or `ABORTED` + reason. |
-| **Census** | `MATCH` (Start and End censuses identical, count == expected replicas) or `REPLACED → RUN INVALID`. The per-pod detail lives in the census block above. A `PASS 5/5` gate with a failed census is still an invalid run — the gate runs *before* the window, the census covers the whole of it. |
+| **Validation gate** | `PASS 6/6` plus the §4/§5b evidence pointer (phase-issue comment ID), or `ABORTED` + reason. |
+| **Census** | `MATCH` (Start and End censuses identical, count == expected replicas) or `REPLACED → RUN INVALID`. The per-pod detail lives in the census block above. A `PASS 6/6` gate with a failed census is still an invalid run — the gate runs *before* the window, the census covers the whole of it. |
 | **Load profile** | `rampup2h`, VU ladder, and that **both** apps were driven. Any deviation invalidates cross-phase comparison — say so loudly. |
 | **Notes** | Anything that could explain an outlier: restarts, OOM kills, node pressure, cluster events, export retries, a redeploy mid-run. Empty means "nothing anomalous", so do not leave it empty out of haste. |
 
@@ -175,8 +201,8 @@ exceeds the expected replica count and the run is invalid.
 
 ## Gate evidence (per run)
 
-`validate-phase.sh <engine>` prints one `CHECK <n> PASS|FAIL <name> <detail>` line per check. Paste the five
-lines into the phase issue comment alongside the row. Summarise here as `PASS 5/5 — <comment id>`.
+`validate-phase.sh <engine>` prints one `CHECK <n> PASS|FAIL <name> <detail>` line per check. Paste the six
+lines into the phase issue comment alongside the row. Summarise here as `PASS 6/6 — <comment id>`.
 
 ```
 CHECK 1 PASS apps-healthy      ...
@@ -184,9 +210,15 @@ CHECK 2 PASS app-spans         ...
 CHECK 3 PASS sidecars          ...
 CHECK 4 PASS istio-spans       ...
 CHECK 5 PASS engine-healthy    ...
+CHECK 6 PASS pod-census        bench-otel-collector-collector-7d9f8b6c5-x4kqp@2026-07-23T08:51:44Z pods=1 ...
 ```
 
-A run started on anything other than `PASS 5/5` is not comparable to the other five and must be
+Check 6 is the pod-census baseline (plan §5b). It prints the engine pod's name and
+`creationTimestamp` in exactly the shape the census table above wants — capture it again at End and
+compare. Every DQL query in the gate is scoped by `k8s.cluster.name`, for the same reason the
+dashboard tiles are.
+
+A run started on anything other than `PASS 6/6` is not comparable to the other five and must be
 recorded as such — an unvalidated phase is worse than a missing one, because it looks like data.
 
 ---

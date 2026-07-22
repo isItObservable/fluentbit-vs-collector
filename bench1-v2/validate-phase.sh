@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================================
-# ISI-1814 / ISI-1779 B1-v2 — the five-check validation gate (plan §4)
+# ISI-1821 / ISI-1779 B1-v2 — the phase validation gate (plan §4, +§5b check 6)
 # ----------------------------------------------------------------------------
 #   ./validate-phase.sh <engine>            # otel-collector | fluentbit-v5 | otel-arrow-native
 #   ./validate-phase.sh <engine> --window 15m
 #
 # Run this after the smoke traffic and BEFORE the 120-minute timed run. Exit 0
-# means all five checks passed and the phase is comparable to the other two.
+# means all six checks passed and the phase is comparable to the other two.
 # Any non-zero exit means the phase is NOT comparable — fix, re-smoke, re-run.
 # Never start a 120-min run on a red gate; an unvalidated phase is worse than a
 # missing one, because it looks like data.
@@ -38,6 +38,13 @@ esac
 
 ENGINE_NS="${ENGINE_NS:-default}"
 APP_NS=(otel-demo hipster-shop)
+# Every DQL query in this gate is scoped by cluster (board directive D12).
+# k8s.workload.name and the k8s.* metric keys are NOT unique across the clusters
+# reporting into this tenant — observable-kagent and observable-agentsandbox emit
+# the same keys — so an unscoped query silently mixes in another cluster's series
+# and can turn a dead phase green.
+CLUSTER="${CLUSTER:-observable-otelarrow}"
+EXPECTED_REPLICAS="${EXPECTED_REPLICAS:-1}"
 FAILED=0
 PASSED=0
 
@@ -166,6 +173,7 @@ hdr "CHECK 2: app spans in Dynatrace (both apps, window $WINDOW)"
 # explicitly. Filtering on the wrong field returns zero and looks like the
 # engine dropped everything.
 q2="fetch spans, from:now()-${WINDOW}
+| filter k8s.cluster.name == \"${CLUSTER}\"
 | filter service.namespace == \"otel-demo\" or service.namespace == \"hipster-shop\"
 | summarize spans = count(), by:{service.namespace}"
 r2=$(dql "$q2")
@@ -214,6 +222,7 @@ hdr "CHECK 4: Istio/Envoy-generated spans (window $WINDOW)"
 # here: all three engines stamp it onto every record they touch, app spans
 # included, so it is non-zero even with zero mesh spans — a false green.
 q4="fetch spans, from:now()-${WINDOW}
+| filter k8s.cluster.name == \"${CLUSTER}\"
 | filter benchmark.telemetry_source == \"istio-mesh\"
 | summarize mesh_spans = count(), by:{benchmark.engine}"
 r4=$(dql "$q4")
@@ -280,7 +289,7 @@ print(sum(v.get("proc_records", 0) for v in d.get("output", {}).values()))' 2>/d
       # endpoint (paid for on 2026-07-21: /metrics/* is a 404). Its throughput
       # is therefore confirmed from the Dynatrace side, which is the only
       # counter that proves receive AND export in one number anyway.
-      q5="fetch logs, from:now()-${WINDOW} | filter benchmark.engine == \"otel-arrow-native\" | summarize n = count()"
+      q5="fetch logs, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"otel-arrow-native\" | summarize n = count()"
       r5=$(dql "$q5"); say "  $r5"
       accepted=$(dql_num "$r5" n)
       exported=$accepted
@@ -295,6 +304,41 @@ print(sum(v.get("proc_records", 0) for v in d.get("output", {}).values()))' 2>/d
 fi
 if [[ $c5_fail -eq 0 ]]; then ok 5 engine-healthy "pod ready, accepted>0, exported>0, no export errors"
 else bad 5 engine-healthy "see detail above"; fi
+
+# ---------------------------------------------------------------------------
+# CHECK 6 — pod census baseline (board directive D12, plan §5b)
+# ---------------------------------------------------------------------------
+# This check does NOT ask "did the pod restart". It cannot: a pod REPLACEMENT —
+# reschedule, eviction, node drain, rollout — is invisible to
+# dt.kubernetes.container.restarts, which counts in-place container restarts
+# only. A replaced pod gets a new name and leaves that metric completely empty,
+# while its newborn ~2 MiB working set poisons any workload-level min()/avg().
+# Re-proven live on observable-otelarrow over 2026-07-20T11:00Z -> 2026-07-22T11:00Z:
+# six pod names across two workloads, and zero restart datapoints.
+#
+# So the gate records the pod IDENTITY instead: name + creationTimestamp. That
+# baseline goes into RUN-REGISTER.md at Start; the same capture at End is what
+# makes "no pod was replaced during this window" falsifiable. Without it, a
+# 120-minute number rests on an unprovable assumption.
+hdr "CHECK 6: pod census baseline (record these in RUN-REGISTER.md)"
+c6_fail=0
+census=$(kubectl -n "$ENGINE_NS" get pods --no-headers \
+  -o custom-columns='POD:.metadata.name,CREATED:.metadata.creationTimestamp,NODE:.spec.nodeName,PHASE:.status.phase' 2>/dev/null \
+  | awk '$1 ~ /^bench-/ && $4 == "Running"' || true)
+if [[ -z "$census" ]]; then
+  say "  no running bench-* pod in ns $ENGINE_NS"
+  c6_fail=1
+else
+  while read -r line; do say "  $line"; done <<< "$census"
+  n6=$(printf '%s\n' "$census" | wc -l | tr -d ' ')
+  say "  pods=$n6 expected-replicas=$EXPECTED_REPLICAS cluster=$CLUSTER"
+  [[ "$n6" -eq "$EXPECTED_REPLICAS" ]] || c6_fail=1
+fi
+if [[ $c6_fail -eq 0 ]]; then
+  ok 6 pod-census "$(printf '%s\n' "$census" | awk '{printf "%s@%s ", $1, $2}')pods=$EXPECTED_REPLICAS — copy into RUN-REGISTER.md and re-capture at End"
+else
+  bad 6 pod-census "engine pod count != expected replicas ($EXPECTED_REPLICAS) — do not start a run whose pod identity cannot be pinned"
+fi
 
 # ---------------------------------------------------------------------------
 hdr "GATE RESULT"
