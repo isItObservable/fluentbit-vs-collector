@@ -52,4 +52,13 @@ Two of four cores died there (T+26m10.5s, the earliest), the other two at the pr
 
 Everything else in the original report stands — including the part I'd still most like your view on: all four cores were dead while the process stayed up, the pod stayed `Ready` with `restarts=0`, and the cumulative counters held their last healthy values. In this second run the engine sat there for a further ~40 minutes, resident memory still climbing, looking healthy to every process-level signal.
 
+One thing I found that *does* detect this reliably, in case it is useful to others or suggests where a health check might live: the admin API stops **serving** the pipeline metric sets once the cores die. Querying `/api/v1/metrics?format=json&keep_all_zeroes=true`:
+
+| | `metric_sets` | distinct names |
+|---|---|---|
+| healthy | 289 | 17 (`receiver.otlp`, `processor.attributes`, `otap.processor.batch`, `pipeline`, …) |
+| after all four cores died | **1** | **1** (`engine` only) |
+
+`keep_all_zeroes=true` matters here — it shows the sets are genuinely *absent*, not merely suppressed for reading zero, which is what makes this unambiguous where the frozen cumulative values are not. So the information needed to fail a readiness probe is already inside the engine; it just is not surfaced anywhere the orchestrator looks.
+
 Happy to supply the full log from either run, or to test a patch.

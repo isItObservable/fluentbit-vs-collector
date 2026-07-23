@@ -18,15 +18,5 @@ Two distinct panic sites fired in one 30-second window:
    `MutableArrayData::new` is the generic array-merge path, so ordinary high-cardinality
    span or log attributes look sufficient to trigger it.
 
-3. `crates/pdata/src/otap/transform/concatenate.rs:150` — `Compatible schemas:
-   DictionaryKeyOverflowError`. Same overflow, surfacing at a second, independent
-   concatenation point **inside otap-dataflow itself** rather than in the `arrow-data`
-   dependency. We saw this only on a later run, after removing metrics from the pipeline
-   entirely (see Additional context) — with the metrics encoder out of the way the engine
-   lived long enough to reach it, and it then became the *first* core to die.
-
-Sites 2 and 3 are the same defect: a dictionary whose key type is exhausted while merging
-records. Excluding metrics does not address it — it only postpones it.
-
 The most operationally serious part is neither panic but the aftermath: a core that dies
 is never restarted and the failure is invisible to every process-level health signal.
