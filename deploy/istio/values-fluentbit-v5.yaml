@@ -1,0 +1,135 @@
+# ============================================================================
+# B1-v2 — istiod Helm values, ENGINE = fluentbit-v5
+# ----------------------------------------------------------------------------
+# GENERATED FROM _templates/istio-values.tmpl.yaml by render.sh — DO NOT EDIT.
+# The three rendered files differ ONLY in the engine service host (and the two
+# provider names that carry it). Prove it — substitute each engine's own name
+# out and the files become byte-identical:
+#   diff <(sed 's/otel-collector/E/g'    istio/values-otel-collector.yaml) \
+#        <(sed 's/fluentbit-v5/E/g'      istio/values-fluentbit-v5.yaml)
+#
+# Apply (phase issue, step 3):
+#   helm upgrade istiod istio/istiod -n istio-system --version 1.29.2 \
+#        -f istio/values-fluentbit-v5.yaml --wait
+#   kubectl -n istio-system rollout status deploy/istiod
+#   # then bounce the app namespaces so sidecars pick up the new mesh config
+#
+# ---------------------------------------------------------------------------
+# WHY TWO PROVIDERS AND NOT ONE
+# ---------------------------------------------------------------------------
+# The issue text asks for "a meshConfig.extensionProviders entry of type
+# `opentelemetry` ... for tracing and accessLogging". Verified against
+# istio/api release-1.29 mesh/v1alpha1/config.proto: the `opentelemetry`
+# provider is `OpenTelemetryTracingProvider` and its ONLY fields are
+# service / port / max_tag_length / http / grpc / resource_detectors / sampling.
+# It has NO log_name and NO log_format — it cannot serve accessLogging.
+# Envoy access logs over OTLP require the `envoyOtelAls` provider
+# (EnvoyOpenTelemetryLogProvider: service / port / log_name / log_format).
+# So each engine gets TWO providers pointing at the SAME engine Service:4317:
+#   fluentbit-v5-otel      (opentelemetry) -> Telemetry.tracing
+#   fluentbit-v5-otel-als  (envoyOtelAls)  -> Telemetry.accessLogging
+# Both are OTLP/gRPC on 4317, so this stays one wire protocol per engine.
+#
+# ---------------------------------------------------------------------------
+# WHY `profile: ambient` IS STILL HERE
+# ---------------------------------------------------------------------------
+# the benchmark cluster's istiod was installed with `profile: ambient` +
+# PILOT_ENABLE_AMBIENT=true (helm get values istiod -n istio-system). These
+# values are a FULL replacement set for `helm upgrade` — dropping them would
+# silently reconfigure the control plane. They are kept verbatim.
+# The benchmark itself runs in SIDECAR mode (see istio/namespaces-sidecar.yaml):
+# ztunnel is L4-only and generates no spans, so the Telemetry API's tracing
+# provider is a no-op in ambient. Ambient stays installed but unused — no
+# namespace carries istio.io/dataplane-mode any more.
+#
+# ---------------------------------------------------------------------------
+# SCOPE EXCLUSION — METHODOLOGY RULE D1
+# ---------------------------------------------------------------------------
+# Mesh metrics are OUT OF SCOPE for all six timed runs. Methodology rule, 2026-07-22:
+# "istio metrics is only prometheus.. so let's drop the mesh metrics from the
+# scope." This is a scope exclusion, not a per-engine workaround — it is
+# applied identically to all three engines precisely so they are measured on
+# identical work.
+#
+# What that means concretely, and what must NOT be added back:
+#   * NO Prometheus receiver on any engine (not the Collector, not Fluent Bit,
+#     not df_engine).
+#   * NO ServiceMonitor / PodMonitor anywhere in a phase.
+#   * NO scrape of Envoy's :15020 / :15090 Prometheus surface.
+#   * telemetry-fluentbit-v5.yaml carries `tracing` and `accessLogging` only —
+#     there is no `metrics` section in any Telemetry CR.
+#
+# defaultProviders.metrics stays `prometheus` on purpose. That is stock Istio:
+# Envoy keeps EXPOSING its Prometheus surface locally exactly as it would in an
+# unmodified mesh, and nothing collects it. Setting it to `[]` instead would
+# stop Envoy generating those metrics and make the sidecar do measurably less
+# work than a real mesh sidecar — a deviation from production, for no benefit,
+# since the surface is already unscraped.
+#
+# APP-EMITTED OTLP METRICS ARE UNAFFECTED. The metrics pipeline is still being
+# measured: otel-demo and Online Boutique still export OTLP metrics to the
+# engine under test in every phase. Do not let this exclusion leak into the app
+# manifests — only Envoy's Prometheus surface is excluded.
+#
+# Istio-generated SPANS remain fully in scope, and remain check 4 of the
+# validation gate.
+# ============================================================================
+
+# --- preserved from the live install (helm get values istiod -n istio-system) ---
+profile: ambient
+pilot:
+  env:
+    PILOT_ENABLE_AMBIENT: "true"
+
+meshConfig:
+  # Envoy must actually produce spans; sampling percentage is pinned per-phase
+  # in the Telemetry CR (100%) so telemetry volume is identical across engines.
+  enableTracing: true
+
+  extensionProviders:
+    # ---- tracing: OTLP/gRPC spans from the sidecars -> engine under test ----
+    - name: fluentbit-v5-otel
+      opentelemetry:
+        service: bench-fluentbit-v5.default.svc.cluster.local
+        port: 4317
+        # keep tag truncation identical across phases
+        maxTagLength: 256
+
+    # ---- access logging: Envoy OTel ALS (OTLP LogsService) -> engine ----
+    - name: fluentbit-v5-otel-als
+      envoyOtelAls:
+        service: bench-fluentbit-v5.default.svc.cluster.local
+        port: 4317
+        logName: logship-istio-access-log
+        logFormat:
+          text: >-
+            [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%
+            %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED%
+            %BYTES_SENT% %DURATION% "%REQ(X-FORWARDED-FOR)%" "%UPSTREAM_HOST%"
+          labels:
+            # same discriminator as the Telemetry CR's span customTag: the
+            # engines stamp benchmark.engine on EVERY record, so only this
+            # label can separate Envoy access logs from application logs.
+            benchmark.telemetry_source: "istio-mesh"
+            benchmark.engine: "fluentbit-v5"
+            method: "%REQ(:METHOD)%"
+            path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+            protocol: "%PROTOCOL%"
+            response_code: "%RESPONSE_CODE%"
+            response_flags: "%RESPONSE_FLAGS%"
+            duration_ms: "%DURATION%"
+            upstream_cluster: "%UPSTREAM_CLUSTER%"
+            upstream_host: "%UPSTREAM_HOST%"
+            source_workload: "%ENVIRONMENT(POD_NAME)%"
+            source_namespace: "%ENVIRONMENT(POD_NAMESPACE)%"
+
+  defaultProviders:
+    tracing:
+      - fluentbit-v5-otel
+    accessLogging:
+      - fluentbit-v5-otel-als
+    # Stock Istio default, kept deliberately — see the SCOPE EXCLUSION block at
+    # the top of this file. Envoy exposes its Prometheus surface as it would in
+    # any unmodified mesh; NOTHING in this benchmark scrapes it, in any phase.
+    metrics:
+      - prometheus

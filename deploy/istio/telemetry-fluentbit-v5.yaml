@@ -1,0 +1,79 @@
+# ============================================================================
+# B1-v2 — Istio Telemetry CRs, ENGINE = fluentbit-v5
+# ----------------------------------------------------------------------------
+# GENERATED FROM _templates/istio-telemetry.tmpl.yaml by render.sh — DO NOT EDIT.
+#
+# Applied AFTER the matching istio/values-fluentbit-v5.yaml helm upgrade, because
+# the providers referenced here (fluentbit-v5-otel, fluentbit-v5-otel-als) only
+# exist once that MeshConfig is live. Referencing a provider that does not
+# exist makes istiod reject the Telemetry — which is deliberate: it fails LOUD
+# if a phase forgets the helm upgrade, instead of silently shipping the
+# previous phase's telemetry to the previous phase's engine.
+#
+#   kubectl apply -f istio/telemetry-fluentbit-v5.yaml
+#
+# Mesh-wide because it lives in the Istio root namespace (istio-system) with no
+# selector — one CR covers otel-demo and hipster-shop identically.
+#
+# TRACING AND ACCESSLOGGING ONLY. There is deliberately no `metrics:` section
+# here and there must never be one: mesh metrics are out of scope for all six
+# timed runs (methodology rule D1). See the SCOPE EXCLUSION block in
+# istio/values-fluentbit-v5.yaml. Istio-generated SPANS are still in scope and
+# are check 4 of validate-phase.sh.
+#
+# randomSamplingPercentage: 100 — NOT a production setting. The benchmark needs
+# deterministic, identical telemetry volume across the three phases; any
+# sampling below 100 makes per-phase volume a second variable alongside the
+# engine. Envoy's default is 1%.
+#
+# ----------------------------------------------------------------------------
+# ONE Telemetry RESOURCE, NOT TWO  — DO NOT SPLIT THIS FILE
+# ----------------------------------------------------------------------------
+# tracing and accessLogging were originally two Telemetry CRs in istio-system.
+# Istio applies only ONE Telemetry resource per scope: with two in the mesh
+# ROOT namespace one wins and the other is SILENTLY discarded — no error, no
+# event, no istiod log line, and `kubectl get telemetry` cheerfully lists both
+# as applied. Observed live on the benchmark cluster 2026-07-22: the
+# accessLogging CR won and the tracing CR was dropped.
+#
+# What this did NOT fix (recorded so the next phase does not re-chase it):
+# merging the CRs was necessary but was NOT the reason CHECK 4 read zero mesh
+# spans. That was istiod's meshConfig losing this phase's extensionProviders —
+# an actor outside this repo re-applied an OLDER istiod Helm values set within
+# minutes of each `helm upgrade`, so the providers this file references stopped
+# existing and the tracing spec went with them. With the providers present, an
+# Envoy config_dump does carry benchmark.telemetry_source.
+# Preflight 4a/4b/4c in validate-phase.sh tells these two causes apart.
+# ============================================================================
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  # ONE resource carrying BOTH tracing and accessLogging — see the block above.
+  name: logship-bench
+  namespace: istio-system
+  labels:
+    benchmark: logship
+    benchmark.engine: fluentbit-v5
+spec:
+  # no selector => mesh-wide (root namespace)
+  tracing:
+    - providers:
+        - name: fluentbit-v5-otel
+      randomSamplingPercentage: 100.00
+      customTags:
+        # benchmark.telemetry_source is the ONLY reliable way to tell an
+        # Envoy-generated span from an app SDK span here: the engines stamp
+        # benchmark.engine onto EVERY record they process, app and mesh alike,
+        # so that attribute cannot discriminate. Only Istio sets this one, and
+        # only on spans it generates itself — which is exactly what validation
+        # gate check 4 has to count.
+        benchmark.telemetry_source:
+          literal:
+            value: istio-mesh
+        benchmark.engine:
+          literal:
+            value: fluentbit-v5
+  accessLogging:
+    - providers:
+        - name: fluentbit-v5-otel-als
+      disabled: false

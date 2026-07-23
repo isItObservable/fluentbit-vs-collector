@@ -1,0 +1,266 @@
+# ============================================================================
+# B1-v2 — 120-minute rampup load, ENGINE = otel-collector
+# ----------------------------------------------------------------------------
+#   kubectl apply -f loadtest/ramp-jobs-otel-collector.yaml
+#
+# Eight Jobs: four per app, 50 VU each, start offsets staggered so that all
+# eight END together at t = 2h00m. Cumulative VU per app therefore steps
+#   50 -> 100 -> 150 -> 200 on 30-minute boundaries,
+# which is a 2-hour ramp-up profile expressed as
+# Kubernetes Jobs instead of a single Locust process. Jobs are used rather than
+# one shape-driven Locust because each app ships its OWN load driver image with
+# its own baked-in task flow — the two apps must be driven by their own flows,
+# and a shared external Locust cannot import both locustfiles.
+#
+#   job 1: offset 0h00  run 7200s
+#   job 2: offset 0h30  run 5400s
+#   job 3: offset 1h00  run 3600s
+#   job 4: offset 1h30  run 1800s
+#
+# ---------------------------------------------------------------------------
+# --exit-code-on-error 0 — REQUIRED, methodology rule 2026-07-22
+# ---------------------------------------------------------------------------
+# Locust exits non-zero if ANY request failed, so a 120-minute run that served
+# ~80k requests and saw 13 transient 500s reports `Failed` and the Job lands in
+# `Error`. That happened on the v1 ramp (13 x POST /cart/checkout 500
+# out of 78,258 requests) and it makes a healthy run indistinguishable from a
+# broken one at a glance. The load driver is an instrument, not a test:
+# application 500s under load are DATA, not a driver failure.
+#
+# Set two ways because the two images take their options differently:
+#   otel-demo    — LOCUST_EXIT_CODE_ON_ERROR=0 (the image's entrypoint reads
+#                  LOCUST_* env; Locust maps every CLI flag to LOCUST_<FLAG>)
+#   hipster-shop — --exit-code-on-error 0 on an explicit command (the boutique
+#                  loadgenerator image's default entrypoint starts the web UI,
+#                  so the command is overridden anyway)
+#
+# ---------------------------------------------------------------------------
+# WHY THE DRIVERS CARRY NO SIDECAR
+# ---------------------------------------------------------------------------
+# An istio-proxy in front of the load driver intercepts and re-times the very
+# traffic that is the independent variable, and attributes driver latency to
+# the mesh. `sidecar.istio.io/inject: "false"` plus the `ramp: logship` label
+# is the pair validate-phase.sh check 3 recognises as an expected exclusion.
+#
+# ---------------------------------------------------------------------------
+# ENGINE ENDPOINT
+# ---------------------------------------------------------------------------
+# The otel-demo driver emits its own OTLP telemetry, so it points at the engine
+# under test like every other component: bench-otel-collector.default:4317.
+# (The v1 jobs still pointed at `bench-target`, which was deleted with the v1
+# stack — they would have exported into a black hole.)
+# ============================================================================
+---
+# ===================== otel-demo — 4 staggered jobs =========================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-oteldemo-1
+  namespace: otel-demo
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: otel-demo, step: "1" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: otel-demo }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 0"] } ]
+      containers:
+        - name: loadgen
+          image: ghcr.io/open-telemetry/demo:2.2.0-load-generator
+          env:
+            - { name: LOCUST_HEADLESS, value: "true" }
+            - { name: LOCUST_AUTOSTART, value: "true" }
+            - { name: LOCUST_USERS, value: "50" }
+            - { name: LOCUST_SPAWN_RATE, value: "5" }
+            - { name: LOCUST_RUN_TIME, value: "7200s" }
+            - { name: LOCUST_EXIT_CODE_ON_ERROR, value: "0" }
+            - { name: LOCUST_HOST, value: "http://frontend-proxy:8080" }
+            - { name: LOCUST_BROWSER_TRAFFIC_ENABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://bench-otel-collector.default.svc.cluster.local:4317" }
+            - { name: OTEL_SERVICE_NAME, value: "loadgen-otel-demo" }
+            - { name: OTEL_RESOURCE_ATTRIBUTES, value: "benchmark.engine=otel-collector,benchmark.run=logship-b1v2,service.namespace=otel-demo" }
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-oteldemo-2
+  namespace: otel-demo
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: otel-demo, step: "2" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: otel-demo }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 1800"] } ]
+      containers:
+        - name: loadgen
+          image: ghcr.io/open-telemetry/demo:2.2.0-load-generator
+          env:
+            - { name: LOCUST_HEADLESS, value: "true" }
+            - { name: LOCUST_AUTOSTART, value: "true" }
+            - { name: LOCUST_USERS, value: "50" }
+            - { name: LOCUST_SPAWN_RATE, value: "5" }
+            - { name: LOCUST_RUN_TIME, value: "5400s" }
+            - { name: LOCUST_EXIT_CODE_ON_ERROR, value: "0" }
+            - { name: LOCUST_HOST, value: "http://frontend-proxy:8080" }
+            - { name: LOCUST_BROWSER_TRAFFIC_ENABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://bench-otel-collector.default.svc.cluster.local:4317" }
+            - { name: OTEL_SERVICE_NAME, value: "loadgen-otel-demo" }
+            - { name: OTEL_RESOURCE_ATTRIBUTES, value: "benchmark.engine=otel-collector,benchmark.run=logship-b1v2,service.namespace=otel-demo" }
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-oteldemo-3
+  namespace: otel-demo
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: otel-demo, step: "3" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: otel-demo }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 3600"] } ]
+      containers:
+        - name: loadgen
+          image: ghcr.io/open-telemetry/demo:2.2.0-load-generator
+          env:
+            - { name: LOCUST_HEADLESS, value: "true" }
+            - { name: LOCUST_AUTOSTART, value: "true" }
+            - { name: LOCUST_USERS, value: "50" }
+            - { name: LOCUST_SPAWN_RATE, value: "5" }
+            - { name: LOCUST_RUN_TIME, value: "3600s" }
+            - { name: LOCUST_EXIT_CODE_ON_ERROR, value: "0" }
+            - { name: LOCUST_HOST, value: "http://frontend-proxy:8080" }
+            - { name: LOCUST_BROWSER_TRAFFIC_ENABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://bench-otel-collector.default.svc.cluster.local:4317" }
+            - { name: OTEL_SERVICE_NAME, value: "loadgen-otel-demo" }
+            - { name: OTEL_RESOURCE_ATTRIBUTES, value: "benchmark.engine=otel-collector,benchmark.run=logship-b1v2,service.namespace=otel-demo" }
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-oteldemo-4
+  namespace: otel-demo
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: otel-demo, step: "4" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: otel-demo }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 5400"] } ]
+      containers:
+        - name: loadgen
+          image: ghcr.io/open-telemetry/demo:2.2.0-load-generator
+          env:
+            - { name: LOCUST_HEADLESS, value: "true" }
+            - { name: LOCUST_AUTOSTART, value: "true" }
+            - { name: LOCUST_USERS, value: "50" }
+            - { name: LOCUST_SPAWN_RATE, value: "5" }
+            - { name: LOCUST_RUN_TIME, value: "1800s" }
+            - { name: LOCUST_EXIT_CODE_ON_ERROR, value: "0" }
+            - { name: LOCUST_HOST, value: "http://frontend-proxy:8080" }
+            - { name: LOCUST_BROWSER_TRAFFIC_ENABLED, value: "false" }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://bench-otel-collector.default.svc.cluster.local:4317" }
+            - { name: OTEL_SERVICE_NAME, value: "loadgen-otel-demo" }
+            - { name: OTEL_RESOURCE_ATTRIBUTES, value: "benchmark.engine=otel-collector,benchmark.run=logship-b1v2,service.namespace=otel-demo" }
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }
+---
+# =================== hipster-shop — 4 staggered jobs ========================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-hipster-1
+  namespace: hipster-shop
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: hipster-shop, step: "1" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: hipster-shop }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 0"] } ]
+      containers:
+        - name: loadgen
+          image: us-central1-docker.pkg.dev/google-samples/microservices-demo/loadgenerator:v0.10.2
+          command: ["locust","--host=http://frontend:80","--headless","-u","50","-r","5","--run-time","7200s","--exit-code-on-error","0"]
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-hipster-2
+  namespace: hipster-shop
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: hipster-shop, step: "2" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: hipster-shop }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 1800"] } ]
+      containers:
+        - name: loadgen
+          image: us-central1-docker.pkg.dev/google-samples/microservices-demo/loadgenerator:v0.10.2
+          command: ["locust","--host=http://frontend:80","--headless","-u","50","-r","5","--run-time","5400s","--exit-code-on-error","0"]
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-hipster-3
+  namespace: hipster-shop
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: hipster-shop, step: "3" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: hipster-shop }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 3600"] } ]
+      containers:
+        - name: loadgen
+          image: us-central1-docker.pkg.dev/google-samples/microservices-demo/loadgenerator:v0.10.2
+          command: ["locust","--host=http://frontend:80","--headless","-u","50","-r","5","--run-time","3600s","--exit-code-on-error","0"]
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rampjob-hipster-4
+  namespace: hipster-shop
+  labels: { ramp: logship, benchmark: logship, benchmark.engine: otel-collector, app: hipster-shop, step: "4" }
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { ramp: logship, app: hipster-shop }
+      annotations: { sidecar.istio.io/inject: "false" }
+    spec:
+      restartPolicy: Never
+      initContainers: [ { name: wait, image: busybox:1.36, command: ["sh","-c","sleep 5400"] } ]
+      containers:
+        - name: loadgen
+          image: us-central1-docker.pkg.dev/google-samples/microservices-demo/loadgenerator:v0.10.2
+          command: ["locust","--host=http://frontend:80","--headless","-u","50","-r","5","--run-time","1800s","--exit-code-on-error","0"]
+          resources: { requests: { cpu: "200m", memory: "256Mi" }, limits: { memory: "1Gi" } }

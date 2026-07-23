@@ -1,0 +1,315 @@
+{
+  "name": "Fluent Bit v5 vs OTel-Collector vs OTel-Arrow — Benchmark Comparison (B1-v2, timeframe-driven)",
+  "type": "dashboard",
+  "content": {
+    "importedWithCode": false,
+    "layouts": {
+      "0": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 9
+      },
+      "11": {
+        "x": 0,
+        "y": 9,
+        "w": 16,
+        "h": 8
+      },
+      "12": {
+        "x": 16,
+        "y": 9,
+        "w": 8,
+        "h": 8
+      },
+      "1": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      },
+      "2": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      },
+      "3": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 7
+      },
+      "4": {
+        "x": 0,
+        "y": 31,
+        "w": 8,
+        "h": 6
+      },
+      "5": {
+        "x": 8,
+        "y": 31,
+        "w": 8,
+        "h": 6
+      },
+      "6": {
+        "x": 16,
+        "y": 31,
+        "w": 8,
+        "h": 6
+      },
+      "7": {
+        "x": 0,
+        "y": 38,
+        "w": 12,
+        "h": 7
+      },
+      "8": {
+        "x": 12,
+        "y": 38,
+        "w": 12,
+        "h": 7
+      },
+      "9": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 9
+      },
+      "10": {
+        "x": 12,
+        "y": 45,
+        "w": 12,
+        "h": 9
+      },
+      "13": {
+        "x": 0,
+        "y": 54,
+        "w": 10,
+        "h": 6
+      },
+      "14": {
+        "x": 10,
+        "y": 54,
+        "w": 14,
+        "h": 6
+      }
+    },
+    "settings": {},
+    "tiles": {
+      "0": {
+        "markdown": "# Fluent Bit v5 vs OTel Collector vs OTel-Arrow — benchmark comparison\n\n**This dashboard is the measurement surface for this benchmark. There are no snapshots — set the timeframe and read the run.**\n\n### How to read a run\n1. Open `results/RUN-REGISTER.md` and pick a row (`R1-P1-collector` … `R2-P3-arrow`).\n2. Paste that row's **Start (UTC)** and **End (UTC)** into the dashboard timeframe picker, verbatim.\n3. **Read the POD CENSUS first.** It is a validity gate, not a detail tile — if any pod in the window is short-lived, or the pod count does not match the register's *expected replicas*, **the window's numbers are not reportable** and the run must be repeated. Everything below the census assumes the census is green.\n4. Every tile is timeframe-driven and grouped by `k8s.pod.name` / `benchmark.engine`, so the window alone selects the engine and the round. **No tile carries its own `from:` clause** — if you see numbers without setting a timeframe, you are reading the default window, not a run.\n5. Compare `R1-P<n>-<engine>` with `R2-P<n>-<engine>` for replication; compare engines *within one round* for the headline.\n\n### Why pod-level, not workload-level (methodology rule D12)\nA pod **replacement** — reschedule, eviction, node drain, rollout — produces a new pod name and is **invisible** to `dt.kubernetes.container.restarts`, which counts in-place container restarts only. A newborn pod reports ~2 MiB, so a workload-level `avg()`/`min()` silently blends it into the aggregate. Grouping by `k8s.pod.name` makes a replacement appear as its own row instead of disappearing into the average. Verified live on `${CLUSTER_NAME}`: over 2026-07-20T11:00Z→2026-07-22T11:00Z two workloads each showed **six** pod names while the restarts metric returned **zero** rows.\n\n### What is on the grid\nEngine workloads are the three `bench-*` deployments on cluster `${CLUSTER_NAME}`: `bench-otel-collector-collector`, `bench-fluentbit-v5`, `bench-otel-arrow-native`. Only one is deployed at a time — **a correctly-scoped window contains exactly one engine workload. If you see two, the window is wrong**, most likely an End timestamp captured after the next phase started.\n\nCPU is in **millicores**, memory in **MiB**.",
+        "title": "",
+        "type": "markdown"
+      },
+      "1": {
+        "query": "timeseries cpu = avg(dt.kubernetes.container.cpu_usage), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"${CLUSTER_NAME}\" and startsWith(k8s.workload.name, \"bench-\")",
+        "title": "CPU per engine POD (millicores) — timeframe = the run window",
+        "type": "data",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoryOverrides": {},
+            "fieldMapping": {
+              "leftAxisValues": [
+                "cpu"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "hiddenLegendFields": [],
+            "leftYAxisSettings": {},
+            "valueRepresentation": "absolute"
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "10": {
+        "markdown": "### Caveats that change how these numbers are read\n\n- **A pod REPLACEMENT is invisible to `dt.kubernetes.container.restarts`** (methodology rule D12). That metric counts in-place container restarts only; a reschedule, eviction, node drain or rollout produces a new pod name and leaves the metric empty. Re-proven live on this cluster: 48h window `2026-07-20T11:00Z→2026-07-22T11:00Z`, six pod names across two workloads, **zero** restart datapoints. This is why the **pod census** — not the stability tile — is the validity gate.\n- **Restarts / OOM kills** use `arrayMax`, not `arraySum`, and are looked up **per pod**. The Dynatrace k8s counters report the container's restart count and are only emitted when non-zero; summing across intervals double-counts one restart once per sample. The tile is driven off the CPU metric and looks the counters up, so a healthy pod shows an explicit **0** rather than a blank tile you cannot distinguish from a broken query.\n- **Census threshold is 90% coverage, not 100%.** The first and last bucket of any window are partially covered by the metric's own cadence, so a perfectly healthy pod reads ~96.7% on a 2h/1-minute window and never exactly 100%. A pod replaced mid-run in a 120-minute window reads far below 90% (measured: 27–56% on real rollouts). Do not \"tighten\" this to strict equality — you would fail every valid run.\n- **Ingest volume by signal covers spans and logs.** Those are record-countable in Grail. OTLP **metric datapoints** are not — a metric arrives as a series, not a countable record — so the metrics signal is represented by the *series-arriving-per-engine* tile (liveness and breadth), and datapoint throughput is taken from the engine's own exported-datapoint counter at gate time (`validate-phase.sh` check 5). Do not read the metric-series count as a volume comparison.\n- **`app-sdk` vs `istio-mesh` is shown TWICE on purpose** (dashboard defect 2). `stamped` is `benchmark.telemetry_source`, set only by the Istio `Telemetry` CR, with NULL rendered as `<not stamped>` rather than defaulting to `app-sdk`. `shape` derives the same fact independently from `telemetry.sdk.name == \"envoy\"` + a dotted Istio service name. **If the two columns disagree, the engine dropped the attribute** — read that as a defect, not as a result. On R1-P1 they agree exactly (9,158,812 / 9,340,725). `benchmark.engine` cannot make this split — the engines stamp it on every record they process, app and mesh alike.\n- **The per-app namespace is derived without any engine-applied attribute** (dashboard defect 1). App-SDK spans carry `service.namespace`; Istio mesh spans carry the namespace inside `service.name` as `<service>.<namespace>`. The tile coalesces those two — both written upstream of the engine — and deliberately does **not** use `k8s.namespace.name`, which the k8sattributes processor (the engine under test) writes, and which would make the per-app split partly a function of the engine. Coverage 95.07% on R1-P1; the residual 4.93% is shown as `<unattributed>` and broken out in its own tile.\n- **Bare `service.name` collides across the two apps** — `frontend` exists in both hipster-shop and otel-demo, and the same workload appears twice (mesh `frontend.hipster-shop`, app-SDK bare `frontend`). Read per-service volume from the `<namespace>.<service>` tile, never from `service.name` alone.\n- **Scope exclusion D1:** Istio/Envoy Prometheus metrics are excluded from every run — no Prometheus receiver, no ServiceMonitor, no Envoy scrape, on any engine, in any phase. App-emitted OTLP metrics **are** in scope and are measured. Istio-generated spans and access logs are in scope.\n- **Workload names collide across clusters** on this tenant (any other Kubernetes cluster reporting `dt.kubernetes.container.*` to the same tenant). **Every** tile — including the app-OTLP metric-series tile — is therefore scoped by `k8s.cluster.name == \"${CLUSTER_NAME}\"`. Do not remove that filter.\n- Every ratio quoted from this dashboard must state its baseline: **vs OTLP+zstd** is the honest comparison; vs uncompressed is a different, much larger number and must be labelled.",
+        "title": "",
+        "type": "markdown"
+      },
+      "11": {
+        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"${CLUSTER_NAME}\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd live_buckets = arraySize(arrayRemoveNulls(mem)), window_buckets = arraySize(mem)\n| fieldsAdd coverage_pct = 100.0 * arraySize(arrayRemoveNulls(mem)) / arraySize(mem)\n| fieldsAdd verdict = if(100.0 * arraySize(arrayRemoveNulls(mem)) / arraySize(mem) >= 90, \"ok - pod alive for the whole window\", else:\"PARTIAL LIFETIME -> WINDOW INVALID, do not report numbers\")\n| fields engine = k8s.workload.name, pod = k8s.pod.name, live_buckets, window_buckets, coverage_pct, verdict\n| sort coverage_pct asc, pod asc",
+        "title": "POD CENSUS — VALIDITY GATE. Read this before any other tile.",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "12": {
+        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"${CLUSTER_NAME}\" and startsWith(k8s.workload.name, \"bench-\")\n| summarize pods_in_window = countDistinctExact(k8s.pod.name), by:{engine = k8s.workload.name}\n| fieldsAdd expected_replicas = 1\n| fieldsAdd census = if(pods_in_window == 1, \"PASS - one continuous pod for the whole window\", else:\"FAIL - pod count != expected replicas -> RUN INVALID\")\n| fields engine, census, pods_in_window, expected_replicas\n| sort census desc, engine asc",
+        "title": "Pod count vs expected replicas — FAIL here means the window covers more than one pod lifetime",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "2": {
+        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"${CLUSTER_NAME}\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd mem_mib = mem[] / 1048576\n| fields k8s.workload.name, k8s.pod.name, timeframe, interval, mem_mib",
+        "title": "Memory working set per engine POD (MiB) — slope across the run is the leak signal",
+        "type": "data",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoryOverrides": {},
+            "fieldMapping": {
+              "leftAxisValues": [
+                "mem_mib"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "hiddenLegendFields": [],
+            "leftYAxisSettings": {},
+            "valueRepresentation": "absolute"
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "3": {
+        "query": "timeseries { cpu = avg(dt.kubernetes.container.cpu_usage), mem = avg(dt.kubernetes.container.memory_working_set) }, by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"${CLUSTER_NAME}\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd cpu_avg_mc = arrayAvg(cpu), cpu_p95_mc = arrayPercentile(cpu, 95), cpu_max_mc = arrayMax(cpu),\n            mem_avg_mib = arrayAvg(mem) / 1048576, mem_peak_mib = arrayMax(mem) / 1048576\n| fields engine = k8s.workload.name, pod = k8s.pod.name, cpu_avg_mc, cpu_p95_mc, cpu_max_mc, mem_avg_mib, mem_peak_mib\n| sort cpu_avg_mc desc",
+        "title": "Resource summary PER POD — CPU avg/p95/max (mc), memory avg/peak (MiB) over the window",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "4": {
+        "query": "timeseries cpu = avg(dt.kubernetes.container.cpu_usage), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"${CLUSTER_NAME}\" and startsWith(k8s.workload.name, \"bench-\")\n| fields engine = k8s.workload.name, pod = k8s.pod.name\n| lookup [ timeseries { r = sum(dt.kubernetes.container.restarts), o = sum(dt.kubernetes.container.oom_kills) }, by:{k8s.pod.name}, filter: k8s.cluster.name == \"${CLUSTER_NAME}\"\n           | fieldsAdd restarts = arrayMax(r), oom_kills = arrayMax(o)\n           | fields k8s.pod.name, restarts, oom_kills ],\n         sourceField: pod, lookupField: k8s.pod.name\n| fieldsAdd restarts = coalesce(lookup.restarts, 0), oom_kills = coalesce(lookup.oom_kills, 0)\n| fields engine, pod, restarts, oom_kills\n| sort pod asc",
+        "title": "Stability PER POD — restarts & OOM kills (0 = healthy; a REPLACED pod shows 0 here, the census catches it)",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "5": {
+        "query": "fetch spans | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"spans\"\n| summarize records = count(), by:{ engine = benchmark.engine, signal }\n| append [ fetch logs | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"logs\"\n           | summarize records = count(), by:{ engine = benchmark.engine, signal } ]\n| sort records desc",
+        "title": "Ingest volume by signal — records reaching Dynatrace through the engine",
+        "type": "data",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoricalBarChartSettings": {
+              "categoryAxis": "signal",
+              "categoryAxisLabel": "signal",
+              "valueAxis": "records",
+              "valueAxisLabel": "records"
+            },
+            "categoryOverrides": {},
+            "hiddenLegendFields": []
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "6": {
+        "query": "timeseries v = avg(system.cpu.utilization), by:{ benchmark.engine, service.name, k8s.cluster.name }, filter: isNotNull(benchmark.engine) and k8s.cluster.name == \"${CLUSTER_NAME}\"\n| summarize metric_series = count(), by:{ engine = benchmark.engine }\n| sort metric_series desc",
+        "title": "OTLP metric series arriving per engine (liveness/breadth, NOT a volume comparison)",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "7": {
+        "query": "fetch spans | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"spans\", ts = timestamp\n| append [ fetch logs | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine) | fieldsAdd signal = \"logs\", ts = timestamp ]\n| makeTimeseries records = count(), by:{ benchmark.engine, signal }, interval: 1m, time: ts",
+        "title": "Ingest rate over the run (records/min by signal)",
+        "type": "data",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "categoryOverrides": {},
+            "fieldMapping": {
+              "leftAxisValues": [
+                "records"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "hiddenLegendFields": [],
+            "leftYAxisSettings": {},
+            "valueRepresentation": "absolute"
+          },
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "8": {
+        "type": "data",
+        "title": "App SDK vs Istio mesh — STAMPED attribute vs INDEPENDENT derivation (gate checks 2 & 4)",
+        "query": "fetch spans | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| fieldsAdd stamped = if(isNull(benchmark.telemetry_source), \"<not stamped>\", else: benchmark.telemetry_source)\n| fieldsAdd shape = if(telemetry.sdk.name == \"envoy\" and isNotNull(svc_parts[1]), \"istio-mesh\", else: \"app-sdk\")\n| summarize spans = count(), by:{ engine = benchmark.engine, stamped, shape }\n| sort spans desc",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "9": {
+        "type": "data",
+        "title": "Spans by app x ingest path — namespace derived WITHOUT any engine-applied attribute (gate check 2)",
+        "query": "fetch spans | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| fieldsAdd app = coalesce(service.namespace, svc_parts[1], \"<unattributed>\")\n| fieldsAdd ingest = if(telemetry.sdk.name == \"envoy\" and isNotNull(svc_parts[1]), \"istio-mesh\", else: \"app-sdk\")\n| summarize spans = count(), by:{ engine = benchmark.engine, app, ingest }\n| sort spans desc",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "13": {
+        "type": "data",
+        "title": "KNOWN GAP — spans with no namespace on EITHER path. Must stay small and stable across engines.",
+        "query": "fetch spans | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| filter isNull(service.namespace) and isNull(svc_parts[1])\n| summarize spans = count(), by:{ engine = benchmark.engine, service.name }\n| sort spans desc",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "14": {
+        "type": "data",
+        "title": "Spans by <namespace>.<service> — collision-free service key (bare service.name blends the two apps)",
+        "query": "fetch spans | filter k8s.cluster.name == \"${CLUSTER_NAME}\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| fieldsAdd app = coalesce(service.namespace, svc_parts[1], \"<unattributed>\")\n| fieldsAdd ingest = if(telemetry.sdk.name == \"envoy\" and isNotNull(svc_parts[1]), \"istio-mesh\", else: \"app-sdk\")\n| fieldsAdd service_key = concat(app, \".\", coalesce(svc_parts[0], service.name))\n| summarize spans = count(), by:{ engine = benchmark.engine, service_key }\n| sort spans desc",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      }
+    },
+    "variables": [],
+    "version": 19
+  }
+}

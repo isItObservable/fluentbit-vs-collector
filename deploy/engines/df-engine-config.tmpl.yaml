@@ -1,0 +1,83 @@
+# ============================================================================
+# B1-v2 — df_engine pipeline config TEMPLATE
+# ----------------------------------------------------------------------------
+# __DT_API_TOKEN__ is substituted by engines/render-df-engine-config.sh, which
+# creates the ConfigMap directly in the cluster. The rendered file is never
+# written to disk in _artifacts/.
+#
+# Native DAG model — NOT the Collector's YAML model. Nodes are a MAP keyed by
+# node id, each with a URN `type`, and they are wired by explicit `connections`
+# edges. Schema reverse-engineered against the real binary (the image prints
+# its full URN registry on startup).
+#
+# Validated shapes (live, 0.50.0):
+#   receiver:otlp      protocols.{grpc,http}.listening_addr   (NOT `listen`)
+#   processor:attribute  actions: [{key, action: upsert, value}]
+#   processor:transform  kql_query: <string>   — see the READ/WRITE gap below
+#   processor:batch      otap: {min_size, sizer}, max_batch_duration
+#   exporter:otlp_http   endpoint + client_pool_size at top level;
+#                        http: {headers: {...}} — headers go UNDER http,
+#                        and the engine APPENDS /v1/{logs,metrics,traces}
+#                        to `endpoint`, which is why endpoint stops at
+#                        /api/v2/otlp.
+#
+# PARITY: `parity` below is a constant field write. df_engine 0.50.0's KQL
+# transform can write a field but cannot read one — `contains`, `==`,
+# `matches regex` and `replace_regex` all fail at runtime while
+# `--validate-and-exit` still reports the config valid. See the header of
+# engines/otel-arrow-native.yaml for the full evidence table.
+# ============================================================================
+version: otel_dataflow/v1
+engine: {}
+groups:
+  default:
+    pipelines:
+      main:
+        policies:
+          channel_capacity:
+            control: { node: 100, pipeline: 100 }
+            pdata: 128
+        nodes:
+          otlp_in:
+            type: receiver:otlp
+            config:
+              protocols:
+                grpc: { listening_addr: 0.0.0.0:4317 }
+                http: { listening_addr: 0.0.0.0:4318 }
+
+          # 1. static attribute add — parity step 1
+          enrich:
+            type: processor:attribute
+            config:
+              actions:
+                - { key: benchmark.engine, action: upsert, value: otel-arrow-native }
+                - { key: k8s.cluster.name, action: upsert, value: __CLUSTER_NAME__ }
+                - { key: benchmark.run,    action: upsert, value: logship-b1v2 }
+
+          # 2. severity normalise — CONSTANT write, see parity gap note
+          parity:
+            type: processor:transform
+            config:
+              kql_query: "logs | extend severity_text = 'ERROR'"
+
+          # 3. batch — last before export
+          batch:
+            type: processor:batch
+            config:
+              otap: { min_size: 1000, sizer: items }
+              max_batch_duration: 3s
+
+          dt_out:
+            type: exporter:otlp_http
+            config:
+              endpoint: https://__DT_ENDPOINT_HOST__/api/v2/otlp
+              client_pool_size: 4
+              http:
+                headers:
+                  Authorization: "Api-Token __DT_API_TOKEN__"
+
+        connections:
+          - { from: otlp_in, to: enrich }
+          - { from: enrich,  to: parity }
+          - { from: parity,  to: batch }
+          - { from: batch,   to: dt_out }

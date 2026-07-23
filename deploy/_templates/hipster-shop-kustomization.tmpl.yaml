@@ -1,0 +1,83 @@
+# ============================================================================
+# B1-v2 — Online Boutique overlay, ENGINE = @@ENGINE@@
+# ----------------------------------------------------------------------------
+# GENERATED FROM _templates/hipster-shop-kustomization.tmpl.yaml by render.sh.
+# render.sh also runs `kubectl kustomize` on this and writes the fully resolved
+# result to apps/hipster-shop-@@ENGINE@@.yaml, which is what a phase actually
+# applies:
+#
+#   kubectl apply -f apps/hipster-shop-@@ENGINE@@.yaml
+#
+# The rendered file is deliberately the deliverable rather than this overlay:
+# it needs no network fetch at run time, so a phase cannot silently pick up a
+# moved upstream tag mid-campaign.
+#
+# ---------------------------------------------------------------------------
+# WHICH ENV VAR ACTUALLY REPOINTS ONLINE BOUTIQUE
+# ---------------------------------------------------------------------------
+# Online Boutique v0.10.2 services read COLLECTOR_SERVICE_ADDR (host:port,
+# OTLP/gRPC) — NOT OTEL_EXPORTER_OTLP_ENDPOINT. The issue text names the
+# latter; both are set here. COLLECTOR_SERVICE_ADDR is the one the app code
+# reads and is what makes spans appear; OTEL_EXPORTER_OTLP_ENDPOINT is set so
+# any SDK-native path (and anything auto-instrumented later) agrees.
+#
+# Upstream v0.10.2 ships NO COLLECTOR_SERVICE_ADDR at all, so these patches
+# ADD the variables rather than replace them. Strategic-merge on `env` merges
+# by the `name` key, so re-applying is idempotent.
+#
+# redis-cart is not patched: it is stock `redis:alpine` with no OTel SDK, so
+# giving it an exporter endpoint would be cargo cult. It still gets a sidecar
+# and therefore still contributes Istio spans and access logs.
+#
+# ---------------------------------------------------------------------------
+# LOADGENERATOR
+# ---------------------------------------------------------------------------
+# The bundled loadgenerator Deployment + ServiceAccount are deleted — this benchmark
+# drives load itself with the phased ramp jobs so both apps see an identical
+# VU ladder on the same wall clock. A second, uncontrolled load source would
+# corrupt the methodology.
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hipster-shop
+
+# `labels` with includeSelectors:false — NOT `commonLabels`. commonLabels
+# propagates into spec.selector.matchLabels, and a Deployment's selector is
+# immutable, so re-applying over an existing Online Boutique fails with
+#   spec.selector: Invalid value: ...: field is immutable
+# on every one of the eleven Deployments. Caught by `kubectl apply
+# --dry-run=server` against the live namespace before it could cost a phase.
+labels:
+  - includeSelectors: false
+    includeTemplates: true
+    pairs:
+      benchmark: logship
+      benchmark.engine: @@ENGINE@@
+
+resources:
+  - https://raw.githubusercontent.com/GoogleCloudPlatform/microservices-demo/v0.10.2/release/kubernetes-manifests.yaml
+
+patches:
+  # ---- strip the bundled load driver (we own the load) ----
+  - target:
+      kind: Deployment
+      name: loadgenerator
+    patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: loadgenerator
+  - target:
+      kind: ServiceAccount
+      name: loadgenerator
+    patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: loadgenerator
+
+  # ---- point every instrumented service at the engine under test ----
+@@HS_PATCHES@@
