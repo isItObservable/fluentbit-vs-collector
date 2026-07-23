@@ -2,7 +2,14 @@
 ISI-1843 — follow-up COMMENT for the filed upstream issue:
 https://github.com/open-telemetry/otel-arrow/issues/3561
 
-⚠️ NOT POSTED. Henrik owns the upstream account (the runner's PATs 403 on write).
+✅ POSTED 2026-07-23T16:46:50Z by @henrikrexed —
+https://github.com/open-telemetry/otel-arrow/issues/3561#issuecomment-5061029145
+⚠️ BUT the posted body is the 04decf8-era draft, NOT this file. It is missing the two
+   sections below the "Everything else in the original report stands" paragraph — the
+   metric_sets 289→1 detection mechanism and the still-present-on-current-main check —
+   plus the closing offer line. See UPSTREAM-3561-POSTED.md for the verified delta and
+   UPSTREAM-3561-ADDENDUM.paste.md for the follow-up comment that closes the gap.
+   Henrik owns the upstream account (the runner's PATs 403 on write).
 ⚠️ DO NOT PASTE THIS FILE — this header is an HTML comment: invisible when rendered,
    fully readable in a public issue's source, and it names an internal ticket and the
    account. PASTE UPSTREAM-3561-FOLLOWUP.paste.md INSTEAD — that file is this one from
