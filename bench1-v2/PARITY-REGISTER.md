@@ -1,0 +1,185 @@
+# ISI-1779 B1-v2 — Parity and Disclosure Register
+
+**Purpose.** Every asymmetry between the three engines that reaches the recording must be either
+*closed* (same behaviour, same config knob) or *named here* with the exact sentence that goes on
+camera. Nothing may arrive at the shoot as an undocumented difference.
+
+**Owner / authority.** ISI-1845 (BigBoss, 2026-07-23). Decisions traced to ISI-1841
+`b1v2-scope-decisions` document.
+
+---
+
+## D0 — The Freeze Rule (why asymmetries are closed on the arrow side only)
+
+> **An arm holding a banked, valid Round-1 row is config-frozen for the rest of the campaign.**
+
+The Collector arm (R1P1, ISI-1815) and the Fluent Bit arm (R1P2, ISI-1816) each have a completed,
+gate-passing timed run. Their configs are frozen; changes to buy symmetry would void two valid two-
+hour runs.
+
+The OTel-Arrow-native arm has no banked row — R1P3 aborted at the gate before any load ran. Its
+config is open for correction **until its retry starts**, then frozen from that instant.
+
+Consequence: every parity gap is closed on the arrow side (or disclosed). "Level the other two arms
+down" was rejected because it would void two valid, irreplaceable results.
+
+---
+
+## Parity Steps — What Each Engine Does
+
+| Step | Work | Collector | Fluent Bit v5 | OTel-Arrow native |
+|------|------|-----------|---------------|-------------------|
+| 1 | Static attribute add (`benchmark.engine`, `k8s.cluster.name`, `benchmark.run`) | `resource/static` (OTTL upsert ×3) | `content_modifier action: upsert` ×3 per signal | `processor:attribute actions: upsert` ×3 per branch |
+| 2 | Severity normalise → `severity_text = ERROR` | `set(severity_text,"ERROR") where IsMatch(body,"(?i)error")` — conditional | `content_modifier upsert` + regex condition | `kql_query: "logs | extend severity_text = 'ERROR'"` — constant write; **see disclosure P-SEV** |
+| 3 | PII redact (e-mail → masked/hashed) | `replace_pattern(body, <e-mail-re>, "***REDACTED***")` — substring mask | `content_modifier action: hash key: log` on e-mail regex condition — whole-value SHA-256; **see disclosure P-PII** | Not implementable; **see disclosure P-PII** |
+| 4 | Drop `log.file.path` | `delete_key(attributes, "log.file.path")` in `log_statements` + `trace_statements` | `content_modifier action: delete key: log.file.path` in `logs:` + `traces:` | `processor:attribute action: delete key: log.file.path` on both logs and traces branches; **ISI-1843 runtime-proven** |
+| 5 | Batch before export | `send_batch_size 8192`, `send_batch_max_size 16384`, `timeout 1s` | `flush 1s` (plugin-level, no size knob); **see disclosure Q6** | `otap: {min_size: 1000, sizer: items}`, `max_batch_duration: 1s`; **see disclosure Q6** |
+
+---
+
+## Disclosed Asymmetries
+
+### P-SEV — Severity normalise: constant write vs. conditional write
+
+| | |
+|---|---|
+| **Arms affected** | OTel-Arrow native (Phase 3) vs. Collector (Phase 1) + Fluent Bit (Phase 2) |
+| **What the frozen arms do** | Write `severity_text = ERROR` only when the log body matches `/(?i)error/` |
+| **What the arrow arm does** | Write `severity_text = ERROR` unconditionally on every log record |
+| **Root cause** | `processor:transform` (KQL) in df_engine 0.50.0 can write a field but cannot read one at runtime. Every conditional expression (`body contains`, `body == "…"`, `replace_regex`, `body matches regex`) raises an opaque runtime error while `--validate-and-exit` still reports VALID. Verified live on observable-otelarrow 2026-07-22 (evidence in `engines/otel-arrow-native.yaml` header, `engines/node-proof/`). |
+| **Why not fixed** | Would require either (a) a KQL read predicate (not available in 0.50.0) or (b) levelling the frozen arms down — which voids two valid timed runs. |
+| **Camera sentence** | *"All three engines write `severity_text = ERROR`. The Collector and Fluent Bit do so conditionally — only when the body matches an error pattern. The Arrow engine does it unconditionally, because its KQL transform can write a field but cannot read one. That is a processing-work difference, and we are naming it."* |
+
+---
+
+### P-PII — PII redaction: hash vs. substring mask vs. not implemented
+
+| | |
+|---|---|
+| **Arms affected** | All three; arrow arm cannot implement it at all |
+| **Collector** | `replace_pattern(body, <e-mail-regex>, "***REDACTED***")` — replaces only the matched substring; the rest of the body is unchanged |
+| **Fluent Bit v5** | `content_modifier action: hash key: log` + e-mail regex condition — SHA-256s the **entire log value** when the body matches; no substring substitution verb exists in the native processor |
+| **Arrow native** | No implementation. `processor:transform` cannot read a field to form a condition (see P-SEV); `processor:filter` accepts any config including `{__bogus__: 1}` while reporting VALID, and has no redaction action. |
+| **Why not fixed** | Same constraint as P-SEV for the conditional. Collector and Fluent Bit already diverge from each other (substring vs. whole-value hash); forcing three identical redaction semantics would require either rebuilding 0.50.0 or voiding frozen arms. |
+| **Camera sentence** | *"Three engines, three redaction approaches: the Collector masks the matched e-mail substring; Fluent Bit hashes the entire field value; the Arrow engine has no conditional field operation in 0.50.0, so it skips PII redaction entirely. Comparable processing intent, genuinely different outputs — and the point of the benchmark is to show what each engine can and cannot do."* |
+
+---
+
+### Q2 — Arrow arm delivers logs and traces only; metrics tiles are empty BY DESIGN
+
+| | |
+|---|---|
+| **Arms affected** | OTel-Arrow native (R1P3, R2P3) only |
+| **What happens** | df_engine 0.50.0 panics inside its own metrics encoder (`crates/pdata/src/encode/record/metrics.rs`, panic message literally `boo`) and inside Arrow encoding (`DictionaryKeyOverflowError`). Both sites are hit within one minute of real workload telemetry; all four pipeline cores die with no restart. |
+| **Config response** | `processor:type_router` splits the pipeline immediately after the receiver: `router["logs"]` and `router["traces"]` continue to the processing chain and the DT exporter; `router["metrics"]` routes to `exporter:noop`. Drop is explicit, deterministic, and counted by `processor.signal_type_router.signals_routed_named_metrics`. |
+| **What the other two arms do** | Both carry metrics through a `cumulativetodelta` conversion and export them to DT. |
+| **Relation to D0** | The arrow arm had no banked R1 row, so this config change was open. It is not a workaround to preserve an old result; it is the honest fix that makes the arm runnable while exposing what version 0.50.0 can and cannot do. |
+| **attr-landing verdict** | `results/attr-landing.sh --gate` must predict `metrics=NO-DATA` for R1P3 and R2P3. `NO-DATA` is its own verdict and must never fold into `SAFE` ("did not run" ≠ "passed"). |
+| **Dashboard caveat** | R1P3/R2P3 metrics tiles will be empty or report zero. **A note must appear next to those tiles** (not only in this file) stating: *"Metrics empty by design — df_engine 0.50.0 metrics encoder panics on this workload; metrics are routed to noop."* |
+| **Camera sentence** | *"The Arrow engine carries logs and traces in this benchmark. Metrics are routed to a noop exporter — by construction, not by failure. Version 0.50.0's metrics encoder panics on the cumulative-Sum workload this cluster produces, and it has no cumulative-to-delta converter. We are treating that as the finding it is: a production-readiness gap that this version has not yet closed."* |
+
+---
+
+### Q6 — Batch size stays engine-idiomatic; batch duration is aligned
+
+| | |
+|---|---|
+| **Arms affected** | All three, different knob sets |
+| **Collector** | `send_batch_size: 8192`, `send_batch_max_size: 16384`, `timeout: 1s` |
+| **Fluent Bit v5** | No batch-size knob in the `opentelemetry` output; effective batch is whatever fills before `flush: 1s` |
+| **Arrow native** | `otap: {min_size: 1000, sizer: items}`, `max_batch_duration: 1s` |
+| **What is aligned** | **Duration** — all three flush within 1 s of the first record in a batch. This was the ISI-1843 correction on the arrow arm (`max_batch_duration: 1s`). |
+| **What is not aligned** | **Size** — Collector batches up to 8 192 items, Arrow keeps its idiomatic 1 000, Fluent Bit has no equivalent knob. Forcing equality would require reading a knob Fluent Bit does not expose, or setting the Collector's batch 8× smaller in a frozen arm. Neither is possible. |
+| **Same treatment as** | The hash-vs-mask asymmetry and the `k8sattributes`-vs-static enrichment gap: name it, measure both signal and outcome. |
+| **Camera sentence** | *"We aligned the batch flush interval to one second across all three engines. The batch size — how many records each flush carries — stays engine-idiomatic: eight thousand for the Collector, a thousand for the Arrow engine, and whatever fits a second for Fluent Bit. That difference influences per-flush overhead; it is a configuration reality, not a hidden variable."* |
+
+---
+
+### Q7 — Export resilience is not aligned; loss is measured, not averaged away
+
+| | |
+|---|---|
+| **Arms affected** | All three — different capability levels |
+| **Collector** | `retry_on_failure: {enabled: true}` (exponential backoff, 300 s cap) + `sending_queue: {enabled: true, queue_size: 5000}` |
+| **Fluent Bit v5** | `retry_limit: 5` in the `opentelemetry` output; no persistent queue |
+| **Arrow native** | `client_pool_size: 4`, no retry config, no queue |
+| **Why not aligned** | Normalising would erase a genuine product difference. The Collector's queue and backoff are features; demonstrating that they exist (and cost RAM) is part of the benchmark's value. Making all three identical would hide the Collector's advantage on a noisy network and the Arrow engine's lack of retry — exactly what a viewer of this content needs to understand. |
+| **How loss is measured** | **Every RUN-REGISTER row must record:** (a) delivered-vs-emitted per signal (logs, traces, metrics) from the DT ingest counters and each engine's own telemetry; (b) engine-side 4xx/5xx count from the exporter's built-in metrics. Loss is never averaged across signals or folded into a summary number that obscures which signal was affected. |
+| **Camera sentence** | *"Export resilience is intentionally different across the three engines. The Collector has retry-on-failure with an in-memory queue. Fluent Bit will retry up to five times per batch. The Arrow engine has neither retry nor queue in this version — what the exporter cannot deliver is dropped. We measure that difference on every run: delivered versus emitted, per signal."* |
+
+---
+
+### Q8 — Fluent Bit keeps its 256 Mi memory request
+
+| | |
+|---|---|
+| **Arms affected** | Fluent Bit (Phase 2) vs. Collector and Arrow (both 512 Mi) |
+| **Requests** | Fluent Bit: `cpu: 500m, memory: 256Mi`; Collector and Arrow: `cpu: 500m, memory: 512Mi` |
+| **Limits** | All three: `cpu: 4, memory: 2Gi` — identical |
+| **Metric used** | `dt.kubernetes.container.memory_working_set` — actual RSS-equivalent, unaffected by the request |
+| **Why the request does not matter** | A `resources.requests` is a Kubernetes scheduler input. It sets the pod's guaranteed floor for scheduling decisions and QoS class; it neither caps nor floors what the container actually uses. All three arms land in the `Burstable` QoS class regardless, because none of them set `requests == limits`. The measured metric is `memory_working_set`, which reflects what the kernel has allocated to the process — a `256Mi` request does not constrain it below a `2Gi` limit. |
+| **Refusal is falsifiable** | This decision reopens immediately if you can demonstrate a mechanism by which the request moves `memory_working_set` on this cluster under this workload. The load-bearing argument is the one above; if that argument is wrong, the evidence to refute it is to show the working-set difference across two identical configs differing only in the request value. |
+| **Camera sentence** | *"Fluent Bit's memory request is half the other two engines' — 256 megabytes versus 512. The memory limit is two gigabytes on all three. The number we compare is the actual working-set reported by Kubernetes — that is what the kernel gave each process, regardless of what was requested. A scheduling input does not cap or floor the measured metric."* |
+
+---
+
+### SNUM — severity_text = ERROR does not imply severity_number = Error
+
+| | |
+|---|---|
+| **Arms affected** | OTel-Arrow native (R1P3, R2P3) — but the issue is latent on all three arms for different reasons |
+| **What happens** | The Arrow arm's `processor:transform` writes `severity_text = 'ERROR'` unconditionally (see P-SEV). It does **not** write `severity_number`. OTLP `severity_number` carries the original emitted value, which for most structured log sources is `Info (9)` or lower. A dashboard tile that colour-codes by level will show these records as INFO while `severity_text` says ERROR. |
+| **Why severity is not a measured axis** | The parity work (step 2) is the timed processing — a real per-record write that takes CPU and memory. The semantic content of `severity_text` is not what we measure; CPU, memory, wire bytes, and loss are. |
+| **What a readout must not do** | Treat `severity_text = ERROR` as a valid severity indicator for the arrow arm. A filter like `severity_text == "ERROR"` will return records whose `severity_number` is INFO, producing a believable but wrong distribution. |
+| **Camera sentence** | *"The severity field we write is a processing marker, not a true severity indicator — we are measuring whether each engine can write a field under load, not whether the log was actually an error. Do not use it for filtering in the comparison dashboard."* |
+
+---
+
+### MEM-LIM — memory\_limiter is Collector-only
+
+| | |
+|---|---|
+| **Arms affected** | Collector has `memory_limiter`; Fluent Bit and Arrow do not |
+| **Collector** | `memory_limiter: {check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20}` — must be first in the pipeline |
+| **Fluent Bit v5** | `mem_buf_limit` on the input plugin — a storage-layer cap, not a pipeline processor |
+| **Arrow native** | `channel_capacity: {control: {node: 100, pipeline: 100}, pdata: 128}` — back-pressure via channel depth, not memory sampling |
+| **Why not aligned** | These are structurally different mechanisms attached at different layers. The Collector's `memory_limiter` adds approximately one predicate evaluation per record per second; at benchmark throughput this is noise, but it is a real difference. Fluent Bit's and Arrow's alternatives serve the same purpose (preventing OOM) via different primitives that are not equivalent config knobs. |
+| **Camera sentence** | *"The Collector runs a memory-limiter processor that checks the process footprint once a second and starts dropping if it exceeds eighty percent of its limit. Fluent Bit and the Arrow engine use different back-pressure mechanisms. This is a per-engine design choice, not a benchmark variable."* |
+
+---
+
+## Run-Register Requirements (from Q7)
+
+The following columns are **mandatory** in every RUN-REGISTER row to satisfy the Q7 disclosure:
+
+| Column | Source | Notes |
+|--------|--------|-------|
+| `logs_emitted` | Engine self-telem (`otelcol_receiver_accepted_log_records` / FluentBit `fluentbit_input_records_total` / df_engine `otap.receiver_received`) | Before the processing chain |
+| `logs_delivered` | DT ingest accepted count (DQL `fetch logs | summarize count()` scoped to window + `benchmark.engine`) | After export |
+| `traces_emitted` | Same sources, spans dimension | |
+| `traces_delivered` | DT `fetch spans | summarize count()` | |
+| `metrics_emitted` | Same sources, metrics dimension | Arrow arm: `router["metrics"]` routed to noop → emitted count still measurable |
+| `metrics_delivered` | Arrow arm: 0 BY DESIGN (noop). Others: DT metric-ingest count | |
+| `exporter_4xx` | Engine telemetry export error counter | Collector: `otelcol_exporter_send_failed_*`; Fluent Bit: `fluentbit_output_retries_failed_total`; Arrow: `otlp_http.request_errors` or equivalent |
+| `exporter_5xx` | Same as above, 5xx partition if available | |
+
+A RUN-REGISTER row that does not carry these columns cannot be used to evaluate loss. It is not
+acceptable to average delivered across signals or to cite a global "loss ≈ 0" without per-signal
+breakdown when one signal (arrow metrics) is never delivered by construction.
+
+---
+
+## Status Summary
+
+| Item | Collector | Fluent Bit v5 | Arrow native | Status |
+|------|-----------|---------------|--------------|--------|
+| Step 1: static attrs | ✅ | ✅ | ✅ | Closed |
+| Step 2: severity normalise | ✅ conditional | ✅ conditional | ⚠️ constant write | **Disclosed P-SEV** |
+| Step 3: PII redact | ✅ substring mask | ⚠️ whole-value hash | ❌ not implementable | **Disclosed P-PII** |
+| Step 4: drop log.file.path | ✅ | ✅ | ✅ (ISI-1843) | Closed |
+| Step 5: batch | ✅ size+duration | ⚠️ duration only | ⚠️ size 1 000, duration 1 s | **Disclosed Q6** |
+| Q2: metrics signal | ✅ delivered | ✅ delivered | ⚠️ noop BY DESIGN | **Disclosed Q2** |
+| Q7: export resilience | ✅ retry+queue | ⚠️ retry only | ❌ none | **Disclosed Q7 + measured** |
+| Q8: memory request | 512 Mi | 256 Mi | 512 Mi | **Disclosed Q8** |
+| severity\_number alignment | not an issue | not an issue | ⚠️ INFO despite text=ERROR | **Disclosed SNUM** |
+| memory\_limiter | ✅ | ❌ (different mechanism) | ❌ (channel back-pressure) | **Disclosed MEM-LIM** |
