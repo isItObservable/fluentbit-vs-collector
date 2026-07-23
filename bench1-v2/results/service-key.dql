@@ -1,0 +1,48 @@
+// ISI-1779 B1-v2 — canonical service key: <namespace>.<service>
+//
+// WHY THIS EXISTS
+// Namespace arrives on spans under two MUTUALLY EXCLUSIVE attributes:
+//   * istio-mesh spans -> k8s.namespace.name  (service.name is already "<service>.<namespace>")
+//   * app-SDK   spans -> service.namespace    (service.name is BARE, e.g. "frontend")
+//
+// Consequences measured over the R1-P1-collector window 2026-07-22T15:58:43Z -> 17:59:21Z
+// (18,499,537 benchmark-tagged spans):
+//
+//   1. COLLISION. Bare "frontend" merges TWO different applications into one service
+//      identity: hipster-shop 3,294,973 + otel-demo 892,424 = 4,187,397 spans (22.6% of
+//      the run). Any per-service readout on service.name alone blends the two apps.
+//      "frontend" is the only colliding name, but it is the single largest bucket.
+//   2. SPLIT. The same workload appears twice - once as mesh "frontend.hipster-shop"
+//      and once as app-SDK "frontend" - so its true volume is never seen in one place.
+//
+// This expression normalises BOTH paths to one key and fixes both problems at read time,
+// with no change to the running telemetry config (so it is safe to apply retroactively to
+// runs already banked, and it keeps the engine as the only variable across arms - see
+// RUN-REGISTER.md self-check).
+//
+// VERIFIED: hipster-shop.frontend = 6,591,068 = 3,296,095 (mesh) + 3,294,973 (app-SDK).
+//           otel-demo.frontend    = 1,390,604 =   498,180 (mesh) +   892,424 (app-SDK).
+//
+// CAVEAT - do NOT use `ns` as an engine-comparison dimension without checking first.
+// k8s.namespace.name is applied by the ENGINE UNDER TEST (k8sattributes processor), while
+// service.namespace comes from the app SDK. Grouping a cross-engine comparison by a key
+// that depends on engine enrichment can manufacture an engine difference that is not real.
+// For retrieval and per-service drill-down this is fine; for A/B/C volume comparison keep
+// scoping on benchmark.engine (99.04% coverage in R1-P1).
+//
+// KNOWN GAP: ~912,130 spans (4.9%) carry NEITHER attribute - almost all of them
+// hipster-shop currencyservice app-SDK spans, which never set service.namespace. They
+// surface as "<unattributed>.<service>" rather than being silently folded into a real
+// namespace, so the gap stays visible instead of reading as a clean result.
+
+fetch spans
+| filter k8s.cluster.name == "observable-otelarrow" and isNotNull(benchmark.engine)
+| fieldsAdd ns   = coalesce(service.namespace, k8s.namespace.name)
+| fieldsAdd bare = if(isNull(service.namespace) and isNotNull(k8s.namespace.name),
+                      replaceString(service.name, concat(".", k8s.namespace.name), ""),
+                      else: service.name)
+| fieldsAdd svc  = if(isNull(ns),
+                      concat("<unattributed>.", service.name),
+                      else: concat(ns, ".", bare))
+| summarize spans = count(), by:{ engine = benchmark.engine, svc }
+| sort spans desc
