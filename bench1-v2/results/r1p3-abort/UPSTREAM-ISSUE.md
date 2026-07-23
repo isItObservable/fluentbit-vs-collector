@@ -14,7 +14,11 @@ GitHub web UI:
     --title "df_engine: all pipeline cores die under real OTLP load (boo panic in metrics record encoder + arrow DictionaryKeyOverflowError), process stays alive and reports healthy" \
     --body-file bench1-v2/results/r1p3-abort/UPSTREAM-ISSUE.md
 
-SCRUBBED for public posting: no tenant URL, no cluster names, no ISI issue
+⚠️ DO NOT PASTE THIS FILE WHOLE. This HTML header is NOT scrubbed — it names the
+internal issue and the GitHub account, and an HTML comment is invisible when
+rendered but fully readable in a public issue's source. Paste from "### Component"
+down (`sed -n '/^### Component/,$p' UPSTREAM-ISSUE.md`). The BODY is scrubbed: no tenant URL,
+no cluster names, no ISI issue
 numbers, no internal repo or org names, no application names beyond the public
 opentelemetry-demo chart. Verified by grep before writing. Re-check if edited.
 
@@ -82,6 +86,8 @@ We nearly banked a two-hour benchmark run on an engine that had been dead for si
 Two requests here, independent of the panics themselves:
 1. a pipeline whose cores have all died should fail its health/readiness surface, not report healthy;
 2. `pipeline_runtime_failed` would ideally be recoverable (restart the core / new generation) rather than terminal.
+
+On (1) there may be an easy win: the admin server already has the data. `GET /api/v1/metrics?format=json&keep_all_zeroes=true` returns the internal metric set **per node per core**, so a dead core is visible as its `receiver.otlp` / `processor.*` counters going flat while sibling cores advance — no log grepping needed. (This is not discoverable from the admin UI, which looks like a static HTML page; we only found the endpoint by reading the UI's own `metrics-api.js`. Documenting it would help, and surfacing the same signal on a readiness endpoint would help more.)
 
 ### Timing — it gets worse, not better
 
