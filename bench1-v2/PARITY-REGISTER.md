@@ -80,10 +80,16 @@ down" was rejected because it would void two valid, irreplaceable results.
 > T+26m10s with metrics fully disconnected, from **two** sites — `arrow-data` and
 > `crates/pdata/src/otap/transform/concatenate.rs:150`. Routing metrics away removes only
 > the `boo` site. A correction to #3561 is drafted at
-> `results/r1p3-abort/UPSTREAM-3561-FOLLOWUP.md` and **not yet posted** (ISI-1850). The
-> paste-ready bytes are `results/r1p3-abort/UPSTREAM-3561-FOLLOWUP.paste.md` — post that
-> file, not the drafting file, which carries a non-public header. When the comment lands,
-> record its URL here and in that file.
+> `results/r1p3-abort/UPSTREAM-3561-FOLLOWUP.md` and **POSTED 2026-07-23T16:46:50Z** by
+> @henrikrexed as
+> <https://github.com/open-telemetry/otel-arrow/issues/3561#issuecomment-5061029145>
+> (ISI-1850). ⚠️ **Partial.** The posted body is 3081 bytes against the prepared 4742: it
+> carries the correction and the second panic site, but **not** the `metric_sets` 289→1
+> detection mechanism, the still-present-on-current-`main` check, or the closing offer.
+> Gap tracked as an addendum comment; paste-ready bytes are
+> `results/r1p3-abort/UPSTREAM-3561-FOLLOWUP.paste.md` (full) and
+> `UPSTREAM-3561-ADDENDUM.paste.md` (the delta). Post the `.paste.md` files, never the
+> drafting file, which carries a non-public header.
 
 | | |
 |---|---|
