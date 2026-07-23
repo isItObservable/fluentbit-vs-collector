@@ -305,6 +305,71 @@ recorded as such — an unvalidated phase is worse than a missing one, because i
 5. Compare `R1-P<n>-<engine>` against `R2-P<n>-<engine>` for the same engine to see replication, and
    across engines *within a round* for the headline comparison.
 
+### How the per-app / per-service split is keyed — ISI-1836 decision, 2026-07-23
+
+The namespace of a span lives under **two mutually exclusive attributes**: app-SDK spans carry
+`service.namespace`, Istio mesh spans do not. The original per-app tile coalesced only
+`service.namespace`, so it dropped **10,070,942 of 18,499,537 R1-P1 spans (54.4%)** into an
+`unlabelled` bucket that reads exactly like data loss.
+
+ISI-1836 offered three fixes — (a) rename the bucket, (b) coalesce in `k8s.namespace.name`,
+(c) split by `benchmark.telemetry_source`. **We took none of them. The recorded decision is (d):**
+
+```
+app = coalesce(service.namespace, splitString(service.name, ".")[1], "<unattributed>")
+       ^ written by the app SDK    ^ written by Istio (`<service>.<namespace>`)  ^ visible gap
+```
+
+**Why not (b), which was the obvious fix.** `k8s.namespace.name` is written by the
+k8sattributes processor — that is, by **the engine under test**. Folding it in would make the
+per-app split partly a function of the engine, which is precisely the class of artifact that does
+*not* cancel in an engine-vs-engine comparison. Istio already encodes the namespace in
+`service.name`, Istio config is frozen and identical across all three arms, so parsing it there
+buys the **same coverage as (b) with zero engine-applied attributes**.
+
+Measured on R1-P1 `2026-07-22T15:58:43Z → 17:59:21Z`, verified live before the dashboard was
+deployed: hipster-shop 7,962,661 mesh + 5,507,966 app-sdk; otel-demo 1,196,151 mesh + 2,920,629
+app-sdk; `<unattributed>` 912,130. Total **18,499,537 — the window's exact benchmark-tagged span
+count**, so the key neither drops nor double-counts a span. Coverage **95.07%**.
+
+The residual **4.93% is left visible on purpose** and has its own tile: hipster-shop
+`currencyservice` (900,146) and `paymentservice` (11,984) are app-SDK services that never set
+`service.namespace`. They render as `<unattributed>.<service>` rather than being folded into a
+real namespace — a gap must read as a gap, never as a clean result.
+
+**Read per-service volume from `<namespace>.<service>`, never from `service.name` alone**
+(`results/service-key.dql`, dashboard tile 14). Bare `service.name` **collides**: `frontend` is a
+single identity holding hipster-shop 3,294,973 + otel-demo 892,424 = 4,187,397 spans (22.6% of the
+run), and the same workload also appears twice — mesh `frontend.hipster-shop` and app-SDK bare
+`frontend` — so its real volume is never visible in one place. Normalised:
+`hipster-shop.frontend` 6,591,068 and `otel-demo.frontend` 1,390,604, each whole and separate.
+This is a **read-time** key: it needs no config change, so it applies retroactively to the banked
+R1-P1 and identically to every later arm. **Do not do the rename at source mid-campaign** — the
+grouping key would then differ per arm and the read path would need per-arm logic. Telemetry
+config stays frozen; the engine is the only variable.
+
+### `benchmark.telemetry_source` is now cross-checked, not trusted — ISI-1836 defect 2
+
+The source tile used to map `if(benchmark.telemetry_source == "istio-mesh", "istio-mesh", else:
+"app-sdk")`. That attribute is **null on 50.5% of R1-P1 spans**, and for P1 the output was
+*coincidentally* correct — only Istio sets it, so null really did mean app-sdk. But the mapping was
+`null → app-sdk`, so **an engine that dropped the attribute would report a clean, plausible 100%
+app-sdk instead of failing.** Same class as the ISI-1830 lesson: a skipped check must never render
+as a pass.
+
+Tile 8 now shows two columns. `stamped` renders null as `<not stamped>`. `shape` derives the same
+fact **independently** — `telemetry.sdk.name == "envoy"` (written by the emitting proxy) plus a
+dotted Istio service name — touching nothing the engine writes. **If the two columns disagree, the
+engine dropped the attribute; read that as a defect, not a result.**
+
+> `envoy` alone is not sufficient: otel-demo's own `frontend-proxy` emits 422,380 Envoy spans that
+> are not Istio sidecar spans. The dotted service name is what separates them.
+
+**P2 pre-read check (ISI-1836 AC3), confirmed both ways on 2026-07-23:** statically, all three
+`istio/telemetry-*.yaml` stamp `benchmark.telemetry_source: istio-mesh` identically; empirically,
+live fluent-bit v5 spans read **115,009 stamped `istio-mesh` / 19,237 `<not stamped>` app-sdk with
+zero disagreement rows**. The P2 source split is meaningful.
+
 ### Three readout traps this campaign has already paid for
 
 - **Absolute timeframes in DQL are a QUOTED string or nothing.** If you replay a window by hand

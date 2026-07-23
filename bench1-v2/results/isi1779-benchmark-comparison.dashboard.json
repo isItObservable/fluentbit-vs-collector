@@ -74,13 +74,25 @@
         "x": 0,
         "y": 45,
         "w": 12,
-        "h": 6
+        "h": 9
       },
       "10": {
         "x": 12,
         "y": 45,
         "w": 12,
         "h": 9
+      },
+      "13": {
+        "x": 0,
+        "y": 54,
+        "w": 10,
+        "h": 6
+      },
+      "14": {
+        "x": 10,
+        "y": 54,
+        "w": 14,
+        "h": 6
       }
     },
     "settings": {},
@@ -115,9 +127,33 @@
         }
       },
       "10": {
-        "markdown": "### Caveats that change how these numbers are read\n\n- **A pod REPLACEMENT is invisible to `dt.kubernetes.container.restarts`** (board directive D12, from ISI-1811). That metric counts in-place container restarts only; a reschedule, eviction, node drain or rollout produces a new pod name and leaves the metric empty. Re-proven live on this cluster: 48h window `2026-07-20T11:00Z→2026-07-22T11:00Z`, six pod names across two workloads, **zero** restart datapoints. This is why the **pod census** — not the stability tile — is the validity gate.\n- **Restarts / OOM kills** use `arrayMax`, not `arraySum`, and are looked up **per pod**. The Dynatrace k8s counters report the container's restart count and are only emitted when non-zero; summing across intervals double-counts one restart once per sample. The tile is driven off the CPU metric and looks the counters up, so a healthy pod shows an explicit **0** rather than a blank tile you cannot distinguish from a broken query.\n- **Census threshold is 90% coverage, not 100%.** The first and last bucket of any window are partially covered by the metric's own cadence, so a perfectly healthy pod reads ~96.7% on a 2h/1-minute window and never exactly 100%. A pod replaced mid-run in a 120-minute window reads far below 90% (measured: 27–56% on real rollouts). Do not \"tighten\" this to strict equality — you would fail every valid run.\n- **Ingest volume by signal covers spans and logs.** Those are record-countable in Grail. OTLP **metric datapoints** are not — a metric arrives as a series, not a countable record — so the metrics signal is represented by the *series-arriving-per-engine* tile (liveness and breadth), and datapoint throughput is taken from the engine's own exported-datapoint counter at gate time (`validate-phase.sh` check 5). Do not read the metric-series count as a volume comparison.\n- **`app-sdk` vs `istio-mesh`** is split on `benchmark.telemetry_source`, which only the Istio `Telemetry` CR sets. `benchmark.engine` cannot make this split — the engines stamp it on every record they process, app and mesh alike.\n- **Scope exclusion D1 (board, 2026-07-22):** Istio/Envoy Prometheus metrics are excluded from every run — no Prometheus receiver, no ServiceMonitor, no Envoy scrape, on any engine, in any phase. App-emitted OTLP metrics **are** in scope and are measured. Istio-generated spans and access logs are in scope.\n- **Workload names collide across clusters** on this tenant (`observable-kagent`, `observable-agentsandbox`, `observable-otelarrow` all report `dt.kubernetes.container.*`). **Every** tile — including the app-OTLP metric-series tile — is therefore scoped by `k8s.cluster.name == \"observable-otelarrow\"`. Do not remove that filter.\n- Every ratio quoted from this dashboard must state its baseline: **vs OTLP+zstd** is the honest comparison; vs uncompressed is a different, much larger number and must be labelled.",
+        "markdown": "### Caveats that change how these numbers are read\n\n- **A pod REPLACEMENT is invisible to `dt.kubernetes.container.restarts`** (board directive D12, from ISI-1811). That metric counts in-place container restarts only; a reschedule, eviction, node drain or rollout produces a new pod name and leaves the metric empty. Re-proven live on this cluster: 48h window `2026-07-20T11:00Z→2026-07-22T11:00Z`, six pod names across two workloads, **zero** restart datapoints. This is why the **pod census** — not the stability tile — is the validity gate.\n- **Restarts / OOM kills** use `arrayMax`, not `arraySum`, and are looked up **per pod**. The Dynatrace k8s counters report the container's restart count and are only emitted when non-zero; summing across intervals double-counts one restart once per sample. The tile is driven off the CPU metric and looks the counters up, so a healthy pod shows an explicit **0** rather than a blank tile you cannot distinguish from a broken query.\n- **Census threshold is 90% coverage, not 100%.** The first and last bucket of any window are partially covered by the metric's own cadence, so a perfectly healthy pod reads ~96.7% on a 2h/1-minute window and never exactly 100%. A pod replaced mid-run in a 120-minute window reads far below 90% (measured: 27–56% on real rollouts). Do not \"tighten\" this to strict equality — you would fail every valid run.\n- **Ingest volume by signal covers spans and logs.** Those are record-countable in Grail. OTLP **metric datapoints** are not — a metric arrives as a series, not a countable record — so the metrics signal is represented by the *series-arriving-per-engine* tile (liveness and breadth), and datapoint throughput is taken from the engine's own exported-datapoint counter at gate time (`validate-phase.sh` check 5). Do not read the metric-series count as a volume comparison.\n- **`app-sdk` vs `istio-mesh` is shown TWICE on purpose** (ISI-1836 defect 2). `stamped` is `benchmark.telemetry_source`, set only by the Istio `Telemetry` CR, with NULL rendered as `<not stamped>` rather than defaulting to `app-sdk`. `shape` derives the same fact independently from `telemetry.sdk.name == \"envoy\"` + a dotted Istio service name. **If the two columns disagree, the engine dropped the attribute** — read that as a defect, not as a result. On R1-P1 they agree exactly (9,158,812 / 9,340,725). `benchmark.engine` cannot make this split — the engines stamp it on every record they process, app and mesh alike.\n- **The per-app namespace is derived without any engine-applied attribute** (ISI-1836 defect 1, decision (d)). App-SDK spans carry `service.namespace`; Istio mesh spans carry the namespace inside `service.name` as `<service>.<namespace>`. The tile coalesces those two — both written upstream of the engine — and deliberately does **not** use `k8s.namespace.name`, which the k8sattributes processor (the engine under test) writes, and which would make the per-app split partly a function of the engine. Coverage 95.07% on R1-P1; the residual 4.93% is shown as `<unattributed>` and broken out in its own tile.\n- **Bare `service.name` collides across the two apps** — `frontend` exists in both hipster-shop and otel-demo, and the same workload appears twice (mesh `frontend.hipster-shop`, app-SDK bare `frontend`). Read per-service volume from the `<namespace>.<service>` tile, never from `service.name` alone.\n- **Scope exclusion D1 (board, 2026-07-22):** Istio/Envoy Prometheus metrics are excluded from every run — no Prometheus receiver, no ServiceMonitor, no Envoy scrape, on any engine, in any phase. App-emitted OTLP metrics **are** in scope and are measured. Istio-generated spans and access logs are in scope.\n- **Workload names collide across clusters** on this tenant (`observable-kagent`, `observable-agentsandbox`, `observable-otelarrow` all report `dt.kubernetes.container.*`). **Every** tile — including the app-OTLP metric-series tile — is therefore scoped by `k8s.cluster.name == \"observable-otelarrow\"`. Do not remove that filter.\n- Every ratio quoted from this dashboard must state its baseline: **vs OTLP+zstd** is the honest comparison; vs uncompressed is a different, much larger number and must be labelled.",
         "title": "",
         "type": "markdown"
+      },
+      "11": {
+        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd live_buckets = arraySize(arrayRemoveNulls(mem)), window_buckets = arraySize(mem)\n| fieldsAdd coverage_pct = 100.0 * arraySize(arrayRemoveNulls(mem)) / arraySize(mem)\n| fieldsAdd verdict = if(100.0 * arraySize(arrayRemoveNulls(mem)) / arraySize(mem) >= 90, \"ok - pod alive for the whole window\", else:\"PARTIAL LIFETIME -> WINDOW INVALID, do not report numbers\")\n| fields engine = k8s.workload.name, pod = k8s.pod.name, live_buckets, window_buckets, coverage_pct, verdict\n| sort coverage_pct asc, pod asc",
+        "title": "POD CENSUS — VALIDITY GATE. Read this before any other tile.",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
+      },
+      "12": {
+        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| summarize pods_in_window = countDistinctExact(k8s.pod.name), by:{engine = k8s.workload.name}\n| fieldsAdd expected_replicas = 1\n| fieldsAdd census = if(pods_in_window == 1, \"PASS - one continuous pod for the whole window\", else:\"FAIL - pod count != expected replicas -> RUN INVALID\")\n| fields engine, census, pods_in_window, expected_replicas\n| sort census desc, engine asc",
+        "title": "Pod count vs expected replicas — FAIL here means the window covers more than one pod lifetime",
+        "type": "data",
+        "visualization": "table",
+        "visualizationSettings": {
+          "chartSettings": {},
+          "singleValue": {},
+          "table": {},
+          "thresholds": []
+        }
       },
       "2": {
         "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd mem_mib = mem[] / 1048576\n| fields k8s.workload.name, k8s.pod.name, timeframe, interval, mem_mib",
@@ -225,30 +261,21 @@
         }
       },
       "8": {
-        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd source = if(benchmark.telemetry_source == \"istio-mesh\", \"istio-mesh\", else: \"app-sdk\")\n| summarize spans = count(), by:{ engine = benchmark.engine, source }\n| sort spans desc",
-        "title": "App SDK vs Istio mesh spans — both must be non-zero for a valid phase (gate checks 2 & 4)",
         "type": "data",
-        "visualization": "categoricalBarChart",
+        "title": "App SDK vs Istio mesh — STAMPED attribute vs INDEPENDENT derivation (gate checks 2 & 4)",
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| fieldsAdd stamped = if(isNull(benchmark.telemetry_source), \"<not stamped>\", else: benchmark.telemetry_source)\n| fieldsAdd shape = if(telemetry.sdk.name == \"envoy\" and isNotNull(svc_parts[1]), \"istio-mesh\", else: \"app-sdk\")\n| summarize spans = count(), by:{ engine = benchmark.engine, stamped, shape }\n| sort spans desc",
+        "visualization": "table",
         "visualizationSettings": {
-          "chartSettings": {
-            "categoricalBarChartSettings": {
-              "categoryAxis": "source",
-              "categoryAxisLabel": "source",
-              "valueAxis": "spans",
-              "valueAxisLabel": "spans"
-            },
-            "categoryOverrides": {},
-            "hiddenLegendFields": []
-          },
+          "chartSettings": {},
           "singleValue": {},
           "table": {},
           "thresholds": []
         }
       },
       "9": {
-        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd app = coalesce(service.namespace, \"unlabelled\")\n| summarize spans = count(), by:{ engine = benchmark.engine, app }\n| sort spans desc",
-        "title": "Spans by app — otel-demo and hipster-shop must BOTH appear (gate check 2)",
         "type": "data",
+        "title": "Spans by app x ingest path — namespace derived WITHOUT any engine-applied attribute (gate check 2)",
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| fieldsAdd app = coalesce(service.namespace, svc_parts[1], \"<unattributed>\")\n| fieldsAdd ingest = if(telemetry.sdk.name == \"envoy\" and isNotNull(svc_parts[1]), \"istio-mesh\", else: \"app-sdk\")\n| summarize spans = count(), by:{ engine = benchmark.engine, app, ingest }\n| sort spans desc",
         "visualization": "table",
         "visualizationSettings": {
           "chartSettings": {},
@@ -257,10 +284,10 @@
           "thresholds": []
         }
       },
-      "11": {
+      "13": {
         "type": "data",
-        "title": "POD CENSUS — VALIDITY GATE. Read this before any other tile.",
-        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| fieldsAdd live_buckets = arraySize(arrayRemoveNulls(mem)), window_buckets = arraySize(mem)\n| fieldsAdd coverage_pct = 100.0 * arraySize(arrayRemoveNulls(mem)) / arraySize(mem)\n| fieldsAdd verdict = if(100.0 * arraySize(arrayRemoveNulls(mem)) / arraySize(mem) >= 90, \"ok - pod alive for the whole window\", else:\"PARTIAL LIFETIME -> WINDOW INVALID, do not report numbers\")\n| fields engine = k8s.workload.name, pod = k8s.pod.name, live_buckets, window_buckets, coverage_pct, verdict\n| sort coverage_pct asc, pod asc",
+        "title": "KNOWN GAP — spans with no namespace on EITHER path. Must stay small and stable across engines.",
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| filter isNull(service.namespace) and isNull(svc_parts[1])\n| summarize spans = count(), by:{ engine = benchmark.engine, service.name }\n| sort spans desc",
         "visualization": "table",
         "visualizationSettings": {
           "chartSettings": {},
@@ -269,10 +296,10 @@
           "thresholds": []
         }
       },
-      "12": {
+      "14": {
         "type": "data",
-        "title": "Pod count vs expected replicas — FAIL here means the window covers more than one pod lifetime",
-        "query": "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.workload.name, k8s.pod.name}, filter: k8s.cluster.name == \"observable-otelarrow\" and startsWith(k8s.workload.name, \"bench-\")\n| summarize pods_in_window = countDistinctExact(k8s.pod.name), by:{engine = k8s.workload.name}\n| fieldsAdd expected_replicas = 1\n| fieldsAdd census = if(pods_in_window == 1, \"PASS - one continuous pod for the whole window\", else:\"FAIL - pod count != expected replicas -> RUN INVALID\")\n| fields engine, census, pods_in_window, expected_replicas\n| sort census desc, engine asc",
+        "title": "Spans by <namespace>.<service> — collision-free service key (bare service.name blends the two apps)",
+        "query": "fetch spans | filter k8s.cluster.name == \"observable-otelarrow\" and isNotNull(benchmark.engine)\n| fieldsAdd svc_parts = splitString(service.name, \".\")\n| fieldsAdd app = coalesce(service.namespace, svc_parts[1], \"<unattributed>\")\n| fieldsAdd ingest = if(telemetry.sdk.name == \"envoy\" and isNotNull(svc_parts[1]), \"istio-mesh\", else: \"app-sdk\")\n| fieldsAdd service_key = concat(app, \".\", coalesce(svc_parts[0], service.name))\n| summarize spans = count(), by:{ engine = benchmark.engine, service_key }\n| sort spans desc",
         "visualization": "table",
         "visualizationSettings": {
           "chartSettings": {},
