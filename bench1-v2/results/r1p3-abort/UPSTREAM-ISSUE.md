@@ -1,4 +1,15 @@
 <!--
+✅ FILED 2026-07-23 as open-telemetry/otel-arrow#3561 — https://github.com/open-telemetry/otel-arrow/issues/3561
+   (labelled `bug` + `triage:deciding` by maintainers.)
+   Verified in the PUBLISHED body: all 11 form fields present, both `render:` fields
+   rendered with GitHub's own fence only (no double-fence), scrub clean on 9 classes.
+⚠️ #3561 NEEDS A CORRECTION — see UPSTREAM-3561-FOLLOWUP.md in this directory. As filed it
+   says the workaround ran "41 minutes with zero panics"; the retry (results/r1p3-retry/)
+   shows the SAME corrected config dies at T+26m10s on the real workload. The workaround
+   DELAYS the overflow, it does not prevent it.
+-->
+
+<!--
 ⚠️ SUPERSEDED FOR FILING (2026-07-23). The repo uses an ISSUE FORM:
    https://github.com/open-telemetry/otel-arrow/issues/new?template=bug_report.yaml
    Use UPSTREAM-ISSUE-FORM.md in this directory, which is split into the form's 11 fields.

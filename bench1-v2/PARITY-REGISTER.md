@@ -67,6 +67,15 @@ down" was rejected because it would void two valid, irreplaceable results.
 
 ### Q2 — Arrow arm delivers logs and traces only; metrics tiles are empty BY DESIGN
 
+> **Upstream:** reported as [open-telemetry/otel-arrow#3561](https://github.com/open-telemetry/otel-arrow/issues/3561) (2026-07-23, `bug` /
+> `triage:deciding`). The `boo` metrics-encoder panic is separately root-caused upstream by
+> draft PR #2984, unmerged at our build SHA. ⚠️ The `DictionaryKeyOverflowError` is **not**
+> resolved by this arm's metrics routing: the retry shows it still kills all four cores at
+> T+26m10s with metrics fully disconnected, from **two** sites — `arrow-data` and
+> `crates/pdata/src/otap/transform/concatenate.rs:150`. Routing metrics away removes only
+> the `boo` site. A correction to #3561 is drafted at
+> `results/r1p3-abort/UPSTREAM-3561-FOLLOWUP.md` and **not yet posted**.
+
 | | |
 |---|---|
 | **Arms affected** | OTel-Arrow native (R1P3, R2P3) only |

@@ -1,5 +1,9 @@
 # Upstream issue form — one file per field
 
+> ✅ **FILED as [open-telemetry/otel-arrow#3561](https://github.com/open-telemetry/otel-arrow/issues/3561)** on 2026-07-23, labelled `bug` +
+> `triage:deciding`. These files are kept as the source of record for what was submitted.
+> ⚠️ A correction is pending — see `../UPSTREAM-3561-FOLLOWUP.md`.
+
 `https://github.com/open-telemetry/otel-arrow/issues/new?template=bug_report.yaml`
 
 **Each file is exactly one form field and nothing else.** No headings, no commentary, no

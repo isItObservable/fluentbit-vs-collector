@@ -1,4 +1,10 @@
 <!--
+✅ FILED as open-telemetry/otel-arrow#3561 — https://github.com/open-telemetry/otel-arrow/issues/3561
+   This file is the source the filed body was built from. Correction pending:
+   see UPSTREAM-3561-FOLLOWUP.md.
+-->
+
+<!--
 ISI-1843 — the upstream report restructured for the repo's ISSUE FORM.
 Supersedes the free-form body in UPSTREAM-ISSUE.md (which is kept for the fuller narrative).
 
