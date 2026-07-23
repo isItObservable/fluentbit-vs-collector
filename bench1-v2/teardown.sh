@@ -34,7 +34,27 @@
 set -uo pipefail
 
 RUN_ID="${1:?run id required, e.g. R1-P2-fluentbit}"
-CONFIRM="${2:-}"
+shift
+CONFIRM=""; ABORTED=0
+for a in "$@"; do
+  case "$a" in
+    --confirm) CONFIRM="--confirm" ;;
+    # --aborted: the phase STOPPED AT THE GATE and no timed run was ever
+    # started, so there is no window to protect. Used for R1-P3-arrow on
+    # 2026-07-23 (ISI-1817): df_engine panicked on all four pipeline cores
+    # before the run began.
+    #
+    # This skips ONLY the gates that guard a BANKED MEASUREMENT (G1 End, G2 End
+    # census, G3 ramp finished). It deliberately keeps every gate that guards
+    # the PROTECTED CONSTANT (G4 + P1), because that hazard is identical whether
+    # or not a run happened — and it is the irreversible one.
+    #
+    # Each skip is ANNOUNCED. A skipped check must never render as a passed
+    # check (ISI-1830).
+    --aborted) ABORTED=1 ;;
+    *) echo "unknown arg: $a" >&2; exit 2 ;;
+  esac
+done
 export KUBECONFIG="${KUBECONFIG:-/tmp/otelarrow.kubeconfig}"
 cd "$(dirname "$0")"
 
@@ -54,7 +74,33 @@ echo "== teardown $RUN_ID (engine $ENGINE)"
 [[ "$CONFIRM" == "--confirm" ]] || echo "   DRY RUN -- pass --confirm to actually delete"
 echo
 
+if [[ $ABORTED -eq 1 ]]; then
+  echo "!! ABORTED MODE -- no timed run was banked for $RUN_ID."
+  echo "   SKIPPING G1 (End recorded), G2 (End census), G3 (ramp finished):"
+  echo "   all three protect a measurement window, and there is none."
+  echo "   G4 + P1 (protect ${PROTECTED_NS}/${PROTECTED_NAME}) still RUN -- that"
+  echo "   hazard does not care whether a run happened."
+  echo
+  # Refuse if a real End IS present: that means a run WAS banked and --aborted
+  # is being misused to bulldoze the gates that exist to protect it.
+  AROW="$(grep -F "| \`${RUN_ID}\`" "$REG" | head -1)"
+  AEND="$(awk -F'|' '{print $8}' <<<"$AROW" | tr -d ' `')"
+  if [[ "$AEND" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+    fail "--aborted refused: $RUN_ID HAS a recorded End ($AEND), so a run WAS
+   banked. Use the normal path; the G1/G2/G3 gates exist to protect it."
+  fi
+  # And refuse while anything is still generating load.
+  LIVE_RAMP="$(kubectl get pods -A -l ramp=isi1779 --no-headers 2>/dev/null | grep -c 'Running' || true)"
+  if [[ "${LIVE_RAMP:-0}" -gt 0 ]]; then
+    fail "--aborted refused: $LIVE_RAMP ramp pod(s) still Running. Load is
+   flowing; this is not an aborted phase."
+  fi
+  echo "G3' ok  no ramp pods Running (nothing was ever started)"
+  echo
+fi
+
 # ---------------------------------------------------------------- G1: End captured
+if [[ $ABORTED -eq 0 ]]; then
 ROW="$(grep -F "| \`${RUN_ID}\`" "$REG" | head -1)"
 [[ -n "$ROW" ]] || fail "no register row for $RUN_ID in $REG"
 END_CELL="$(awk -F'|' '{print $8}' <<<"$ROW" | tr -d ' `')"
@@ -82,9 +128,25 @@ else
   fail "capture-window.sh does not report a clean finish (still running, or
    partial). Load may still be flowing. Re-check before deleting anything."
 fi
+fi   # end G1/G2/G3 (skipped in --aborted)
 
 # ---------------------------------------------------------------- G4: protected object safe
-MANIFESTS=(loadtest/ramp-jobs-${ENGINE}.yaml apps/hipster-shop-${ENGINE}.yaml engines/${ENGINE}.yaml)
+# In aborted mode the ramp manifest is excluded: no ramp job was ever created,
+# so it has nothing to delete and cannot define the protected object.
+#
+# It is excluded EXPLICITLY rather than by tolerating a missing file, because
+# `[[ -f ]] || fail` below is a real guard for the normal path — a phase whose
+# manifests have gone missing must not tear down. Note this is a fail-LOUD
+# guard, not a silent skip: for the arrow arm it refuses outright, since
+# loadtest/ramp-jobs-otel-arrow-native.yaml does not exist (ISI-1844 owns
+# creating it).
+if [[ $ABORTED -eq 1 ]]; then
+  MANIFESTS=(apps/hipster-shop-${ENGINE}.yaml engines/${ENGINE}.yaml)
+  echo "G4 note aborted mode: loadtest/ramp-jobs-${ENGINE}.yaml excluded from the"
+  echo "        scan and from the deletes -- no ramp job was ever created."
+else
+  MANIFESTS=(loadtest/ramp-jobs-${ENGINE}.yaml apps/hipster-shop-${ENGINE}.yaml engines/${ENGINE}.yaml)
+fi
 for m in "${MANIFESTS[@]}"; do [[ -f "$m" ]] || fail "manifest missing: $m"; done
 if python3 - "${MANIFESTS[@]}" <<'PY'
 import sys,yaml
@@ -114,7 +176,11 @@ echo
 # ---------------------------------------------------------------- deletes
 run(){ if [[ "$CONFIRM" == "--confirm" ]]; then echo "+ $*"; "$@"; else echo "  would run: $*"; fi; }
 
-run kubectl delete -f "loadtest/ramp-jobs-${ENGINE}.yaml" --ignore-not-found
+if [[ $ABORTED -eq 0 ]]; then
+  run kubectl delete -f "loadtest/ramp-jobs-${ENGINE}.yaml" --ignore-not-found
+else
+  echo "  skipped: ramp-jobs delete (aborted mode -- none were created)"
+fi
 run kubectl delete -f "apps/hipster-shop-${ENGINE}.yaml"  --ignore-not-found
 run helm uninstall otel-demo -n otel-demo
 run kubectl delete -f "engines/${ENGINE}.yaml" --ignore-not-found
