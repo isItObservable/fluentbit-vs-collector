@@ -24,11 +24,36 @@ counters"*. **That is wrong**, and the note has been corrected. The HTML is a UI
 returning the full internal metric set per node per core. Found by reading the UI's own
 `/static/js/main.js` → `metrics-api.js`. *"The UI is HTML" is not evidence there is no API.*
 
-`engine-counters.sh` fetches that and asserts 15 invariants. Against the live snapshot
-(`engine-counters-T+11m.json`, T+11m under real otel-demo load): **15/15 PASS**.
+`engine-counters.sh` fetches that and asserts 19 invariants. **19/19 PASS against both
+banked snapshots** — `engine-counters-T+11m.json` (low load, ~1 req/s) and
+`engine-counters-T+26m.json` (~4.5 req/s). Two known-good inputs, not one, on purpose.
 
     ./engine-counters.sh -n dfsmoke -d df-engine       # live
-    ./engine-counters.sh --no-fetch engine-counters-T+11m.json   # replay
+    ./engine-counters.sh --no-fetch engine-counters-T+26m.json   # replay
+
+## ⚠️ On this arm `received != exported` is EXPECTED and is NOT loss
+
+At T+26m the router had received 2147 log signals and the exporter had exported 1440. That
+looks like a 33% loss. It is not. The 1s batch timer **coalesces** several inbound requests
+into one outbound batch — measured **1.49× logs / 1.56× traces** at ~4.5 req/s, and 1.01×
+at ~1 req/s, so the ratio *moves with load* and no fixed threshold can be right.
+
+A naive run-day delivery check comparing `router.received` to `exporter.exported` would
+therefore **false-FAIL a perfectly healthy engine**, and would do it worse the busier the
+run got. Same class of error as the `attr-landing.sh` step-7b stale prediction.
+
+The correct loss detector is the **conservation law at each hop**, which must hold exactly
+and is independent of the coalescing ratio:
+
+    router.signals.received.X == batch.consumed.batches.X     (nothing lost router -> batch)
+    batch.produced.batches.X  == exporter.X.exported          (nothing lost batch -> exporter)
+
+Both hold exactly on both snapshots. `mutants.py` covers the two ways this can silently
+break (`m_loss`, `m_routerloss`) — the cases coalescing would otherwise mask.
+
+Corollary worth carrying: `flushes.size = 0` on every core in both snapshots. Even at 4472
+requests, `otap.min_size: 1000` is never reached, so **the 1s timer is the sole flush
+driver** and the disclosed batch-size asymmetry has no measurable effect at this load.
 
 ### Why these counters and not the sink's
 
@@ -43,8 +68,8 @@ default port when a named port is **not connected at all**, so a typo in `output
 
 ### The gate's own detection rate — measured, not asserted
 
-A green gate is a claim. `mutants.py` mutates the known-good snapshot into eight ways this
-arm can silently be wrong and requires the gate to fail on each: **8/8 caught.**
+A green gate is a claim. `mutants.py` mutates a known-good snapshot into ten ways this
+arm can silently be wrong and requires the gate to fail on each: **10/10 caught.**
 
 | mutant | what it models |
 |---|---|
@@ -56,6 +81,8 @@ arm can silently be wrong and requires the gate to fail on each: **8/8 caught.**
 | `m_bErr` | batch conversion drops |
 | `m_stall` | receiver accepts but never completes |
 | `m_noenrich` | enrichment silently no-ops |
+| `m_loss` | silent loss between batch and exporter — the case coalescing masks |
+| `m_routerloss` | silent loss between router and batch |
 
 ### One reading trap, which cost me a false alarm
 

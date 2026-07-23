@@ -126,6 +126,23 @@ chk('no batch node on the metrics branch',
 
 chk('exporter delivered', exp['logs'] > 0 and exp['traces'] > 0, f"exported={exp}")
 
+# CONSERVATION — the only correct loss detector on this arm.
+#   router.received != exporter.exported is EXPECTED here and is NOT loss: the 1s timer
+#   coalesces inbound requests into outbound batches, and a batch in flight at snapshot
+#   time has been consumed but not yet produced. Comparing those two directly false-FAILs
+#   a healthy engine. What must hold exactly is the hand-off at each hop.
+#   Ratio is load-dependent, so do not hard-code one: on engine-counters-T+11m.json it is
+#   1.01x on both signals (185->183 logs, 102->101 traces) — i.e. at this rate the timer
+#   fires faster than requests arrive and coalescing is almost nil. Quote the snapshot.
+for bnode, sig in (('batch_logs', 'logs'), ('batch_traces', 'traces')):
+    cons = c('otap.processor.batch', bnode, f'consumed.batches.{sig}')
+    prod = c('otap.processor.batch', bnode, f'produced.batches.{sig}')
+    ratio = f'{cons/prod:.2f}x' if prod else 'n/a'
+    chk(f'{sig}: router -> batch loses nothing', cons == rx[sig],
+        f'router.received={rx[sig]} batch.consumed={cons}')
+    chk(f'{sig}: batch -> exporter loses nothing', prod == exp[sig],
+        f'batch.produced={prod} exporter.exported={exp[sig]}  (coalescing {ratio}, not loss)')
+
 fails = 0
 for name, ok, detail in checks:
     print(f"{'PASS' if ok else 'FAIL'}  {name:<42} {detail}")

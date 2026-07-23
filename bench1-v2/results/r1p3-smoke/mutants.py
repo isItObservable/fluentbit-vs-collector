@@ -6,7 +6,8 @@
 # NOTE: mutators edit every matching (node,core) metric set, so mutated totals are inflated
 # vs a real fault. This generates dirty input; it does not measure anything.
 import json, copy, subprocess, sys
-base = json.load(open('engine-counters-T+11m.json'))
+import os
+base = json.load(open(os.environ.get('SNAP','engine-counters-T+26m.json')))
 
 def find(d, setname, node, metric):
     out=[]
@@ -54,13 +55,21 @@ def m_noenrich(d):
     "enrichment silently no-op"
     for m in find(d,'processor.attributes','enrich_logs','upserted.entries'): m['value']=0
     return d
+def m_loss(d):
+    "silent loss between batch and exporter — the case coalescing would mask"
+    for m in find(d,'exporter.pdata','dt_out','logs.exported'): m['value']=int(m['value']*0.6)
+    return d
+def m_routerloss(d):
+    "silent loss between router and batch"
+    for m in find(d,'otap.processor.batch','batch_logs','consumed.batches.logs'): m['value']=int(m['value']*0.5)
+    return d
 def m_neversent(d):
     "generator never sent metrics — the OTHER tautology-satisfier"
     for m in find(d,'processor.signal_type_router','router','signals.received.metrics'): m['value']=0
     for m in find(d,'processor.signal_type_router','router','signals.routed.named.metrics'): m['value']=0
     return d
 
-muts=[m_dead,m_typo,m_leak,m_batch3s,m_bErr,m_stall,m_noenrich,m_neversent]
+muts=[m_dead,m_typo,m_leak,m_batch3s,m_bErr,m_stall,m_noenrich,m_neversent,m_loss,m_routerloss]
 caught=0
 for f in muts:
     d=f(copy.deepcopy(base))
