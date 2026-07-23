@@ -164,12 +164,20 @@ never as config changes — the telemetry config is frozen so the engine stays t
 only variable.
 
 **R1P3 has a predicted verdict — compare against it.** df_engine 0.50.0 was run
-off-cluster with the frozen pipeline config on 2026-07-23 and pushed 50 records per
+off-cluster with the pipeline config on 2026-07-23 and pushed 50 records per
 signal into a debug sink: `benchmark.engine`, `k8s.cluster.name` and `benchmark.run`
 landed on **100% of spans, logs and metric data points** (evidence and method:
-`engines/attr-probe/`). So step 7b **must** print
-`spans=SAFE logs=SAFE metrics=SAFE` for the arrow arm — unlike fluentbit, its log
+`engines/attr-probe/`). So step 7b must print
+`spans=SAFE logs=SAFE metrics=NO-DATA` for the arrow arm — unlike fluentbit, its log
 tiles need no cluster-filter correction.
+
+⚠️ That probe measured the **old single-chain** config, where metrics still reached the
+exporter; this paragraph said `metrics=SAFE` until 2026-07-23. The corrected arm routes
+metrics to `exporter:noop` (board Q2, ISI-1841), so `NO-DATA` is the correct expectation
+and `SAFE` would false-FAIL a healthy engine. The table above was fixed in `6be680b` and
+**this copy was missed** — the third time in this campaign a correction landed in one
+place and not in its duplicate. The single source of truth is `expected_for()` in
+`results/attr-landing.sh`; both this paragraph and CHECK 5b now defer to it.
 
 If 7b reports anything else, **the deployed pipeline is not the one that was probed**.
 Treat the discrepancy as a finding and investigate the deployment; do not silently
