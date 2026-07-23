@@ -123,8 +123,17 @@ tells the readout which filter to drop. Not knowing does.
 arm — so it is a per-engine, per-signal property and must never be inherited from
 the previous phase. Measured live on the fluentbit arm: spans 4,820,733/4,820,733
 carry it, logs **0** of 2,782,904, with zero processor errors reported. That is why
-the dashboard's log tiles read 0 for R1P2 while it was delivering *more* logs than
-the collector — a wrong number of the worst kind: large, directional, plausible.
+the dashboard's log tiles read **0** for R1P2 while the engine was in fact delivering
+millions of log records — a wrong number of the worst kind: large, directional,
+plausible.
+
+(This paragraph previously went further and said Fluent Bit delivered *more* logs
+than the collector. That was wrong, and `4f85bbc` corrected it in
+`results/RUN-REGISTER.md` — but the same claim was sitting here too. Over identical
+89-minute windows P2 delivered **8.8% fewer** logs *and* 8.8% fewer spans; equal
+movement on both signals argues upstream, not at the engine. A correction is only
+finished when every copy of the wrong number is found — quote the full-window
+`readout.sh` figure, never a mid-ramp slice.)
 
 Corrections ship at **read** time (`results/service-key.dql`, `results/readout.sh`),
 never as config changes — the telemetry config is frozen so the engine stays the
