@@ -180,3 +180,10 @@ Teardown is `kubectl delete ns dfsmoke otel-demo` plus `helm uninstall otel-demo
 otel-demo`. Nothing else on `observable-agentsandbox` is touched — both namespaces were
 created by this test and contained only its own objects (verified before deleting, the
 same constant-vs-contaminant check that protected `hipster-shop/loadgenerator`).
+
+**Teardown verified**: 14 namespaces before, 10 after, exactly the 4 this test created
+(`otel-demo`, `dfsmoke`, `dfnodeproof`, `isi1843`), 0 leftover objects cluster-wide, 0 Helm
+releases. ⚠️ One trap met on the way: `kubectl -n <ns> get all` prints
+`No resources found in <ns> namespace.` for a namespace that **does not exist at all** —
+identical to an empty one. It made a missing namespace read as "present but empty". To ask
+whether a namespace exists, ask `kubectl get ns <name>`, which returns `NotFound`.
