@@ -472,8 +472,47 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
       done
       ;;
     otel-arrow-native)
-      say "  5b per-signal: NOT AVAILABLE — df_engine's admin port serves HTML, not Prometheus."
-      say "     Confirm each signal independently in Grail before trusting this arm's metrics."
+      # df_engine exposes no Prometheus endpoint (its admin port serves HTML —
+      # paid for 2026-07-21), so there are NO engine-side per-signal counters to
+      # read. Leaving it at "not available" would give this arm no per-signal
+      # guard at all — and R1P2 proved what that costs: Fluent Bit's metrics
+      # pipeline failed on 100% of batches, silently, and only a per-signal
+      # counter caught it. df_engine could fail the same way with nothing to see
+      # it.
+      #
+      # So assert per signal from the SINK side instead. This is strictly better
+      # than a counter for the question that matters: a counter proves the engine
+      # thinks it exported, Grail proves the data actually landed. It works for
+      # any engine regardless of what its admin port serves.
+      #
+      # Metrics are checked as SERIES PRESENCE, not record count — an OTLP metric
+      # arrives as a series, not a countable record (dashboard caveat), so
+      # `count()` on it is meaningless. The timeseries-returns-a-non-null-row
+      # shape is exactly what exposed R1P2's dead metrics arm.
+      arrow_bad=""
+      n_sp=$(dql_num "$(dql "fetch spans, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
+      # NB the logs branch deliberately does NOT filter on k8s.cluster.name.
+      # Fluent Bit's logs content_modifier reports 0 errors yet its
+      # k8s.cluster.name upsert does not land: 1,813,982 log records tagged
+      # benchmark.engine=fluentbit-v5, every one of them with k8s.cluster.name
+      # NULL. Adding the cluster filter would return 0 and fail a healthy arm.
+      # benchmark.engine is campaign-unique (only this benchmark ever sets it),
+      # so it is a safe discriminator on its own. Spans keep the cluster filter,
+      # where the attribute does land and guards against cross-cluster collision.
+      n_lg=$(dql_num "$(dql "fetch logs, from:now()-${WINDOW} | filter benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
+      n_mt=$(dql "timeseries v = avg(system.cpu.utilization), by:{benchmark.engine}, from:now()-${WINDOW}, filter: benchmark.engine == \"${ENGINE}\"" \
+             | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo 0)
+      say "  5b sink-side per-signal: spans=$n_sp logs=$n_lg metric-series=$n_mt"
+      [[ "${n_sp:-0}" -gt 0 ]] || arrow_bad="$arrow_bad spans=0"
+      [[ "${n_lg:-0}" -gt 0 ]] || arrow_bad="$arrow_bad logs=0"
+      [[ "${n_mt:-0}" -gt 0 ]] || arrow_bad="$arrow_bad metric-series=0"
+      if [[ -n "$arrow_bad" ]]; then
+        say "  5b FAIL —${arrow_bad}. A signal is not reaching Grail. This is the R1P2"
+        say "     failure mode: one signal dead while aggregate throughput looks healthy."
+        c5_fail=1
+      else
+        say "  5b per-signal: all three signals present in Grail"
+      fi
       ;;
   esac
 

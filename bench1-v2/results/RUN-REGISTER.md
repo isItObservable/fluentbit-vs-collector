@@ -155,7 +155,7 @@ Phase order is fixed by plan §1: **P1 = OTel Collector → P2 = Fluent Bit v5 �
 | Run ID | Engine + image tag | Round | Cluster | Expected replicas | Start (UTC) | End (UTC) | Validation gate | Census | Load profile | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `R1-P1-collector` | otel-collector contrib `0.154.0` | 1 | `observable-otelarrow` | 1 | `2026-07-22T15:58:43Z` | `2026-07-22T17:59:21Z` | `PASS 6/6 @ 2026-07-22T15:57:12Z` | `MATCH` | `rampup2h` 50→100→150→200 VU, both apps | `cumulativetodelta` added to the metrics pipeline before this run (CHECK 5 fix). CAAPH reconciliation for istiod is PAUSED for the campaign (ISI-1826). Built-in app loadgenerators run alongside the ramp, identically in every phase — see the ⚠️ note below on `hipster-shop/loadgenerator`, which is a pre-campaign leftover that **must be left running**. Duration 120.6 min (End−Start), within the ±2 min self-check. End recovered with `capture-window.sh` from `max(pod .state.terminated.finishedAt)` across all 8 ramp pods (`otel-demo` 4 + `hipster-shop` 4), captured **before** teardown; the two namespaces' last pods stopped 17:59:21Z and 17:59:07Z. Nothing anomalous: engine pod never replaced, 0 restarts, node under no pressure. |
-| `R1-P2-fluentbit` | fluent-bit `5.0.9` | 1 | `observable-otelarrow` | 1 | `2026-07-23T08:34:49Z` | ⟨PENDING — capture at ~10:34:49Z, ISI-1816⟩ | `PASS 6/6 @ 2026-07-23T08:34:35Z` ⚠️ *(gate was SIGNAL-BLIND — re-running it after the CHECK 5b fix added the same day yields **FAIL**: `metrics 100% processor failure`. Load/spans/resource remain valid; the metrics signal was never delivered.)* | ⟨PENDING⟩ | `rampup2h` 50→100→150→200 VU, both apps | Engine pod `bench-fluentbit-v5-67978b69d8-h8st4` created `2026-07-23T08:16:26Z`, expected replicas 1. **The gate went RED on the first attempt** (CHECK 2, hipster-shop app spans = 0) and was fixed before any load ran — see the two R1P1 carry-over mutations in commit `d4a0d29`: `ENABLE_TRACING` was never committed anywhere, and `render.sh` would have deleted the ISI-1815 delta-temporality override. Both are now in `_templates/`, so R1P3 and Round 2 render correctly with no hand-patching. 🛑 **NO app-OTLP metrics are delivered by this arm** — the metrics processor chain errors 100% and aborts before export, so the datapoints are LOST, not merely unlabelled (corrected 2026-07-23; the first wording said "drops resource attributes", which was too weak). The failure is silent in the log and CHECK 5 is signal-blind, which is why the gate passed. Spans, load and the `dt.kubernetes.container.*` resource readout are unaffected and fully comparable. **The metrics dimension of Round 1 is asymmetric — open decision for @BigBoss.** See the note below. |
+| `R1-P2-fluentbit` | fluent-bit `5.0.9` | 1 | `observable-otelarrow` | 1 | `2026-07-23T08:34:49Z` | ⟨PENDING — capture at ~10:34:49Z, ISI-1816⟩ | `PASS 6/6 @ 2026-07-23T08:34:35Z` ⚠️ *(gate was SIGNAL-BLIND — re-running it after the CHECK 5b fix added the same day yields **FAIL**: `metrics 100% processor failure`. Load/spans/resource remain valid; the metrics signal was never delivered.)* | ⟨PENDING⟩ | `rampup2h` 50→100→150→200 VU, both apps | Engine pod `bench-fluentbit-v5-67978b69d8-h8st4` created `2026-07-23T08:16:26Z`, expected replicas 1. **The gate went RED on the first attempt** (CHECK 2, hipster-shop app spans = 0) and was fixed before any load ran — see the two R1P1 carry-over mutations in commit `d4a0d29`: `ENABLE_TRACING` was never committed anywhere, and `render.sh` would have deleted the ISI-1815 delta-temporality override. Both are now in `_templates/`, so R1P3 and Round 2 render correctly with no hand-patching. 🛑 **NO app-OTLP metrics are delivered by this arm** — the metrics processor chain errors 100% and aborts before export, so the datapoints are LOST, not merely unlabelled (corrected 2026-07-23; the first wording said "drops resource attributes", which was too weak). The failure is silent in the log and CHECK 5 is signal-blind, which is why the gate passed. Spans, load and the `dt.kubernetes.container.*` resource readout are unaffected and fully comparable. **Logs ARE delivered (5.26M, more than the collector) but the dashboard's log tiles read ZERO for this arm** — separate read-time defect, see the note below. **The metrics dimension of Round 1 is asymmetric — open decision for @BigBoss.** See the note below. |
 | `R1-P3-arrow` | `ghcr.io/isitobservable/df_engine:0.50.0` | 1 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R2-P1-collector` | otel-collector contrib `0.154.0` | 2 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R2-P2-fluentbit` | fluent-bit `5.0.9` | 2 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
@@ -251,6 +251,41 @@ R2-P1 = ISI-1818 · R2-P2 = ISI-1819 · R2-P3 = ISI-1820.
 > configuration* and fix the `context:` for **all three** arms in Round 2, keeping parity within
 > each round; or (b) re-run R1P2 after the fix. Spans/resource/load are unaffected either way.
 > **Do not patch the pipeline mid-run** — it would replace the engine pod and void the window.
+
+> 🛑 **THE DASHBOARD'S LOG TILES READ ZERO FOR R1P2 — AND FLUENT BIT IS DELIVERING MORE LOGS
+> THAN THE COLLECTOR. Do not read them until they are fixed. (2026-07-23, ISI-1816.)**
+>
+> Both log tiles — *Ingest volume by signal* and *Ingest rate over the run* — filter with
+> `k8s.cluster.name == "observable-otelarrow" and isNotNull(benchmark.engine)`.
+>
+> | arm | logs, filtered by `benchmark.engine` | logs, **as the dashboard filters them** |
+> |---|---|---|
+> | `R1-P1-collector` | 10,656,970 | 10,656,970 — identical |
+> | `R1-P2-fluentbit` | **5,262,729** | **0** |
+>
+> Fluent Bit's logs `content_modifier` reports **zero errors**, yet its `k8s.cluster.name`
+> upsert does not land: every one of those 5.26M records has `k8s.cluster.name` **null**, while
+> `benchmark.engine` is present on all of them. The same upsert works fine on **spans**, which
+> carry `observable-otelarrow` normally. So this is the logs path specifically — and unlike the
+> metrics failure it is **completely invisible in the engine's own counters**: 0 processor
+> errors, records exported, everything green.
+>
+> **Why this one is the most dangerous defect in the campaign so far.** The metrics failure at
+> least *looked* like nothing (an empty tile invites a question). This produces a large,
+> directional, entirely plausible number: *"Collector 1.2M logs, Fluent Bit 0"* — read as
+> **Fluent Bit dropped every log**, when it in fact delivered **more logs than the collector**.
+> Nobody would query behind a number that confirms an expectation.
+>
+> **Read-time fix, not a config change** — telemetry config is frozen (same principle as
+> `results/service-key.dql`). Drop `k8s.cluster.name` from the **logs** branch only and filter on
+> `isNotNull(benchmark.engine)`. That is safe on its own: `benchmark.engine` is campaign-unique —
+> the only non-null values anywhere on the tenant are the three engine names. **Keep** the cluster
+> filter on spans, where the attribute does land and guards against the cross-cluster
+> `k8s.workload.name` collision.
+>
+> `results/readout.sh` already reports logs the correct way and prints the cluster-filtered
+> cross-check next to it, so the discrepancy is visible rather than assumed. ⚠️ **The dashboard
+> `764f7082` itself still needs the same edit before the logs tiles are shown to anyone.**
 
 ### Pod census — one block per run, captured at Start AND at End (D12)
 

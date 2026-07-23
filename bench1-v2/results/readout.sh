@@ -270,6 +270,57 @@ for r in json.loads(os.environ["SP"] or "[]"):
         (100.0*tagged/tenant if tenant else 0), format(tagged, ","), format(tenant, ",")))
 '
 
+# ---------------------------------------------------------------------------
+# LOGS — added 2026-07-23 (ISI-1816). READ THE FILTER NOTE.
+# ---------------------------------------------------------------------------
+# This section exists because the dashboard's two log tiles filter logs by
+#   k8s.cluster.name == "observable-otelarrow" and isNotNull(benchmark.engine)
+# and that returns ZERO for the Fluent Bit arm.
+#
+# Measured: 1,813,982 log records tagged benchmark.engine=fluentbit-v5, and
+# k8s.cluster.name NULL on every single one -- while the collector arm's logs
+# carry it normally (1,213,807 in a 15-min P1 slice). Fluent Bit's logs
+# content_modifier reports ZERO errors; the k8s.cluster.name upsert simply does
+# not land. Spans are unaffected -- the same upsert works there.
+#
+# So the dashboard as written would report "collector 1.2M logs, Fluent Bit 0
+# logs" and it would look entirely believable. Fluent Bit is in fact delivering
+# MORE logs than the collector. That is a wrong number of the worst kind: large,
+# directional, and plausible.
+#
+# Read-time fix, in the spirit of results/service-key.dql -- the telemetry config
+# is frozen for the campaign, so this is corrected where it is READ, not where it
+# is produced. benchmark.engine is campaign-unique (nothing outside this
+# benchmark sets it, verified: the only non-null values on the tenant are the
+# three engine names), so it discriminates safely on its own.
+#
+# ⚠️ The DASHBOARD still needs the same fix before anyone reads the logs tiles.
+hdr "LOGS — filtered on benchmark.engine ONLY (see the note: cluster filter zeroes this arm)"
+logs=$(dql "fetch logs, $TF_FETCH
+| filter isNotNull(benchmark.engine)
+| summarize records = count(), by:{ engine = benchmark.engine }
+| sort records desc")
+LG="$logs" python3 -c '
+import json, os
+rows = json.loads(os.environ["LG"] or "[]")
+if not rows:
+    print("  no engine-tagged logs in this window")
+for r in rows:
+    print("  %-20s %14s records" % (r.get("engine"), format(int(float(r.get("records") or 0)), ",")))
+'
+xcheck=$(dql "fetch logs, $TF_FETCH
+| filter k8s.cluster.name == \"$CLUSTER\" and isNotNull(benchmark.engine)
+| summarize records = count()")
+XC="$xcheck" python3 -c '
+import json, os
+rows = json.loads(os.environ["XC"] or "[]")
+n = int(float(rows[0].get("records") or 0)) if rows else 0
+print("  cross-check, WITH the dashboard cluster filter: %s records" % format(n, ","))
+if n == 0:
+    print("    ^ this is the defect. The dashboard tiles would show ZERO logs for")
+    print("      this arm. Do not read the logs tiles until they are corrected.")
+'
+
 hdr "SPANS — ingest path split (derived from telemetry.sdk.name + Istio naming, NOT from benchmark.telemetry_source)"
 dql "$(sed '/^fetch spans/,$!d' "$HERE/service-key.dql" \
        | sed "1s|^fetch spans|fetch spans, $TF_FETCH|")
