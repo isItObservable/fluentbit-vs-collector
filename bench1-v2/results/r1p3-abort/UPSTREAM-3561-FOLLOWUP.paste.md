@@ -1,34 +1,3 @@
-<!--
-ISI-1843 — follow-up COMMENT for the filed upstream issue:
-https://github.com/open-telemetry/otel-arrow/issues/3561
-
-⚠️ NOT POSTED. Henrik owns the upstream account (the runner's PATs 403 on write).
-⚠️ DO NOT PASTE THIS FILE — this header is an HTML comment: invisible when rendered,
-   fully readable in a public issue's source, and it names an internal ticket and the
-   account. PASTE UPSTREAM-3561-FOLLOWUP.paste.md INSTEAD — that file is this one from
-   the "---8<---" marker down, with no header, so the whole file is the comment and
-   there is nothing to remember not to paste.
-
-   ./make-paste-block.sh          regenerate the paste file after editing this one
-   ./make-paste-block.sh --check  fail if the paste file has drifted from this one
-   ./scrub-paste-block.sh         re-certify the paste bytes (6 classes, control-proven)
-
-   Running the scrubber against THIS file exits 1 — that is the intended demonstration
-   that the header is exactly the thing that must not ship.
-
-WHY THIS IS PRIORITY, not housekeeping: #3561 as filed says the workaround ran "41
-minutes with zero panics". Newer evidence (results/r1p3-retry/) falsifies the implication.
-The same corrected config on the real workload died at T+26m10s. A maintainer reading the
-issue today would reasonably conclude the type_router workaround resolves the problem. It
-does not — it DELAYS it. Correcting our own overstatement is on us, and it also carries
-genuinely new information they need: a third panic site inside otap-dataflow itself.
-
-Scrubbed: no tenant URL, cluster names, ticket ids, lab IPs, account or app names beyond
-the public opentelemetry-demo chart. Verified by grep before writing. Re-check if edited.
--->
-
----8<--- paste from here ---8<---
-
 ### Correction and new data: the workaround delays the dictionary overflow, it does not prevent it
 
 Correcting my own report above, and adding a panic site I hadn't seen when I filed.
