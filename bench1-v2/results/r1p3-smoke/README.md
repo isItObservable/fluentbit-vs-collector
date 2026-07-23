@@ -162,3 +162,21 @@ did not exist. Aggregate `sum`/`count`; take min-of-min and max-of-max. Per node
 figure is **1.000–1.004s on every core**, with `flushes.size = 0` and every flush driven by
 the timer: `max_batch_duration: 1s` is confirmed in effect at runtime, and `otap.min_size:
 1000` is never reached at this load (disclosed, unchanged, engine-idiomatic).
+
+## Reproducing this smoke from scratch
+
+    kubectl apply -f smoke.yaml                       # ns dfsmoke: df-engine + counting sink
+    helm install otel-demo open-telemetry/opentelemetry-demo --version 0.40.10 \
+      -n otel-demo --create-namespace -f demo-values-smoke.yaml
+    ./config-provenance.sh                            # FIRST — is it the committed config?
+    ./smokewatch.sh &                                 # samples every 30s
+    ./engine-counters.sh -n dfsmoke -d df-engine      # 19 invariants
+
+⚠️ The ConfigMap in `smoke.yaml` is named **`df-nodeproof-config`** — a leftover from the
+node-proof work. The name is wrong and misleading; the *content* is the corrected arm
+config, which is exactly why `config-provenance.sh` exists and must be run first.
+
+Teardown is `kubectl delete ns dfsmoke otel-demo` plus `helm uninstall otel-demo -n
+otel-demo`. Nothing else on `observable-agentsandbox` is touched — both namespaces were
+created by this test and contained only its own objects (verified before deleting, the
+same constant-vs-contaminant check that protected `hipster-shop/loadgenerator`).
