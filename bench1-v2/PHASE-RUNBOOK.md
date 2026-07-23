@@ -131,7 +131,7 @@ the result against the verdict **declared in advance** in `attr-landing.sh`
 |---|---|---|
 | `otel-arrow-native` | `spans=SAFE logs=SAFE metrics=NO-DATA` | spans/logs: off-cluster probe, 100% on both (`engines/attr-probe/`), re-confirmed on the corrected config (`engines/node-proof/`). **metrics=NO-DATA is BY DESIGN** — board decision Q2 (ISI-1841) routes metrics to `exporter:noop`, so this arm ships none. It was `SAFE` until ISI-1843; that measured the OLD single-chain config. Expecting `SAFE` here would false-FAIL a healthy engine on run day |
 | `fluentbit-v5` | `spans=SAFE logs=UNSAFE metrics=NO-DATA` | measured over the banked R1P2 window: spans 17,858,597/17,858,597 · logs **0**/10,263,977 · metrics 0 series |
-| `otel-collector` | `spans=SAFE logs=UNKNOWN metrics=UNKNOWN` | spans implied by R1P1's CHECK 2 (cluster-filtered and green). Logs/metrics have never been measured — `UNKNOWN` accepts a real reading of either kind, still fails on `NO-DATA`, and the first measurement must be written back into `expected_for()` |
+| `otel-collector` | `spans=SAFE logs=SAFE metrics=SAFE` | **Measured at R2P1** (ISI-1818, 2026-07-23): spans 481,408/481,408, logs 262,136/262,136, metrics 1/1 series, all 100.00%. Both `UNKNOWN`s are now real readings and were written back into `expected_for()` as the runbook required. Read it against the fluentbit row: same attribute, same cluster, **0%** on logs there — cluster tagging on logs is an engine property, not an environment property |
 
 **It is no longer a diagnostic and it is no longer arrow-only** (board answer Q5,
 ISI-1844). A deviation from the expected verdict is a **finding** — the deployed

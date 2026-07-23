@@ -116,7 +116,13 @@ expected_for() {
   case "$1" in
     otel-arrow-native) echo "spans=SAFE logs=SAFE metrics=NO-DATA" ;;
     fluentbit-v5)      echo "spans=SAFE logs=UNSAFE metrics=NO-DATA" ;;
-    otel-collector)    echo "spans=SAFE logs=UNKNOWN metrics=UNKNOWN" ;;
+    # Measured for the first time at R2P1 (ISI-1818, gate 8/8 2026-07-23T17:00:54Z),
+    # over the pre-run smoke window: spans 481,408/481,408, logs 262,136/262,136,
+    # metrics 1/1 series — all 100.00%. Both UNKNOWNs are now real readings, so a
+    # future collector phase that loses cluster tagging on logs or metrics FAILS the
+    # gate instead of being accepted as "never measured". Note the contrast with
+    # fluentbit-v5 above: same attribute, same cluster, 0% on logs there.
+    otel-collector)    echo "spans=SAFE logs=SAFE metrics=SAFE" ;;
     *)                 echo "" ;;
   esac
 }
