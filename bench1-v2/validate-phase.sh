@@ -661,7 +661,52 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
       done
       [[ "${n_sp:-0}" -gt 0 ]] || arrow_bad="$arrow_bad spans=0"
       [[ "${n_lg:-0}" -gt 0 ]] || arrow_bad="$arrow_bad logs=0"
-      [[ "${n_mt:-0}" -gt 0 ]] || arrow_bad="$arrow_bad metric-series=0"
+      # Metrics: graded against the declared expectation in attr-landing.sh's
+      # expected_for(), NOT a second hard-coded copy here.
+      #
+      # 2026-07-23: this line used to be an unconditional `metric-series > 0`.
+      # Board decision Q2 (ISI-1841) then routed the arrow arm's metrics to
+      # `exporter:noop`, so that arm ships NONE by design — and 5b started
+      # FAILING the gate on the correct state while CHECK 7 PASSED the very same
+      # reading as `metrics=NO-DATA`. Two checks, one fact, opposite verdicts.
+      #
+      # ⚠️ BUT `NO-DATA` IS TWO DIFFERENT FACTS WEARING ONE TOKEN, and keying
+      # behaviour off the token alone is wrong:
+      #   otel-arrow-native  NO-DATA = "deliberately not shipped" (Q2 -> noop).
+      #                      Metrics ARRIVING would mean the deployed pipeline is
+      #                      not the one that was decided. That is a FAIL.
+      #   fluentbit-v5       NO-DATA = "lost in a broken chain" (the R1P2 finding,
+      #                      banked). Metrics arriving would mean somebody FIXED
+      #                      it — an improvement, not a regression. Treating that
+      #                      as a FAIL would be backwards, and treating absence as
+      #                      "as declared" would silently bless a known defect.
+      # So absence is only ever *expected* where it is BY DESIGN. That set is
+      # declared here, explicitly, rather than inferred from the verdict token.
+      case "$ENGINE" in
+        otel-arrow-native) metrics_absent_by_design=yes ;;
+        *)                 metrics_absent_by_design=no  ;;
+      esac
+      exp_metrics=$(sed -n "s/^[[:space:]]*${ENGINE})[[:space:]]*echo \"\(.*\)\".*/\1/p" \
+                      "$ROOT/results/attr-landing.sh" 2>/dev/null \
+                    | tr ' ' '\n' | sed -n 's/^metrics=//p' | head -1)
+      if [[ "$metrics_absent_by_design" == yes && "${exp_metrics:-}" == NO-DATA ]]; then
+        if [[ "${n_mt:-0}" -gt 0 ]]; then
+          say "  5b FAIL — metric-series=$n_mt but this arm is declared metrics=NO-DATA"
+          say "     (board Q2 routes metrics to exporter:noop). Metrics arriving means"
+          say "     the deployed pipeline is NOT the one that was decided."
+          arrow_bad="$arrow_bad metrics-present-but-declared-NO-DATA"
+        else
+          say "  5b metrics absent, as DESIGNED (Q2 routes metrics to exporter:noop)"
+        fi
+      elif [[ "$metrics_absent_by_design" == yes ]]; then
+        say "  5b WARN — $ENGINE is absent-by-design but attr-landing.sh declares"
+        say "     metrics=${exp_metrics:-<none>}, not NO-DATA. The two have drifted apart;"
+        say "     requiring metric-series > 0 until they agree."
+        [[ "${n_mt:-0}" -gt 0 ]] || arrow_bad="$arrow_bad metric-series=0"
+      else
+        # Every other arm: absence is NOT expected, whatever token it declares.
+        [[ "${n_mt:-0}" -gt 0 ]] || arrow_bad="$arrow_bad metric-series=0"
+      fi
       if [[ -n "$arrow_bad" ]]; then
         say "  5b FAIL —${arrow_bad}. A signal is not reaching Grail. This is the R1P2"
         say "     failure mode: one signal dead while aggregate throughput looks healthy."
