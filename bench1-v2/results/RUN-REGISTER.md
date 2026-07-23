@@ -155,7 +155,7 @@ Phase order is fixed by plan §1: **P1 = OTel Collector → P2 = Fluent Bit v5 �
 | Run ID | Engine + image tag | Round | Cluster | Expected replicas | Start (UTC) | End (UTC) | Validation gate | Census | Load profile | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `R1-P1-collector` | otel-collector contrib `0.154.0` | 1 | `observable-otelarrow` | 1 | `2026-07-22T15:58:43Z` | `2026-07-22T17:59:21Z` | `PASS 6/6 @ 2026-07-22T15:57:12Z` | `MATCH` | `rampup2h` 50→100→150→200 VU, both apps | `cumulativetodelta` added to the metrics pipeline before this run (CHECK 5 fix). CAAPH reconciliation for istiod is PAUSED for the campaign (ISI-1826). Built-in app loadgenerators run alongside the ramp, identically in every phase — see the ⚠️ note below on `hipster-shop/loadgenerator`, which is a pre-campaign leftover that **must be left running**. Duration 120.6 min (End−Start), within the ±2 min self-check. End recovered with `capture-window.sh` from `max(pod .state.terminated.finishedAt)` across all 8 ramp pods (`otel-demo` 4 + `hipster-shop` 4), captured **before** teardown; the two namespaces' last pods stopped 17:59:21Z and 17:59:07Z. Nothing anomalous: engine pod never replaced, 0 restarts, node under no pressure. |
-| `R1-P2-fluentbit` | fluent-bit `5.0.9` | 1 | `observable-otelarrow` | 1 | `2026-07-23T08:34:49Z` | ⟨PENDING — capture at ~10:34:49Z, ISI-1816⟩ | `PASS 6/6 @ 2026-07-23T08:34:35Z` | ⟨PENDING⟩ | `rampup2h` 50→100→150→200 VU, both apps | Engine pod `bench-fluentbit-v5-67978b69d8-h8st4` created `2026-07-23T08:16:26Z`, expected replicas 1. **The gate went RED on the first attempt** (CHECK 2, hipster-shop app spans = 0) and was fixed before any load ran — see the two R1P1 carry-over mutations in commit `d4a0d29`: `ENABLE_TRACING` was never committed anywhere, and `render.sh` would have deleted the ISI-1815 delta-temporality override. Both are now in `_templates/`, so R1P3 and Round 2 render correctly with no hand-patching. ⚠️ **Fluent Bit drops OTLP resource attributes on the METRICS signal** — app metrics arrive with `benchmark.engine` and `k8s.cluster.name` both null, where the collector arm carried both; its `content_modifier` metrics stage also errors 100% (342/342 invocations) so it cannot restore them. Spans and the `dt.kubernetes.container.*` resource readout are unaffected. See the note below. |
+| `R1-P2-fluentbit` | fluent-bit `5.0.9` | 1 | `observable-otelarrow` | 1 | `2026-07-23T08:34:49Z` | ⟨PENDING — capture at ~10:34:49Z, ISI-1816⟩ | `PASS 6/6 @ 2026-07-23T08:34:35Z` ⚠️ *(gate was SIGNAL-BLIND — re-running it after the CHECK 5b fix added the same day yields **FAIL**: `metrics 100% processor failure`. Load/spans/resource remain valid; the metrics signal was never delivered.)* | ⟨PENDING⟩ | `rampup2h` 50→100→150→200 VU, both apps | Engine pod `bench-fluentbit-v5-67978b69d8-h8st4` created `2026-07-23T08:16:26Z`, expected replicas 1. **The gate went RED on the first attempt** (CHECK 2, hipster-shop app spans = 0) and was fixed before any load ran — see the two R1P1 carry-over mutations in commit `d4a0d29`: `ENABLE_TRACING` was never committed anywhere, and `render.sh` would have deleted the ISI-1815 delta-temporality override. Both are now in `_templates/`, so R1P3 and Round 2 render correctly with no hand-patching. 🛑 **NO app-OTLP metrics are delivered by this arm** — the metrics processor chain errors 100% and aborts before export, so the datapoints are LOST, not merely unlabelled (corrected 2026-07-23; the first wording said "drops resource attributes", which was too weak). The failure is silent in the log and CHECK 5 is signal-blind, which is why the gate passed. Spans, load and the `dt.kubernetes.container.*` resource readout are unaffected and fully comparable. **The metrics dimension of Round 1 is asymmetric — open decision for @BigBoss.** See the note below. |
 | `R1-P3-arrow` | `ghcr.io/isitobservable/df_engine:0.50.0` | 1 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R2-P1-collector` | otel-collector contrib `0.154.0` | 2 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R2-P2-fluentbit` | fluent-bit `5.0.9` | 2 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
@@ -188,32 +188,69 @@ R2-P1 = ISI-1818 · R2-P2 = ISI-1819 · R2-P3 = ISI-1820.
 > hipster-shop volumes carry a constant offset. **Engine-vs-engine comparison is unaffected**;
 > any *absolute* hipster-shop ingest figure should be read with this in mind.
 
-> ⚠️ **Fluent Bit v5 drops OTLP resource attributes on the METRICS signal (R1P2, 2026-07-23).**
-> Measured on both arms with the same query,
-> `timeseries avg(system.cpu.utilization), by:{benchmark.engine, k8s.cluster.name}`:
+> 🛑 **R1P2 DELIVERS NO APP-OTLP METRICS AT ALL. The metrics signal is not comparable to R1P1.**
+> *(2026-07-23. This CORRECTS the first version of this note, which said Fluent Bit "drops
+> resource attributes on metrics". That was too weak and wrongly shaped — the datapoints are not
+> stripped, they are **lost in the processor stage and never exported**.)*
 >
-> | arm | `benchmark.engine` | `k8s.cluster.name` |
+> Same query on both arms, `timeseries avg(system.cpu.utilization), by:{benchmark.engine,
+> k8s.cluster.name, service.name}`:
+>
+> | arm | rows | detail |
 > |---|---|---|
-> | `R1-P1-collector` (16:30–16:45Z) | `otel-collector` | `observable-otelarrow` |
-> | `R1-P2-fluentbit` (live) | `null` | `null` |
+> | `R1-P1-collector` (16:30–16:45Z) | **5** | `otel-collector` / `observable-otelarrow` / `load-generator`, `loadgen-otel-demo`, `product-reviews`, `recommendation` (+1 null row) |
+> | `R1-P2-fluentbit` (live) | **1** | every field `null`; by `host.name` the only emitter is `paperclip`, an unrelated off-cluster source present in BOTH windows |
 >
-> The apps set `benchmark.engine` themselves via `OTEL_RESOURCE_ATTRIBUTES`, and it survives on
-> **spans** under Fluent Bit — so this is the metrics path specifically, not a mis-set variable.
-> Fluent Bit cannot re-add them either: its `content_modifier` metrics stage errors on **every**
-> invocation (`fluentbit_processor_errors_total == fluentbit_processor_invocations_total == 342`,
-> `signal="metrics"`), and the chain aborts there, so `cumulative_to_delta` is not reached.
-> The logs and traces stages run clean (0 errors).
+> So it is not that our app metrics arrive unlabelled — **the bucket that held them is gone.**
 >
-> **What this does and does not cost.** The three-part readout is intact: *load* is the ramp
-> ladder, *spans* carry `benchmark.engine` normally, and *resource* comes from
-> `dt.kubernetes.container.*` scoped by `k8s.pod.name` + `k8s.cluster.name`, which Dynatrace
-> sources itself and Fluent Bit never touches. What is lost is the **app-OTLP metric-series
-> tile**, which filters on `isNotNull(benchmark.engine)` and will read empty for this arm.
-> The dashboard already labels that tile liveness-and-breadth, not a volume comparison.
+> **Mechanism, from Fluent Bit's own counters.** The metrics pipeline fails on every batch and
+> aborts at the first processor:
 >
-> **Do not "fix" this by patching the pipeline.** Making Fluent Bit stamp metrics would require
-> unequal processing work versus the other two engines and would break plan §2 — and it would
-> also erase the finding. This is engine behaviour under test: report it, do not paper over it.
+> | signal | stages with counters | invocations | errors |
+> |---|---|---|---|
+> | metrics | stage 6 **only** | 1,732 | **1,732 (100%)** |
+> | traces | stages 10–13 | 443,941 | 0 |
+> | logs | stages 0–5 | (clean) | 0 |
+>
+> Stages 7, 8 and `cumulative_to_delta` have **no counters at all** — they are never reached.
+> `fluentbit_output_dropped_records_total` stays **0** because the records die in the processor,
+> upstream of the output plugin that counts drops.
+>
+> ⚠️ **The failure is completely SILENT in the log.** At `log_level: info` there is not one line
+> about it — `grep -i error` returns only benign idle-keepalive `[downstream]` reaps. The single
+> piece of evidence anywhere is `fluentbit_processor_errors_total{signal="metrics"}` on the
+> engine's own `:2020` endpoint.
+>
+> ⚠️ **This is why CHECK 5 passed: the gate is SIGNAL-BLIND.** It asserts non-zero accepted AND
+> exported *in aggregate* (283,359 / 283,021 — overwhelmingly logs and traces) plus "0 error-ish
+> log lines", and both stayed green while an entire signal was 100% dead. **Add a per-signal
+> assertion before R1P3** — an aggregate throughput check cannot see one signal fail, exactly as
+> an aggregate span check could not see one namespace die (ISI-1815).
+>
+> **Likely cause — NOT yet confirmed, and deliberately not tested on the live engine.** The same
+> `content_modifier` verbs succeed on logs and traces and fail only on metrics, which points at a
+> missing metrics-specific `context:` on the processor rather than at Fluent Bit being unable to
+> enrich metrics. If that is right, this is a CONFIG defect in `engines/fluentbit-v5.yaml`, not an
+> engine limitation, and saying "Fluent Bit can't do metrics" on camera would be **wrong and
+> unfair**. Confirm on a scratch instance **after teardown** — adding a pod mid-run would perturb
+> a measured window on a cluster with no spare CPU, and restarting the engine would replace the
+> pod and VOID the run outright.
+>
+> **What survives, and why the run is still worth finishing.** Load, spans and resource are all
+> unaffected and fully comparable:
+> - *load* — the ramp ladder, untouched.
+> - *spans* — 443,941 trace-processor invocations at 0 errors; both apps confirmed in Grail.
+> - *resource* — `dt.kubernetes.container.*`, which **Dynatrace collects itself and Fluent Bit
+>   never handles**. Seeing healthy pod/CPU/memory numbers for the engine therefore says nothing
+>   about whether the metrics *pipeline* works; the two are independent paths and it is easy to
+>   read the first as reassurance about the second.
+>
+> **Open decision for @BigBoss — the metrics dimension of Round 1 is asymmetric.** P1 delivered
+> app metrics, P2 delivers none, so that one dimension cannot be compared within Round 1 whatever
+> the cause. Options: (a) report the metrics signal for R1P2 as *not delivered by this
+> configuration* and fix the `context:` for **all three** arms in Round 2, keeping parity within
+> each round; or (b) re-run R1P2 after the fix. Spans/resource/load are unaffected either way.
+> **Do not patch the pipeline mid-run** — it would replace the engine pod and void the window.
 
 ### Pod census — one block per run, captured at Start AND at End (D12)
 

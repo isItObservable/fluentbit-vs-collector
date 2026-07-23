@@ -419,6 +419,64 @@ print(sum(v.get("proc_records", 0) for v in d.get("output", {}).values()))' 2>/d
   say "  accepted=$accepted exported=$exported"
   [[ "${accepted:-0}" -gt 0 && "${exported:-0}" -gt 0 ]] || c5_fail=1
 
+  # -------------------------------------------------------------------------
+  # 5b PER-SIGNAL health — added 2026-07-23 after R1P2 (ISI-1816)
+  # -------------------------------------------------------------------------
+  # The aggregate check above is SIGNAL-BLIND and it let a dead signal through.
+  # R1P2 passed CHECK 5 with accepted=283,359 / exported=283,021 and "0 error-ish
+  # log lines" while Fluent Bit's METRICS pipeline was failing on 100% of batches
+  # (fluentbit_processor_errors_total == invocations == 1,732, signal="metrics")
+  # and exporting no app metrics whatsoever. Logs and traces dominate the totals,
+  # so one signal can die completely without moving either number.
+  #
+  # It is also SILENT in the log at log_level:info -- the `errs` grep below sees
+  # nothing, because the records die in a processor, not in an exporter. The only
+  # evidence anywhere is the engine's own per-signal counters.
+  #
+  # Same shape as CHECK 2's per-namespace rule (ISI-1815): an aggregate assertion
+  # cannot see one member of the aggregate fail. Assert per member.
+  case "$ENGINE" in
+    fluentbit-v5)
+      kubectl -n "$ENGINE_NS" port-forward "pod/$POD" 12021:2020 >/dev/null 2>&1 &
+      PF=$!; sleep 3
+      P=$(curl -s --max-time 10 http://127.0.0.1:12021/api/v2/metrics/prometheus || true)
+      kill $PF 2>/dev/null; wait $PF 2>/dev/null
+      sigres=$(printf '%s' "$P" | python3 -c '
+import re, sys
+inv, err = {}, {}
+for line in sys.stdin:
+    m = re.match(r"fluentbit_processor_(invocations|errors)_total\{([^}]*)\}\s+([0-9.]+)", line)
+    if not m: continue
+    kind, labels, val = m.group(1), m.group(2), float(m.group(3))
+    sm = re.search(r'"'"'signal="([a-z]+)"'"'"', labels)
+    if not sm: continue
+    d = inv if kind == "invocations" else err
+    d[sm.group(1)] = d.get(sm.group(1), 0) + val
+bad = []
+if not inv:
+    print("FAIL|no per-signal processor counters returned"); raise SystemExit
+for sig in sorted(inv):
+    i, e = inv[sig], err.get(sig, 0)
+    if i and e >= i:
+        bad.append("%s 100%% processor failure (%d/%d)" % (sig, int(e), int(i)))
+print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor failure")
+' 2>/dev/null) || sigres="FAIL|per-signal scrape failed"
+      say "  5b per-signal: ${sigres#*|}"
+      [[ "$sigres" == PASS* ]] || c5_fail=1
+      ;;
+    otel-collector)
+      # the collector exposes accepted per signal already
+      for sig in spans log_records metric_points; do
+        n=$(awk -v s="otelcol_receiver_accepted_${sig}" '$0 ~ "^"s{v+=$2} END{printf "%.0f", v+0}' <<< "$M")
+        say "  5b accepted_${sig}=${n:-0}"
+      done
+      ;;
+    otel-arrow-native)
+      say "  5b per-signal: NOT AVAILABLE — df_engine's admin port serves HTML, not Prometheus."
+      say "     Confirm each signal independently in Grail before trusting this arm's metrics."
+      ;;
+  esac
+
   errs=$(kubectl -n "$ENGINE_NS" logs "$POD" --since=10m 2>/dev/null | grep -ciE 'observed_error|permanent error|panic|failed to export' || true)
   say "  error-ish log lines in last 10m: ${errs:-0}"
   [[ "${errs:-0}" -eq 0 ]] || c5_fail=1
