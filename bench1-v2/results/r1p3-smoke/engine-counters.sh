@@ -128,12 +128,13 @@ chk('exporter delivered', exp['logs'] > 0 and exp['traces'] > 0, f"exported={exp
 
 # CONSERVATION — the only correct loss detector on this arm.
 #   router.received != exporter.exported is EXPECTED here and is NOT loss: the 1s timer
-#   coalesces inbound requests into outbound batches, and a batch in flight at snapshot
-#   time has been consumed but not yet produced. Comparing those two directly false-FAILs
-#   a healthy engine. What must hold exactly is the hand-off at each hop.
-#   Ratio is load-dependent, so do not hard-code one: on engine-counters-T+11m.json it is
-#   1.01x on both signals (185->183 logs, 102->101 traces) — i.e. at this rate the timer
-#   fires faster than requests arrive and coalescing is almost nil. Quote the snapshot.
+#   coalesces inbound requests into outbound batches. Comparing those two directly
+#   false-FAILs a healthy engine, and does it WORSE the busier the run gets.
+#   The ratio MOVES WITH LOAD, so no fixed threshold can be right -- measured on the two
+#   banked snapshots:
+#     T+11m (~1 req/s):   1.01x logs (185->183), 1.01x traces (102->101)
+#     T+26m (~4.5 req/s): 1.49x logs (2147->1440), 1.56x traces (1974->1269)
+#   What must hold exactly, at any load, is the hand-off at each hop. That is the check.
 for bnode, sig in (('batch_logs', 'logs'), ('batch_traces', 'traces')):
     cons = c('otap.processor.batch', bnode, f'consumed.batches.{sig}')
     prod = c('otap.processor.batch', bnode, f'produced.batches.{sig}')

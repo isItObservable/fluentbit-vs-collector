@@ -14,6 +14,35 @@ abort was fed by both. It cannot retire the `DictionaryKeyOverflowError` risk �
 the *majority* failure and is generic Arrow encoding on high-cardinality attributes, not
 something the metrics route touches. A **panic** here would be decisive; survival is not.
 
+### ⚠️ And survival has TWO candidate causes, which this smoke cannot separate
+
+Whatever the outcome, **do not let it be read as "excluding metrics fixed the engine".**
+Three changes shipped together and two of them plausibly bear on the majority panic:
+
+| panic site | R1P3 timing | which change could remove it |
+|---|---|---|
+| `crates/pdata/src/encode/record/metrics.rs:266` — literal `boo` | core 3 at **T+5s** | **change #1** removes it *by construction* — the encoder is never reached, metrics die at `noop`. Certain. |
+| `arrow-data-58.3.0/src/transform/mod.rs:680` — `DictionaryKeyOverflowError` | cores 1/0/2 at **T+23s / T+29s / T+30s** | **change #1 OR change #3.** Not established either way. |
+
+`MutableArrayData::new` is the array **merge** path, and a dictionary key overflows when the
+merged dictionary holds more distinct values than the key type can index. Change #3 cut
+`max_batch_duration` 3s→1s, so at a fixed arrival rate roughly a third as many records are
+merged into each output array — which cuts the distinct values per merged dictionary. That
+is a mechanism by which the *batch* change alone could suppress the *majority* panic,
+independently of the metrics route.
+
+Two consequences:
+
+1. **ISI-1817 may not conclude that routing metrics away is what fixed it.** The clean
+   experiment (corrected routing, batch back at 3s) was never run and is not worth a
+   benchmark slot — but the claim must not be made without it.
+2. **Change #3 is now potentially load-bearing for stability, not just parity alignment.**
+   Reverting `max_batch_duration` to 3s to "restore engine-idiomatic batching" would be
+   changing a variable that may be holding the engine up. Note it before anyone proposes it.
+
+Grounding: all 4 cores were dead **30 seconds** after start in R1P3 (engine up 10:53:29,
+last panic 10:53:59). Read the smoke's elapsed time against that 30s, not against 120 min.
+
 ## 2. `engine-counters.sh` — the arrow arm has an engine-side gate after all
 
 ISI-1817 recorded *"df_engine's admin port serves HTML, so there are no engine-side
