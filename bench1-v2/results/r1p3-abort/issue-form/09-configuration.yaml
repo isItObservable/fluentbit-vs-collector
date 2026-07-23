@@ -1,0 +1,44 @@
+version: otel_dataflow/v1
+engine: {}
+groups:
+  default:
+    pipelines:
+      main:
+        policies:
+          channel_capacity:
+            control: { node: 100, pipeline: 100 }
+            pdata: 128
+        nodes:
+          otlp_in:
+            type: receiver:otlp
+            config:
+              protocols:
+                grpc: { listening_addr: 0.0.0.0:4317 }
+                http: { listening_addr: 0.0.0.0:4318 }
+          enrich:
+            type: processor:attribute
+            config:
+              actions:
+                - { key: some.static.key, action: upsert, value: some-value }
+          parity:
+            type: processor:transform
+            config:
+              kql_query: "logs | extend severity_text = 'ERROR'"
+          batch:
+            type: processor:batch
+            config:
+              otap: { min_size: 1000, sizer: items }
+              max_batch_duration: 3s
+          out:
+            type: exporter:otlp_http
+            config:
+              endpoint: https://<otlp-endpoint>/api/v2/otlp
+              client_pool_size: 4
+              http:
+                headers:
+                  Authorization: "<redacted>"
+        connections:
+          - { from: otlp_in, to: enrich }
+          - { from: enrich,  to: parity }
+          - { from: parity,  to: batch }
+          - { from: batch,   to: out }
