@@ -169,6 +169,23 @@ Phase order is fixed by plan §1: **P1 = OTel Collector → P2 = Fluent Bit v5 �
 **Owning issue per row:** R1-P1 = ISI-1815 · R1-P2 = ISI-1816 · R1-P3 = ISI-1817 ·
 R2-P1 = ISI-1818 · R2-P2 = ISI-1819 · R2-P3 = ISI-1820.
 
+### Soak register (24h leak soaks)
+
+Run ID format: `S<phase>-<engine>`. Each soak is a **full §1 cycle** — reconfigure, redeploy both
+apps, redeploy Istio, smoke, gate 6/6, then 24h at `LOAD_PHASE=leak24h` 50 VU per app (board
+directive 2026-07-22). Serial: S1 → S2 → S3. The soak rows carry the **same census discipline** as
+the rampup rows and it matters more here — a pod replacement resets memory and fakes a flat trend,
+while `dt.kubernetes.container.restarts` stays silent. Verdict = same pod name **and** same
+`creationTimestamp` at both ends, count == expected replicas.
+
+| Run ID | Engine + image tag | Cluster | Expected replicas | Start (UTC) | End (UTC) | Validation gate | Census | Attr-landing (7b) | Load profile | Leak verdict (floor trend over 24 buckets) | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `S1-collector` | otel-collector contrib `0.154.0` | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `leak24h` 50 VU per app, both apps | ⟨UNSET⟩ | Scheduled. Runs first. |
+| `S2-fluentbit` | fluent-bit `5.0.9` | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `leak24h` 50 VU per app, both apps | ⟨UNSET⟩ | Scheduled. Do not start until S1 reports clean teardown. |
+| `S3-otel-arrow` | `ghcr.io/isitobservable/df_engine:0.50.0` | `observable-otelarrow` | 1 | `CANCELLED` | `CANCELLED` | `CANCELLED` | `CANCELLED` | `CANCELLED` | — | `CANCELLED — never measurable` | **🛑 Cancelled 2026-07-23 with the arm (ISI-1824), on the board's pre-authorisation of 2026-07-23 13:45Z. Never deployed; no cluster or Dynatrace state was created for this run.** The engine loses all four pipeline cores to `DictionaryKeyOverflowError` at T+26m10.5s (first) / T+33m34.2s (last) on **smoke-level** traffic — see `R1-P3-arrow` above and `results/r1p3-dnf/DNF.md`. **Soak-specific reason this row could never have been filled honestly:** after the cores died the process stayed up and RSS kept climbing for a further ~40 min, pod `Running`/`Ready`/`restarts=0`. A 24h memory curve would have looked plausible for an engine that processed nothing after the first half hour — and the memory floor trend, which is the deliverable, is exactly the metric that cannot tell the two apart. Neither the census nor `restarts` discriminates either: the pod is never replaced. **If a soak on this engine is ever retried, gate it on `results/r1p3-retry/engine-alive.sh`** — healthy `df_engine` serves 289 admin metric sets across 17 names, dead serves exactly 1; one HTTP GET, unambiguous where RSS and cumulative counters are not. |
+
+**Owning issue per soak row:** S1 = ISI-1811 · S2 = ISI-1823 · S3 = ISI-1824.
+
 > ⚠️ **`hipster-shop/loadgenerator` — a second load source exists. LEAVE IT RUNNING.**
 > Found during R1-P1 teardown (2026-07-22T18:1xZ). The hipster-shop overlay deliberately
 > **deletes** the bundled loadgenerator — its own comment says *"a second, uncontrolled load
