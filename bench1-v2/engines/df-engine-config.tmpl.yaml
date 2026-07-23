@@ -13,19 +13,88 @@
 # Validated shapes (live, 0.50.0):
 #   receiver:otlp      protocols.{grpc,http}.listening_addr   (NOT `listen`)
 #   processor:attribute  actions: [{key, action: upsert, value}]
+#                        and     [{key, action: delete}]      — ISI-1843
+#   processor:type_router  node-level `outputs: [logs, metrics, traces]`;
+#                        routing is IMPLICIT by signal type, `config: {}`
 #   processor:transform  kql_query: <string>   — see the READ/WRITE gap below
 #   processor:batch      otap: {min_size, sizer}, max_batch_duration
+#   exporter:noop        config: {}
 #   exporter:otlp_http   endpoint + client_pool_size at top level;
 #                        http: {headers: {...}} — headers go UNDER http,
 #                        and the engine APPENDS /v1/{logs,metrics,traces}
 #                        to `endpoint`, which is why endpoint stops at
 #                        /api/v2/otlp.
 #
-# PARITY: `parity` below is a constant field write. df_engine 0.50.0's KQL
-# transform can write a field but cannot read one — `contains`, `==`,
-# `matches regex` and `replace_regex` all fail at runtime while
-# `--validate-and-exit` still reports the config valid. See the header of
+# Connection edges select a named output port with the string form
+#   `<node>["<port>"]`  e.g.  from: 'router["logs"]'
+# An edge with a bare node id uses that node's DEFAULT output port.
+#
+# ============================================================================
+# ISI-1843 — SIGNAL-TYPE ROUTING (board decisions Q2 + Q4, ISI-1841)
+# ----------------------------------------------------------------------------
+# WHY THE PIPELINE IS SPLIT. R1P3 aborted at the gate: df_engine 0.50.0 panics
+# inside its own METRICS encoder (`crates/pdata/src/encode/record/metrics.rs`,
+# literal panic message `boo`) and all four pipeline cores die in under a
+# minute. The old config was ONE shared chain for all three signals, so a
+# metrics panic took traces and logs with it.
+#
+# It also could not have delivered metrics anyway: this tenant permanently
+# rejects cumulative Sum/Histogram/Summary with a bare 400, the Collector and
+# Fluent Bit arms convert with `cumulativetodelta`, and df_engine 0.50.0 has no
+# equivalent — its `processor:filter` cannot express a READ predicate
+# (`metric.type == cumulative`) and its KQL transform writes but cannot read a
+# field at runtime, both while `--validate-and-exit` reports the config valid.
+#
+# So metrics are dropped DELIBERATELY, at a named node, instead of being
+# silently 400'd by the tenant: `router["metrics"] -> metrics_noop`. The drop
+# is explicit, deterministic and countable
+# (`processor.signal_type_router.signals_routed_named_metrics`), it removes the
+# panic site from the data path, and a near-zero metrics tile can no longer be
+# confused with "the engine dropped it".
+#
+# ROUTING SITS IMMEDIATELY AFTER THE RECEIVER, so OTLP receive + decode of the
+# metrics stream stays inside the measurement. Only the post-routing work is
+# skipped. This is fairer than refusing metrics at the receiver.
+#
+# ⚠️ CONSEQUENCE FOR THE READOUT: this arm delivers LOGS AND TRACES ONLY. Its
+# metrics tiles are empty BY DESIGN, not by failure. `results/attr-landing.sh`
+# (runbook step 7b) must therefore predict `metrics=NO-DATA` for R1P3/R2P3, not
+# `metrics=SAFE`. NO-DATA is its own verdict and must never read as a pass.
+#
+# ============================================================================
+# PARITY SET (plan §2 — "equal processing work") — arrow-side mapping
+# ----------------------------------------------------------------------------
+#   1. static attribute add   -> processor:attribute  (3 upserts)
+#   2. severity normalise     -> processor:transform  (KQL, logs branch)
+#   3. PII redact             -> NOT IMPLEMENTABLE — disclosed gap (ISI-1845)
+#   4. drop a key             -> processor:attribute  (delete log.file.path)
+#   5. batch                  -> processor:batch
+#
+# Step 4 is applied on BOTH the logs and the traces branch, because that is
+# what the two frozen arms do: the Collector runs
+# `delete_key(attributes, "log.file.path")` in both `log_statements` and
+# `trace_statements`, and Fluent Bit runs `content_modifier action: delete` in
+# both its `logs:` and `traces:` processor lists. The ISI-1843 brief said "the
+# logs branch"; applying it to logs only would have LEFT a parity gap rather
+# than closing one.
+#
+# PARITY GAP 2 (unchanged): `parity` below is a constant field write.
+# df_engine 0.50.0's KQL transform can write a field but cannot read one —
+# `contains`, `==`, `matches regex` and `replace_regex` all fail at runtime
+# while `--validate-and-exit` still reports the config valid. So step 2 is
+# unconditional where the Collector's is `where IsMatch(body, "(?i)error")`,
+# and step 3 has no arrow-side implementation at all. See the header of
 # engines/otel-arrow-native.yaml for the full evidence table.
+#
+# BATCHING (board decision Q6, ISI-1841): `max_batch_duration` is aligned to
+# the Collector's `timeout: 1s` and Fluent Bit's `flush 1s`. Batch SIZE stays
+# engine-idiomatic (`otap.min_size: 1000`) and is disclosed rather than forced.
+#
+# ⛔ THE VALIDATOR PROVES NOTHING HERE. `--validate-and-exit` accepts
+# `processor:filter` with `config: {__bogus__: 1}`, and the attributes
+# processor documents that "unsupported action variants are accepted for
+# forward compatibility and ignored". Every node below is runtime-proven off
+# the wire instead — see engines/node-proof/.
 # ============================================================================
 version: otel_dataflow/v1
 engine: {}
@@ -45,14 +114,46 @@ groups:
                 grpc: { listening_addr: 0.0.0.0:4317 }
                 http: { listening_addr: 0.0.0.0:4318 }
 
-          # 1. static attribute add — parity step 1
-          enrich:
+          # 0. split by signal type — routing is implicit, driven by the
+          #    well-known port names below. No predicate, no read.
+          router:
+            type: processor:type_router
+            outputs: [logs, metrics, traces]
+            config: {}
+
+          # metrics terminate here — explicit, countable, no encoder path
+          metrics_noop:
+            type: exporter:noop
+            config: {}
+
+          # ---------------- traces branch ----------------
+          # 1. static attribute add + 4. drop a key
+          enrich_traces:
             type: processor:attribute
             config:
               actions:
                 - { key: benchmark.engine, action: upsert, value: otel-arrow-native }
                 - { key: k8s.cluster.name, action: upsert, value: observable-otelarrow }
                 - { key: benchmark.run,    action: upsert, value: isi1779-b1v2 }
+                - { key: log.file.path,    action: delete }
+
+          # 5. batch — last before export
+          batch_traces:
+            type: processor:batch
+            config:
+              otap: { min_size: 1000, sizer: items }
+              max_batch_duration: 1s
+
+          # ---------------- logs branch ----------------
+          # 1. static attribute add + 4. drop a key
+          enrich_logs:
+            type: processor:attribute
+            config:
+              actions:
+                - { key: benchmark.engine, action: upsert, value: otel-arrow-native }
+                - { key: k8s.cluster.name, action: upsert, value: observable-otelarrow }
+                - { key: benchmark.run,    action: upsert, value: isi1779-b1v2 }
+                - { key: log.file.path,    action: delete }
 
           # 2. severity normalise — CONSTANT write, see parity gap note
           parity:
@@ -60,12 +161,12 @@ groups:
             config:
               kql_query: "logs | extend severity_text = 'ERROR'"
 
-          # 3. batch — last before export
-          batch:
+          # 5. batch — last before export
+          batch_logs:
             type: processor:batch
             config:
               otap: { min_size: 1000, sizer: items }
-              max_batch_duration: 3s
+              max_batch_duration: 1s
 
           dt_out:
             type: exporter:otlp_http
@@ -77,7 +178,14 @@ groups:
                   Authorization: "Api-Token __DT_API_TOKEN__"
 
         connections:
-          - { from: otlp_in, to: enrich }
-          - { from: enrich,  to: parity }
-          - { from: parity,  to: batch }
-          - { from: batch,   to: dt_out }
+          - { from: otlp_in, to: router }
+          - { from: 'router["metrics"]', to: metrics_noop }
+
+          - { from: 'router["traces"]', to: enrich_traces }
+          - { from: enrich_traces, to: batch_traces }
+          - { from: batch_traces,  to: dt_out }
+
+          - { from: 'router["logs"]', to: enrich_logs }
+          - { from: enrich_logs, to: parity }
+          - { from: parity,      to: batch_logs }
+          - { from: batch_logs,  to: dt_out }

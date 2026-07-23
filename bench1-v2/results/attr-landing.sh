@@ -75,9 +75,23 @@
 # engine that was in fact delivering millions of records.
 #
 # EXPECTATIONS — each one is a claim about a MEASUREMENT, sourced:
-#   otel-arrow-native  spans=SAFE logs=SAFE metrics=SAFE
-#       off-cluster probe of the frozen df_engine 0.50.0 pipeline config,
-#       2026-07-23, 100% on all three signals (engines/attr-probe/FINDINGS.md).
+#   otel-arrow-native  spans=SAFE logs=SAFE metrics=NO-DATA
+#       spans/logs: off-cluster probe of the df_engine 0.50.0 pipeline config,
+#       2026-07-23, 100% on both (engines/attr-probe/FINDINGS.md), re-confirmed
+#       on the ISI-1843 corrected config (engines/node-proof/FINDINGS.md).
+#       ⚠️ metrics CHANGED FROM SAFE TO NO-DATA on 2026-07-23 (ISI-1843). The
+#       attr-probe measured the OLD single-chain config, in which metrics still
+#       reached the exporter. The corrected config routes metrics to
+#       `exporter:noop` by board decision Q2 (ISI-1841), so this arm delivers
+#       NO metrics AT ALL, by design. Leaving the prediction at SAFE would have
+#       made step 7b report an anomaly against a healthy, correctly-configured
+#       engine on run day — the false-FAIL failure mode this file exists to
+#       avoid. NO-DATA here means "deliberately not shipped", which is a
+#       different fact from Fluent Bit's NO-DATA ("lost in a broken chain");
+#       both are recorded as NO-DATA because both mean the tiles are empty, and
+#       neither may ever read as SAFE. The drop is separately COUNTABLE on the
+#       engine's own `processor.signal_type_router` /
+#       `signals.routed.named.metrics` counter — see node-proof/FINDINGS.md.
 #   fluentbit-v5       spans=SAFE logs=UNSAFE metrics=NO-DATA
 #       measured live on the R1P2 arm 2026-07-23: spans 1,654,883/1,654,883,
 #       logs 0/951,392. metrics=NO-DATA is the 🛑 R1P2 finding — the metrics
@@ -100,7 +114,7 @@ set -euo pipefail
 # SAFE or UNSAFE, never NO-DATA.
 expected_for() {
   case "$1" in
-    otel-arrow-native) echo "spans=SAFE logs=SAFE metrics=SAFE" ;;
+    otel-arrow-native) echo "spans=SAFE logs=SAFE metrics=NO-DATA" ;;
     fluentbit-v5)      echo "spans=SAFE logs=UNSAFE metrics=NO-DATA" ;;
     otel-collector)    echo "spans=SAFE logs=UNKNOWN metrics=UNKNOWN" ;;
     *)                 echo "" ;;
