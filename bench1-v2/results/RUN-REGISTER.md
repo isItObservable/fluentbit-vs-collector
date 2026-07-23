@@ -155,7 +155,7 @@ Phase order is fixed by plan §1: **P1 = OTel Collector → P2 = Fluent Bit v5 �
 | Run ID | Engine + image tag | Round | Cluster | Expected replicas | Start (UTC) | End (UTC) | Validation gate | Census | Load profile | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `R1-P1-collector` | otel-collector contrib `0.154.0` | 1 | `observable-otelarrow` | 1 | `2026-07-22T15:58:43Z` | `2026-07-22T17:59:21Z` | `PASS 6/6 @ 2026-07-22T15:57:12Z` | `MATCH` | `rampup2h` 50→100→150→200 VU, both apps | `cumulativetodelta` added to the metrics pipeline before this run (CHECK 5 fix). CAAPH reconciliation for istiod is PAUSED for the campaign (ISI-1826). Built-in app loadgenerators run alongside the ramp, identically in every phase — see the ⚠️ note below on `hipster-shop/loadgenerator`, which is a pre-campaign leftover that **must be left running**. Duration 120.6 min (End−Start), within the ±2 min self-check. End recovered with `capture-window.sh` from `max(pod .state.terminated.finishedAt)` across all 8 ramp pods (`otel-demo` 4 + `hipster-shop` 4), captured **before** teardown; the two namespaces' last pods stopped 17:59:21Z and 17:59:07Z. Nothing anomalous: engine pod never replaced, 0 restarts, node under no pressure. |
-| `R1-P2-fluentbit` | fluent-bit `5.0.9` | 1 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
+| `R1-P2-fluentbit` | fluent-bit `5.0.9` | 1 | `observable-otelarrow` | 1 | `2026-07-23T08:34:49Z` | ⟨PENDING — capture at ~10:34:49Z, ISI-1816⟩ | `PASS 6/6 @ 2026-07-23T08:34:35Z` | ⟨PENDING⟩ | `rampup2h` 50→100→150→200 VU, both apps | Engine pod `bench-fluentbit-v5-67978b69d8-h8st4` created `2026-07-23T08:16:26Z`, expected replicas 1. **The gate went RED on the first attempt** (CHECK 2, hipster-shop app spans = 0) and was fixed before any load ran — see the two R1P1 carry-over mutations in commit `d4a0d29`: `ENABLE_TRACING` was never committed anywhere, and `render.sh` would have deleted the ISI-1815 delta-temporality override. Both are now in `_templates/`, so R1P3 and Round 2 render correctly with no hand-patching. ⚠️ **Fluent Bit drops OTLP resource attributes on the METRICS signal** — app metrics arrive with `benchmark.engine` and `k8s.cluster.name` both null, where the collector arm carried both; its `content_modifier` metrics stage also errors 100% (342/342 invocations) so it cannot restore them. Spans and the `dt.kubernetes.container.*` resource readout are unaffected. See the note below. |
 | `R1-P3-arrow` | `ghcr.io/isitobservable/df_engine:0.50.0` | 1 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R2-P1-collector` | otel-collector contrib `0.154.0` | 2 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
 | `R2-P2-fluentbit` | fluent-bit `5.0.9` | 2 | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `rampup2h` 50→100→150→200 VU, both apps | |
@@ -188,6 +188,33 @@ R2-P1 = ISI-1818 · R2-P2 = ISI-1819 · R2-P3 = ISI-1820.
 > hipster-shop volumes carry a constant offset. **Engine-vs-engine comparison is unaffected**;
 > any *absolute* hipster-shop ingest figure should be read with this in mind.
 
+> ⚠️ **Fluent Bit v5 drops OTLP resource attributes on the METRICS signal (R1P2, 2026-07-23).**
+> Measured on both arms with the same query,
+> `timeseries avg(system.cpu.utilization), by:{benchmark.engine, k8s.cluster.name}`:
+>
+> | arm | `benchmark.engine` | `k8s.cluster.name` |
+> |---|---|---|
+> | `R1-P1-collector` (16:30–16:45Z) | `otel-collector` | `observable-otelarrow` |
+> | `R1-P2-fluentbit` (live) | `null` | `null` |
+>
+> The apps set `benchmark.engine` themselves via `OTEL_RESOURCE_ATTRIBUTES`, and it survives on
+> **spans** under Fluent Bit — so this is the metrics path specifically, not a mis-set variable.
+> Fluent Bit cannot re-add them either: its `content_modifier` metrics stage errors on **every**
+> invocation (`fluentbit_processor_errors_total == fluentbit_processor_invocations_total == 342`,
+> `signal="metrics"`), and the chain aborts there, so `cumulative_to_delta` is not reached.
+> The logs and traces stages run clean (0 errors).
+>
+> **What this does and does not cost.** The three-part readout is intact: *load* is the ramp
+> ladder, *spans* carry `benchmark.engine` normally, and *resource* comes from
+> `dt.kubernetes.container.*` scoped by `k8s.pod.name` + `k8s.cluster.name`, which Dynatrace
+> sources itself and Fluent Bit never touches. What is lost is the **app-OTLP metric-series
+> tile**, which filters on `isNotNull(benchmark.engine)` and will read empty for this arm.
+> The dashboard already labels that tile liveness-and-breadth, not a volume comparison.
+>
+> **Do not "fix" this by patching the pipeline.** Making Fluent Bit stamp metrics would require
+> unequal processing work versus the other two engines and would break plan §2 — and it would
+> also erase the finding. This is engine behaviour under test: report it, do not paper over it.
+
 ### Pod census — one block per run, captured at Start AND at End (D12)
 
 The names and `creationTimestamp`s here are the **only** evidence that the window contains one
@@ -199,7 +226,7 @@ ends, count == expected replicas.**
 |---|---|---|---|---|---|---|
 | `R1-P1-collector` | Start | `bench-otel-collector-collector-cbd58d94c-rz424` | `2026-07-22T15:45:23Z` | `observable-otelarrow-workers-k5hgq-9r662` | 0 | baseline |
 | `R1-P1-collector` | End | `bench-otel-collector-collector-cbd58d94c-rz424` | `2026-07-22T15:45:23Z` | `observable-otelarrow-workers-k5hgq-9r662` | 0 | `MATCH` |
-| `R1-P2-fluentbit` | Start | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ |
+| `R1-P2-fluentbit` | Start | `bench-fluentbit-v5-67978b69d8-h8st4` | `2026-07-23T08:16:26Z` | `observable-otelarrow-workers-k5hgq-lz9mb` | 0 | baseline |
 | `R1-P2-fluentbit` | End | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ |
 | `R1-P3-arrow` | Start | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ |
 | `R1-P3-arrow` | End | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ |
