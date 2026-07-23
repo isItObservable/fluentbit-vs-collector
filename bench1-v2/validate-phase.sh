@@ -547,6 +547,92 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
       ;;
   esac
 
+  # -------------------------------------------------------------------------
+  # 5c IS IT STILL ALIVE? — added 2026-07-23 after R1P3 (ISI-1817)
+  # -------------------------------------------------------------------------
+  # Every assertion above this line reads a CUMULATIVE quantity, and a
+  # cumulative quantity proves the engine WORKED — never that it WORKS.
+  #
+  # Paid for live. df_engine panicked on all four pipeline cores and processed
+  # nothing for the next six minutes, and the gate still reported:
+  #     CHECK 2  otel-demo=16,541  hipster-shop=18,090   PASS
+  #     CHECK 5  accepted=1,950  exported=1,950          (non-zero)
+  #     CHECK 5b spans=31,426 logs=1,950 metric-series=1 PASS
+  #     CHECK 6  pods=1 expected=1                       PASS
+  # Every number real; every number data that landed BEFORE the engine died,
+  # still sitting inside a 15-minute lookback. Replayed after the fact:
+  # 15m lookback spans=32,271 logs=1,950 — both comfortably non-zero.
+  #
+  # The blind spot is NOT arrow-specific, which is why this check is not inside
+  # the per-engine case:
+  #   * otel-collector  `otelcol_receiver_accepted_*` are cumulative counters.
+  #                     A dead collector's counters FREEZE at a large value and
+  #                     `accepted>0 && exported>0` passes forever. (Its 5b branch
+  #                     only PRINTS the per-signal numbers — it asserts nothing.)
+  #   * fluentbit-v5    the 5b error-RATIO is frozen too; frozen ratios pass.
+  #   * otel-arrow-native  sink-side counts over a lookback pass on pre-death data.
+  #
+  # The window must be DISJOINT and FORWARD — a slice of time beginning only
+  # after the check starts. Two earlier shapes are both wrong:
+  #   * "sample twice, require growth" over a ROLLING recent window — in steady
+  #     state that count is FLAT, not growing, so it false-FAILS a healthy
+  #     engine. (Caught before shipping. A gate that cries wolf gets bypassed on
+  #     run day, which is worse than no gate.)
+  #   * a single `from:now()-Nm` count — that IS the lookback blind spot this
+  #     check exists to close.
+  # SETTLE is generous because Grail ingest lags seconds-to-a-minute; the head of
+  # the window lands well before the tail, so >0 is reliable for a live engine
+  # without being fooled by a dead one.
+  #
+  # Validated 2026-07-23 with one shape over one window, both directions:
+  #     live source (unfiltered)          = 1,817 spans
+  #     dead df_engine (benchmark.engine) = 0
+  #
+  # ⚠️ DO NOT "validate" this by replaying a HISTORICAL window — history
+  # BACKFILLS. Measured live at 10:52Z, `fetch spans from:now()-6m` returned 0.
+  # The same interval replayed two hours later returns 845, because the app SDKs
+  # had buffered those spans and flushed them through a later engine pod. `fetch`
+  # keys on the RECORD's timestamp, not on when it arrived. Live-0 and
+  # replayed-845 are both correct answers to different questions, and only the
+  # live one tells you whether the engine is running right now.
+  SETTLE="${SETTLE:-120}"
+  t0=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  say "  5c liveness: sampling forward window from ${t0} for ${SETTLE}s ..."
+  sleep "$SETTLE"
+  t1=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  fresh=0
+  for s in spans logs; do
+    n=$(dql_num "$(dql "fetch $s, from:\"$t0\", to:\"$t1\" | filter benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
+    say "    5c $s delivered during the wait: ${n:-0}"
+    fresh=$(( fresh + ${n:-0} ))
+  done
+  if [[ "${fresh:-0}" -eq 0 ]]; then
+    say "  5c FAIL — the engine delivered NOTHING in a window that started after this"
+    say "     check did. Every non-zero count above is data that landed before it"
+    say "     stopped. Do NOT start the run."
+    c5_fail=1
+  else
+    say "  5c PASS — ${fresh} records delivered inside the forward window (engine alive NOW)"
+  fi
+
+  # 5d — pipeline-core deaths, named explicitly. This is what actually caught
+  # R1P3, but it surfaced as eight anonymous "error-ish" lines, which is far too
+  # easy to wave through as noise. A dead core is not an error line, it is a dead
+  # engine: df_engine keeps the PROCESS alive with every worker thread gone, so
+  # the pod stays Ready/0-restarts and the D12 census passes cleanly over it.
+  #
+  # 5c and 5d are COMPLEMENTARY IN TIME and neither replaces the other:
+  #   fresh death (gate run minutes after)  -> 5d fires, 5b/5c may not yet
+  #   stale death (gate run hours after)    -> 5b/5c fire, 5d has aged out of
+  #                                            its --since window
+  dead=$(kubectl -n "$ENGINE_NS" logs "$POD" --since=30m 2>/dev/null | grep -ciE 'pipeline_runtime_failed|panicked at' || true)
+  say "  5d dead pipeline cores / panics in last 30m: ${dead:-0}"
+  if [[ "${dead:-0}" -gt 0 ]]; then
+    say "  5d FAIL — the engine has panicked. Liveness is not function: the pod can"
+    say "     report Ready with 0 restarts while every pipeline core is gone."
+    c5_fail=1
+  fi
+
   errs=$(kubectl -n "$ENGINE_NS" logs "$POD" --since=10m 2>/dev/null | grep -ciE 'observed_error|permanent error|panic|failed to export' || true)
   say "  error-ish log lines in last 10m: ${errs:-0}"
   [[ "${errs:-0}" -eq 0 ]] || c5_fail=1
