@@ -465,11 +465,31 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
       [[ "$sigres" == PASS* ]] || c5_fail=1
       ;;
     otel-collector)
-      # the collector exposes accepted per signal already
+      # The collector exposes accepted per signal already — but until 2026-07-23
+      # this branch only PRINTED the three numbers and asserted NOTHING. A
+      # collector arm with one dead signal produced `5b accepted_metric_points=0`
+      # on stdout and a GREEN gate, which is precisely the R1P2 failure mode 5b
+      # was created to stop (Fluent Bit's metrics pipeline failing on 100% of
+      # batches while logs and traces carried the totals). Printing a number is
+      # not checking it. Named in ISI-1817's 04346fb, closed here.
+      #
+      # These are CUMULATIVE counters, so >0 answers "did this signal EVER flow",
+      # not "is it flowing now" — 5c owns liveness. The two are deliberately
+      # different questions: 5b is per-signal COVERAGE, 5c is CURRENTNESS.
+      c5b_bad=""
       for sig in spans log_records metric_points; do
         n=$(awk -v s="otelcol_receiver_accepted_${sig}" '$0 ~ "^"s{v+=$2} END{printf "%.0f", v+0}' <<< "$M")
         say "  5b accepted_${sig}=${n:-0}"
+        [[ "${n:-0}" -gt 0 ]] || c5b_bad="$c5b_bad ${sig}=0"
       done
+      if [[ -n "$c5b_bad" ]]; then
+        say "  5b FAIL —${c5b_bad}. A signal never reached the collector's receiver."
+        say "     One dead signal does not move the accepted/exported totals, so it"
+        say "     is invisible to CHECK 5. This is the R1P2 failure mode."
+        c5_fail=1
+      else
+        say "  5b per-signal: all three signals accepted (non-zero)"
+      fi
       ;;
     otel-arrow-native)
       # df_engine exposes no Prometheus endpoint (its admin port serves HTML —
