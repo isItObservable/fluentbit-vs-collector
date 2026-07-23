@@ -490,19 +490,50 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
       # `count()` on it is meaningless. The timeseries-returns-a-non-null-row
       # shape is exactly what exposed R1P2's dead metrics arm.
       arrow_bad=""
-      n_sp=$(dql_num "$(dql "fetch spans, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
-      # NB the logs branch deliberately does NOT filter on k8s.cluster.name.
-      # Fluent Bit's logs content_modifier reports 0 errors yet its
-      # k8s.cluster.name upsert does not land: 1,813,982 log records tagged
-      # benchmark.engine=fluentbit-v5, every one of them with k8s.cluster.name
-      # NULL. Adding the cluster filter would return 0 and fail a healthy arm.
-      # benchmark.engine is campaign-unique (only this benchmark ever sets it),
-      # so it is a safe discriminator on its own. Spans keep the cluster filter,
-      # where the attribute does land and guards against cross-cluster collision.
+      # ⚠️ NEITHER signal filters on k8s.cluster.name — corrected 2026-07-23
+      # (ISI-1817 pre-flight). The spans branch used to, on the strength of
+      # "Fluent Bit lands it on spans, just not on logs". That is the
+      # Fluent-Bit-specific FINDING, not the generalisable one, and inheriting
+      # it across arms is exactly the mistake R1P2 warns about.
+      #
+      # k8s.cluster.name is stamped BY THE ENGINE, with a different processor in
+      # every arm. R1P2 proved one engine can land an attribute on one signal
+      # and silently drop it on another. df_engine's attribute processor is a
+      # different implementation, unproven on EVERY signal — so a healthy
+      # df_engine that simply does not upsert k8s.cluster.name onto spans would
+      # have returned spans=0 here and VOIDED a good gate. A false FAIL at the
+      # gate is not a safe direction: it burns cluster time and invites someone
+      # to "fix" a frozen config at the worst possible moment.
+      #
+      # benchmark.engine is campaign-unique (nothing outside this benchmark ever
+      # sets it, verified on-tenant), so it discriminates safely on its own.
+      # Depending on a SECOND engine-stamped attribute where one suffices adds a
+      # failure mode and buys no safety. The cluster-scoped count is still
+      # measured — as a labelled diagnostic below, never as the pass condition —
+      # because it is what tells the readout whether the dashboard tiles for this
+      # arm can be trusted. results/attr-landing.sh reports it per signal.
+      n_sp=$(dql_num "$(dql "fetch spans, from:now()-${WINDOW} | filter benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
+      n_sp_c=$(dql_num "$(dql "fetch spans, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
       n_lg=$(dql_num "$(dql "fetch logs, from:now()-${WINDOW} | filter benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
+      n_lg_c=$(dql_num "$(dql "fetch logs, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
       n_mt=$(dql "timeseries v = avg(system.cpu.utilization), by:{benchmark.engine}, from:now()-${WINDOW}, filter: benchmark.engine == \"${ENGINE}\"" \
              | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo 0)
       say "  5b sink-side per-signal: spans=$n_sp logs=$n_lg metric-series=$n_mt"
+      # Diagnostic, NOT a pass condition. A signal whose cluster-scoped count is
+      # far below its tagged count still PASSES the gate — the data is arriving,
+      # the engine just is not stamping k8s.cluster.name on it — but every
+      # readout and dashboard tile for that signal must then drop the cluster
+      # filter, or it reports a large, directional, entirely plausible zero.
+      for pair in "spans:${n_sp:-0}:${n_sp_c:-0}" "logs:${n_lg:-0}:${n_lg_c:-0}"; do
+        IFS=: read -r s tot cl <<<"$pair"
+        if [[ "$tot" -gt 0 && "$cl" -lt "$tot" ]]; then
+          say "  5b ⚠️  cluster-filter UNSAFE for $s: $cl of $tot tagged records carry"
+          say "     k8s.cluster.name. Read $s on benchmark.engine alone and correct the"
+          say "     dashboard tile. Record this in the RUN-REGISTER row."
+        elif [[ "$tot" -gt 0 ]]; then
+          say "  5b cluster-filter safe for $s ($cl of $tot)"
+        fi
+      done
       [[ "${n_sp:-0}" -gt 0 ]] || arrow_bad="$arrow_bad spans=0"
       [[ "${n_lg:-0}" -gt 0 ]] || arrow_bad="$arrow_bad logs=0"
       [[ "${n_mt:-0}" -gt 0 ]] || arrow_bad="$arrow_bad metric-series=0"

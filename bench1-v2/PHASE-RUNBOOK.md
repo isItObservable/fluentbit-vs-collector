@@ -106,11 +106,37 @@ delete the old-generation pods rather than adding capacity.
 All **six** checks must pass. CHECK 4 alone has five preflights (4a–4e), each naming a
 distinct silent failure. **Never start a 120-minute run on a red gate.**
 
+## 7b. Attribute landing — per signal, per engine, BEFORE the run
+
+```bash
+./results/attr-landing.sh ${ENGINE} --window 15m
+./results/attr-landing.sh --selftest      # must reproduce R1P2: spans SAFE, logs UNSAFE
+```
+
+Prints, for spans / logs / metrics separately, whether `k8s.cluster.name` actually
+lands — i.e. whether a cluster-scoped filter is safe to read for this arm.
+
+**This is a diagnostic, not a gate.** An `UNSAFE` signal does not stop the run; it
+tells the readout which filter to drop. Not knowing does.
+
+`k8s.cluster.name` is stamped **by the engine**, by a different processor in every
+arm — so it is a per-engine, per-signal property and must never be inherited from
+the previous phase. Measured live on the fluentbit arm: spans 4,820,733/4,820,733
+carry it, logs **0** of 2,782,904, with zero processor errors reported. That is why
+the dashboard's log tiles read 0 for R1P2 while it was delivering *more* logs than
+the collector — a wrong number of the worst kind: large, directional, plausible.
+
+Corrections ship at **read** time (`results/service-key.dql`, `results/readout.sh`),
+never as config changes — the telemetry config is frozen so the engine stays the
+only variable.
+
 ## 8. Register the START — before load
 
 Record in `results/RUN-REGISTER.md`: run ID, engine + image tag, round, start UTC to the
 second, **every engine pod name + `creationTimestamp`**, expected replica count, gate
-result, load profile.
+result, load profile, **and the step-7b attribute-landing verdict per signal**
+(`spans=… logs=… metrics=…`). Without the verdict in the row, a readout months later
+cannot tell a signal the engine dropped from a signal the filter hid.
 
 ## 9. Timed run — 120 min, both apps simultaneously
 
