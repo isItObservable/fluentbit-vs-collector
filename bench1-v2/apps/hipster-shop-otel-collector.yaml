@@ -509,6 +509,8 @@ spec:
           value: http://bench-otel-collector.default.svc.cluster.local:4317
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: service.namespace=hipster-shop,benchmark.engine=otel-collector,benchmark.run=isi1779-b1v2
+        - name: ENABLE_TRACING
+          value: "1"
         - name: PORT
           value: "5050"
         - name: PRODUCT_CATALOG_SERVICE_ADDR
@@ -647,6 +649,8 @@ spec:
           value: http://bench-otel-collector.default.svc.cluster.local:4317
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: service.namespace=hipster-shop,benchmark.engine=otel-collector,benchmark.run=isi1779-b1v2
+        - name: ENABLE_TRACING
+          value: "1"
         - name: PORT
           value: "8080"
         - name: DISABLE_PROFILER
@@ -715,6 +719,8 @@ spec:
           value: http://bench-otel-collector.default.svc.cluster.local:4317
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: service.namespace=hipster-shop,benchmark.engine=otel-collector,benchmark.run=isi1779-b1v2
+        - name: ENABLE_TRACING
+          value: "1"
         - name: PORT
           value: "8080"
         - name: PRODUCT_CATALOG_SERVICE_ADDR
@@ -868,6 +874,8 @@ spec:
           value: http://bench-otel-collector.default.svc.cluster.local:4317
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: service.namespace=hipster-shop,benchmark.engine=otel-collector,benchmark.run=isi1779-b1v2
+        - name: ENABLE_TRACING
+          value: "1"
         - name: PORT
           value: "3550"
         - name: DISABLE_PROFILER
@@ -932,6 +940,8 @@ spec:
           value: http://bench-otel-collector.default.svc.cluster.local:4317
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: service.namespace=hipster-shop,benchmark.engine=otel-collector,benchmark.run=isi1779-b1v2
+        - name: ENABLE_TRACING
+          value: "1"
         - name: PORT
           value: "8080"
         - name: PRODUCT_CATALOG_SERVICE_ADDR

@@ -49,6 +49,13 @@ default:
     # metric type would have to be reimplemented per engine (Fluent Bit and
     # df_engine have no equivalent of OTTL metric.type), which would give the
     # three engines unequal processing work and break plan section 2.
+    #
+    # LIVED IN THE RENDERED FILES ONLY UNTIL 2026-07-23 (ISI-1816). It was
+    # hand-added to all three apps/otel-demo-values-*.yaml during R1P1 and never
+    # back-ported here, so `./render.sh` silently DELETED it — and `--check`
+    # reported the drift as the rendered files being wrong, not the template.
+    # Re-rendering mid-campaign would have stripped the metrics arm of every
+    # remaining phase. Keep template and rendered output in sync.
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: delta
     # single lever: repoints OTEL_EXPORTER_OTLP_ENDPOINT for every component

@@ -42,6 +42,32 @@ HS_SERVICES=(adservice cartservice checkoutservice currencyservice emailservice
              frontend paymentservice productcatalogservice recommendationservice
              shippingservice)
 
+# ---------------------------------------------------------------------------
+# ENABLE_TRACING — added 2026-07-23 (ISI-1816 R1P2). DO NOT REMOVE.
+# ---------------------------------------------------------------------------
+# Online Boutique gates its OTel SDK on `ENABLE_TRACING == "1"`; without it the
+# Go and Python services log `"Tracing disabled."` at startup and export NOTHING,
+# no matter where COLLECTOR_SERVICE_ADDR points. It was absent from this file,
+# from all three rendered manifests, and from the entire git history --
+# `git log --all -S ENABLE_TRACING` returns empty.
+#
+# R1P1 nevertheless ran WITH hipster-shop app-SDK tracing on: 647,243 app spans
+# in the 15-minute slice 2026-07-22T16:30-16:45Z, from exactly the five services
+# below. Those pods carried the variable from a live, uncommitted mutation --
+# most likely the hand-applied 2026-07-21 hipster-shop stack that `kubectl apply`
+# merged over rather than replaced. R1P1's teardown deleted the Deployments, so
+# R1P2's clean apply produced pods without it and hipster-shop app spans fell to
+# ZERO while its mesh spans stayed at 134k. CHECK 2 caught it; nothing else would
+# have, and the run would have compared fluent-bit against a collector arm that
+# had ~40% more app-span load.
+#
+# The subset is deliberate and evidence-matched, not a guess: these are exactly
+# the five service identities that emitted app-SDK spans in R1P1. The other five
+# (adservice/Java, cartservice/C#, currencyservice + paymentservice/Node,
+# shippingservice/Go) emitted zero there, so granting them the flag would ADD
+# load R1P1 never had and break comparability in the other direction.
+HS_TRACING_SERVICES=" checkoutservice emailservice frontend productcatalogservice recommendationservice "
+
 hs_patches() {
   local engine="$1" svc="$2" d
   for d in "${HS_SERVICES[@]}"; do
@@ -67,6 +93,12 @@ hs_patches() {
                   - name: OTEL_RESOURCE_ATTRIBUTES
                     value: "service.namespace=hipster-shop,benchmark.engine=$engine,benchmark.run=isi1779-b1v2"
 EOF
+    if [[ "$HS_TRACING_SERVICES" == *" $d "* ]]; then
+      cat <<EOF
+                  - name: ENABLE_TRACING
+                    value: "1"
+EOF
+    fi
   done
 }
 
