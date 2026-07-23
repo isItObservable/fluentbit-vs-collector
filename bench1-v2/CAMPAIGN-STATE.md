@@ -7,8 +7,12 @@ once every measurement phase has reached a terminal state** (the gate is spelled
 in full below — it is a named list of issue ids, not "the last phase"), before
 closing ISI-1779.
 
-Tracked as **ISI-1826** (backlog, do-not-self-start) so it cannot be lost with an
-individual phase issue.
+Tracked as **ISI-1826**, which is **parked by mechanism, not by instruction**: `backlog`
+**and `assigneeAgentId: null`**. @BigBoss established that rule on ISI-1779 at
+2026-07-23T16:56Z after R2P2 self-started twice through a DO-NOT-SELF-START banner —
+`backlog` is advisory on this control plane and the dispatcher never reads a description.
+With no assignee there is nothing to dispatch. Promotion restores all three together:
+assign → `todo` → go-ahead comment, and only that combination is a start signal.
 
 > ⚠️ **R2P3 is cancelled and can no longer own a revert.** Updated 2026-07-23 under
 > ISI-1820. The OTel-Arrow arm is DNF (ISI-1849) and all three of its phases are
@@ -17,18 +21,25 @@ individual phase issue.
 > phase tears nothing down: leaving the owner as R2P3 would have orphaned the CAAPH
 > un-pause and the leftover-loadgenerator cleanup with no phase left to run them.
 >
-> 🛑 **The repoint to "R2P2 (last)" was WRONG — R2P2 is not the last phase.** Resolved
-> 2026-07-23 under ISI-1826. The ISI-1824 note below flagged that *nothing in this repo*
-> recorded where the two 24h soaks sit relative to Round 2. That was true of the repo,
-> but the order **is** on record — in the parked soak issues' own descriptions:
+> ✅ **DECIDED — D14, plan rev 11 (@BigBoss on ISI-1779, 2026-07-23T16:51Z).**
+> **Absolute order: `R1P1 → R1P2 → R2P1 → R2P2 → Soak S1 → Soak S2`.** The last run of
+> the campaign is **Soak S2 = `ISI-1823`**. Both end-of-campaign reverts in this file —
+> the CAAPH un-pause (ISI-1826) and the `hipster-shop/loadgenerator` deletion — **anchor
+> to `ISI-1823` by issue id**, not to "the last phase". The provisional wording is dropped.
 >
-> - **Soak S1 / ISI-1811:** *"Serial — do not start until ISI-1820 (R2P3) reports clean
->   teardown and @BigBoss promotes."*
-> - **Soak S2 / ISI-1823:** *"Serial — do not start until Soak S1 reports clean teardown."*
+> D14 is not a new decision: §7 and D10 already implied "after Round 2, serial". What was
+> missing is that it was never written as an **absolute**, which is exactly how two reverts
+> ended up anchored to a role that silently re-aimed itself.
 >
-> So the campaign order is `R1P1 → R1P2 → R2P1 → R2P2 → [R2P3 ✗] → S1 → S2`: **both
-> soaks run after Round 2.** Firing these reverts at R2P2 would therefore have done
-> exactly what the guard feared —
+> The repoint to "R2P2 (last)" was therefore **WRONG**, not merely unproven — R2P2 is not
+> the last phase. It was caught under ISI-1826 because the order was already on record in
+> the parked soak issues' own descriptions, which the ISI-1824 note had not checked.
+>
+> **The fail-safe below stays regardless of D14** — @BigBoss made *"no end-of-campaign
+> revert executes while any soak issue is not `done`"* the standing rule in D14 precisely
+> because it survives any future re-ordering, whereas an anchor to one id does not.
+>
+> Firing these reverts at R2P2 would have done exactly what the guard feared —
 >
 > - resume CAAPH reconciliation of `istiod` **during a 24h measurement window**, and
 > - delete the standing `hipster-shop/loadgenerator` (10 VU, §3) **before** the soaks,
@@ -52,16 +63,32 @@ individual phase issue.
 > | Soak S2 Fluent Bit v5 | ISI-1823 | ⏳ `backlog` |
 > | Soak S3 OTel-Arrow | ISI-1824 | ✅ `cancelled` |
 >
-> 4 of 9 were still open when this was written, so **the gate was NOT met.** On the
-> ordering above the last phase to run is **Soak S2 / ISI-1823**, but that is stated
-> only as context — *the gate is the table, not the name of the last phase*, precisely
-> so that cancelling or inserting a phase cannot invalidate it again. Re-ordering
-> remains ISI-1779's decision; any re-order changes which row runs last but not the gate.
+> 4 of 9 were still open when this was written, so **the gate was NOT met.** Under D14
+> the last row to run is **Soak S2 / ISI-1823** — but *the gate is the table, not the
+> name of the last phase*, so cancelling, re-ordering or inserting a phase cannot
+> invalidate it. A re-order changes which row runs last; it does not change the gate.
 >
-> ⚠️ **One dangling pointer is left and it is not ours to fix:** ISI-1811's own start
-> gate still names cancelled `ISI-1820 (R2P3)`. It fails safe (a cancelled phase never
-> reports clean teardown, and @BigBoss promotion is required regardless), but it should
-> be repointed at **ISI-1819 (R2P2)** by whoever owns the ordering. Raised on ISI-1779.
+> ✅ **Sweep for other gates on a cancelled arm — done 2026-07-23 under ISI-1826, at
+> @BigBoss's request** ("*worth checking whether anything else in the repo still gates on
+> a cancelled arm; the class of bug is 'a gate whose precondition can no longer occur',
+> which reads identically to 'not ready yet'*"). Searched every tracked file under
+> `bench1-v2/` for imperative precondition language (`do not start until`, `wait for`,
+> `blocked by`, `gated on`, `until … reports`) co-occurring with `ISI-1817` / `ISI-1820` /
+> `ISI-1824` / `R1P3` / `R2P3` / `S3`, with the pattern proven against a synthetic
+> positive first. **No live gate has an unsatisfiable precondition.** Every other mention
+> of a cancelled arm is descriptive — findings, probe records, superseded-decision notes.
+>
+> Two benign residues, deliberately left: `results/attr-landing.sh`'s `expected_for()`
+> still carries an `otel-arrow-native` row, and `df-engine-config.tmpl.yaml` still
+> describes the step-7b `metrics=NO-DATA` prediction for R1P3/R2P3. Both are **lookup
+> entries, not gates** — they are consulted only if that engine runs, which it never
+> will. Editing a validated gate script while R2P1 is live is the larger risk.
+>
+> ✅ **ISI-1811's start gate is FIXED** (was: *"do not start until ISI-1820 (R2P3) reports
+> clean teardown"* — unsatisfiable, since a cancelled phase can never report, so S1 would
+> have waited forever while looking correctly parked). Raised from here 2026-07-23T16:48Z;
+> @BigBoss repointed it to **ISI-1819 by id** at 16:51Z. Recorded because the failure mode
+> is invisible: an unsatisfiable gate is indistinguishable from "not ready yet".
 >
 > ⭐ Root cause of this whole family of bugs: "last phase" is a **relative** pointer. The
 > ISI-1820 repoint corrected *which id* it named without re-checking whether the referent
@@ -78,7 +105,7 @@ individual phase issue.
 | **Added** | 2026-07-22, ISI-1815 (R1P1) |
 | **Cluster** | management cluster `capmox-mgmt-prod` (NOT the workload cluster) |
 | **Object** | `HelmReleaseProxy/istiod-observable-otelarrow-x57wm` |
-| **Revert owner** | **ISI-1826** — fires only when all 9 phase issues in the gate table at the top are terminal (`done`/`cancelled`). **Not** R2P2: the soaks run after Round 2. |
+| **Revert owner** | **ISI-1826**, anchored to **`ISI-1823`** (Soak S2, last run of the campaign — D14). Fires only when all 9 phase issues in the gate table at the top are terminal (`done`/`cancelled`) **and** @BigBoss posts a go-ahead on ISI-1826. **Not** R2P2: the soaks run after Round 2. |
 
 ### What was done
 
@@ -152,7 +179,7 @@ so the parity audit has a complete list.
 | **Found** | 2026-07-22, ISI-1815 (R1P1) teardown — it survived `kubectl delete -f apps/hipster-shop-otel-collector.yaml` |
 | **Cluster** | workload cluster `observable-otelarrow`, namespace `hipster-shop` |
 | **Object** | `Deployment/loadgenerator`, created `2026-07-21T15:59:35Z`, 10 VU → `frontend:80` |
-| **Revert owner** | campaign end — **not** any phase teardown. Fires only when all 9 phase issues in the gate table at the top are terminal (`done`/`cancelled`). **Not** R2P2: the soaks run after Round 2 and read this loadgenerator as a constant. |
+| **Revert owner** | campaign end, anchored to **`ISI-1823`** (Soak S2, last run — D14) — **not** any phase teardown. Fires only when all 9 phase issues in the gate table at the top are terminal (`done`/`cancelled`). **Not** R2P2: the soaks run after Round 2 and read this loadgenerator as a constant. |
 
 ### What it is
 
