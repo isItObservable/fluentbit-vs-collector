@@ -103,21 +103,45 @@ delete the old-generation pods rather than adding capacity.
 ./validate-phase.sh ${ENGINE} --window 15m
 ```
 
-All **six** checks must pass. CHECK 4 alone has five preflights (4a–4e), each naming a
-distinct silent failure. **Never start a 120-minute run on a red gate.**
+All **eight** checks (0–7) must pass. CHECK 4 alone has five preflights (4a–4e), each
+naming a distinct silent failure. **Never start a 120-minute run on a red gate.**
 
-## 7b. Attribute landing — per signal, per engine, BEFORE the run
+**CHECK 0 is the ramp manifest for this engine** — it exists, its pod template carries
+`ramp: isi1779`, it has no `ttlSecondsAfterFinished`, it exports to
+`bench-${ENGINE}`, every job sets `--exit-code-on-error 0`, and every job's
+offset + `--run-time` sums to 7200s. `teardown.sh` already refused on a missing
+manifest (G4) — but teardown runs 120 minutes too late to save the run. An assertion
+whose first chance to fire is after the measurement is a post-mortem, not a guard.
+
+**CHECK 7 is step 7b below**, run inside the gate so it cannot be skipped.
+
+## 7b. Attribute landing — MANDATORY, all three arms, BEFORE the run
 
 ```bash
-./results/attr-landing.sh ${ENGINE} --window 15m
+./results/attr-landing.sh ${ENGINE} --window 15m --gate   # CHECK 7 runs this for you
 ./results/attr-landing.sh --selftest      # must reproduce R1P2: spans SAFE, logs UNSAFE
 ```
 
-Prints, for spans / logs / metrics separately, whether `k8s.cluster.name` actually
-lands — i.e. whether a cluster-scoped filter is safe to read for this arm.
+Reports, for spans / logs / metrics separately, whether `k8s.cluster.name` actually
+lands — i.e. whether a cluster-scoped filter is safe to read for this arm — and grades
+the result against the verdict **declared in advance** in `attr-landing.sh`
+(`expected_for()`):
 
-**This is a diagnostic, not a gate.** An `UNSAFE` signal does not stop the run; it
-tells the readout which filter to drop. Not knowing does.
+| Arm | Expected verdict | Where it comes from |
+|---|---|---|
+| `otel-arrow-native` | `spans=SAFE logs=SAFE metrics=SAFE` | off-cluster probe of the frozen df_engine 0.50.0 config, 100% on all three signals (`engines/attr-probe/`) |
+| `fluentbit-v5` | `spans=SAFE logs=UNSAFE metrics=NO-DATA` | measured over the banked R1P2 window: spans 17,858,597/17,858,597 · logs **0**/10,263,977 · metrics 0 series |
+| `otel-collector` | `spans=SAFE logs=UNKNOWN metrics=UNKNOWN` | spans implied by R1P1's CHECK 2 (cluster-filtered and green). Logs/metrics have never been measured — `UNKNOWN` accepts a real reading of either kind, still fails on `NO-DATA`, and the first measurement must be written back into `expected_for()` |
+
+**It is no longer a diagnostic and it is no longer arrow-only** (board answer Q5,
+ISI-1844). A deviation from the expected verdict is a **finding** — the deployed
+pipeline is not the one the expectation was measured on — not a filter to quietly drop.
+`NO-DATA` is its own verdict and is **never** folded into `SAFE`: it is a CHECK 5b
+condition, meaning the signal is not arriving at all.
+
+Why it applies to the frozen arms too: a check changes no engine work, so decision
+**D0** permits it, and the failure it catches is measured rather than theoretical
+(R1P2 below). Cost ~2 min per run.
 
 `k8s.cluster.name` is stamped **by the engine**, by a different processor in every
 arm — so it is a per-engine, per-signal property and must never be inherited from
@@ -151,6 +175,9 @@ If 7b reports anything else, **the deployed pipeline is not the one that was pro
 Treat the discrepancy as a finding and investigate the deployment; do not silently
 drop the filter and read on.
 
+The verdict goes in the register's **Attr-landing (7b)** column, verbatim
+(`spans=… logs=… metrics=…`), for every run including the frozen arms.
+
 ## 8. Register the START — before load
 
 Record in `results/RUN-REGISTER.md`: run ID, engine + image tag, round, start UTC to the
@@ -161,8 +188,18 @@ cannot tell a signal the engine dropped from a signal the filter hid.
 
 ## 9. Timed run — 120 min, both apps simultaneously
 
+```bash
+kubectl apply -f loadtest/ramp-jobs-${ENGINE}.yaml
+```
+
 `LOAD_PHASE=rampup2h`, 50→100→150→200 VU per app, `--exit-code-on-error 0`.
 **No snapshots, no capture loop** (D8) — Dynatrace records continuously.
+
+One ramp manifest **per engine**, and they are not interchangeable:
+`OTEL_EXPORTER_OTLP_ENDPOINT` hardcodes each engine's own Service, so a neighbour's
+ramp applies cleanly and then exports the driver's telemetry into a Service that does
+not exist — silently, while the run looks healthy. CHECK 0 proves the right one exists
+and is correct before the window opens.
 
 ## 10. Register the END — the moment load stops, before any teardown
 

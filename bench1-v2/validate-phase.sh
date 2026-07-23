@@ -6,7 +6,10 @@
 #   ./validate-phase.sh <engine> --window 15m
 #
 # Run this after the smoke traffic and BEFORE the 120-minute timed run. Exit 0
-# means all six checks passed and the phase is comparable to the other two.
+# means all EIGHT checks passed (0-7) and the phase is comparable to the other
+# two. CHECK 0 (ramp manifest) and CHECK 7 (attribute landing) were added
+# 2026-07-23 by ISI-1844: both assert things that used to be asserted too late
+# to help — one at teardown, one by whoever happened to read a diagnostic.
 # Any non-zero exit means the phase is NOT comparable — fix, re-smoke, re-run.
 # Never start a 120-min run on a red gate; an unvalidated phase is worse than a
 # missing one, because it looks like data.
@@ -36,6 +39,11 @@ case "$ENGINE" in
   *) echo "usage: $0 <otel-collector|fluentbit-v5|otel-arrow-native> [--window 15m]" >&2; exit 2 ;;
 esac
 
+# Paths are resolved against the SCRIPT's directory, not the caller's cwd — the
+# gate reads repo files (the ramp manifest, attr-landing.sh) and a cwd-relative
+# path turns "run it from the wrong directory" into a check that silently
+# reports a missing file.
+ROOT="$(cd "$(dirname "$0")" && pwd)"
 ENGINE_NS="${ENGINE_NS:-default}"
 APP_NS=(otel-demo hipster-shop)
 # Every DQL query in this gate is scoped by cluster (board directive D12).
@@ -106,6 +114,103 @@ print(int(total))' "$1" "$2" "${3:-}" "${4:-}" 2>/dev/null || echo 0
 
 say "ISI-1779 B1-v2 phase validation gate"
 say "engine=$ENGINE  engine-ns=$ENGINE_NS  window=$WINDOW  $(date -u +%FT%TZ)"
+
+# ---------------------------------------------------------------------------
+# CHECK 0 — the ramp manifest for THIS engine exists and is correct
+# ---------------------------------------------------------------------------
+# Added 2026-07-23 (ISI-1844) after Alfred's config review found `loadtest/`
+# shipped ramps for two engines only. The R1P3 abort HID it: the run died at
+# this gate, before the step that would have applied a file that is not there.
+#
+# WHY IT IS ASSERTED HERE AND NOT AT TEARDOWN.
+#   teardown.sh does fail on a missing manifest path (G4). But teardown runs
+#   AFTER the 120-minute window, when the damage — an unloaded or wrongly-loaded
+#   run — is already in the bank. An assertion whose first opportunity to fire is
+#   after the measurement is not a guard, it is a post-mortem. A step that did
+#   not run must never render as a step that passed (ISI-1830).
+#
+# It checks CORRECTNESS, not just existence, because the failure this actually
+# prevents is subtler than a missing file: the collector ramp *applies cleanly*
+# in phase 3 and exports the driver's own telemetry into a Service that no
+# longer exists. The OTLP exporter retries into a black hole in silence and the
+# run looks healthy the whole way through.
+hdr "CHECK 0: ramp manifest for $ENGINE (before the window, not at teardown)"
+RAMP="$ROOT/loadtest/ramp-jobs-${ENGINE}.yaml"
+RAMP_REL="loadtest/ramp-jobs-${ENGINE}.yaml"
+c0_detail=""
+if [[ ! -f "$RAMP" ]]; then
+  c0_detail="$RAMP_REL DOES NOT EXIST"
+  say "  $RAMP_REL is MISSING."
+  say "  -> Phase $ENGINE has no load generator. The other engines' ramps CANNOT be"
+  say "     reused: OTEL_EXPORTER_OTLP_ENDPOINT hardcodes each engine's own Service."
+  say "     Author it from an existing one (single s/<engine>/${ENGINE}/g) and re-run."
+else
+  c0_detail=$(RAMP="$RAMP" ENGINE="$ENGINE" python3 - <<'PY'
+import os, sys, yaml, re
+ramp, engine = os.environ["RAMP"], os.environ["ENGINE"]
+want_ep = "bench-%s.default.svc.cluster.local:4317" % engine
+bad, jobs = [], 0
+for d in yaml.safe_load_all(open(ramp)):
+    if not d or d.get("kind") != "Job":
+        continue
+    jobs += 1
+    name = d["metadata"]["name"]
+    tpl  = d["spec"]["template"]
+    # 1 — ramp label on the POD TEMPLATE: End is read off the PODS, not the Jobs.
+    if (tpl.get("metadata", {}).get("labels") or {}).get("ramp") != "isi1779":
+        bad.append("%s: pod template lacks ramp=isi1779 (End would be unrecoverable)" % name)
+    # 2 — no TTL: it would GC the pods holding .state.terminated.finishedAt.
+    if "ttlSecondsAfterFinished" in d["spec"]:
+        bad.append("%s: ttlSecondsAfterFinished set (GCs the End timestamp)" % name)
+    # 3 — engine label + endpoint point at THIS engine, not a neighbour's Service.
+    if (d["metadata"].get("labels") or {}).get("benchmark.engine") != engine:
+        bad.append("%s: benchmark.engine label != %s" % (name, engine))
+    spec = tpl["spec"]
+    # Read the two drivers' options as TOKENS, not as a regex over dumped YAML.
+    # The hipster driver passes `--run-time 7200s` as two separate list items and
+    # the otel-demo driver passes LOCUST_RUN_TIME=7200s as an env var: a text
+    # scan that happens to match one of them reports the OTHER as "not found".
+    # (It did, on the first cut of this check — four false FAILs on three
+    # healthy manifests. A gate that cries wolf gets bypassed on run day.)
+    env, toks = {}, []
+    for c in (spec.get("initContainers") or []) + (spec.get("containers") or []):
+        toks += [str(x) for x in (c.get("command") or [])] + [str(x) for x in (c.get("args") or [])]
+        for e in c.get("env") or []:
+            env[e.get("name")] = str(e.get("value"))
+    def opt(flag, envkey):
+        for i, t in enumerate(toks):
+            if t == flag and i + 1 < len(toks): return toks[i + 1]
+            if t.startswith(flag + "="):        return t.split("=", 1)[1]
+        return env.get(envkey)
+    for ep in re.findall(r"bench-[a-z0-9-]+\.default\.svc\.cluster\.local:4317",
+                         " ".join(toks + list(env.values()))):
+        if ep != want_ep:
+            bad.append("%s: exports to %s, not %s" % (name, ep, want_ep))
+    # 4 — exit-code-on-error 0, or a failed Job nulls completionTime.
+    if opt("--exit-code-on-error", "LOCUST_EXIT_CODE_ON_ERROR") != "0":
+        bad.append("%s: --exit-code-on-error/LOCUST_EXIT_CODE_ON_ERROR is not 0" % name)
+    # 5 — offset + run-time == 7200s, so all eight stop at one wall clock.
+    off = 0
+    for c in spec.get("initContainers") or []:
+        m = re.search(r"sleep\s+(\d+)", " ".join(str(x) for x in (c.get("command") or [])))
+        if m: off = int(m.group(1))
+    rt = opt("--run-time", "LOCUST_RUN_TIME")
+    if not rt or not re.fullmatch(r"\d+s?", rt):
+        bad.append("%s: no usable --run-time/LOCUST_RUN_TIME (got %r)" % (name, rt))
+    elif off + int(rt.rstrip("s")) != 7200:
+        bad.append("%s: offset %ds + run-time %s != 7200s" % (name, off, rt))
+if jobs == 0:
+    bad.append("manifest defines NO Jobs")
+print("; ".join(bad))
+PY
+) || c0_detail="preflight parse failed"
+fi
+if [[ -z "$c0_detail" ]]; then
+  ok 0 ramp-manifest "$RAMP_REL present and correct (pod-template ramp label, no TTL, endpoint=bench-${ENGINE}, exit-code-on-error 0, offsets sum to 7200s)"
+else
+  say "  $c0_detail"
+  bad 0 ramp-manifest "$c0_detail"
+fi
 
 # ---------------------------------------------------------------------------
 # CHECK 1 — apps healthy
@@ -693,6 +798,32 @@ if [[ $c6_fail -eq 0 ]]; then
   ok 6 pod-census "$(printf '%s\n' "$census" | awk '{printf "%s@%s ", $1, $2}')pods=$EXPECTED_REPLICAS — copy into RUN-REGISTER.md and re-capture at End"
 else
   bad 6 pod-census "engine pod count != expected replicas ($EXPECTED_REPLICAS) — do not start a run whose pod identity cannot be pinned"
+fi
+
+# ---------------------------------------------------------------------------
+# CHECK 7 — attribute landing per signal, against a DECLARED expectation
+# ---------------------------------------------------------------------------
+# Runbook step 7b. It was a diagnostic someone was asked to run and read; the
+# board made it mandatory on all three arms (ISI-1844 / Q5), so it runs inside
+# the gate where it cannot be skipped, and it is graded against the expectation
+# declared in advance in results/attr-landing.sh — not by whoever reads it.
+#
+# Cost ~2 min. It changes no engine work, so decision D0 permits it on the
+# frozen arms too, and the failure it catches is measured rather than
+# theoretical: R1P2 landed k8s.cluster.name on 100% of spans and 0 of 2,782,904
+# logs, and its dashboard log tiles read ZERO for an engine that was delivering
+# millions of records.
+#
+# NO-DATA is its own verdict and is never folded into SAFE.
+hdr "CHECK 7: attribute landing vs declared expectation (step 7b)"
+ATTR="$ROOT/results/attr-landing.sh"
+c7_out=$("$ATTR" "$ENGINE" --window "$WINDOW" --gate 2>&1); c7_rc=$?
+while read -r line; do say "  $line"; done <<< "$c7_out"
+C7_VERDICT=$(grep -o 'verdict:.*(==' <<< "$c7_out" | sed 's/verdict: *//; s/ *(==//' | head -1)
+if [[ $c7_rc -eq 0 ]]; then
+  ok 7 attr-landing "${C7_VERDICT:-verdict recorded} — matches declared expectation; COPY INTO THE RUN-REGISTER ROW"
+else
+  bad 7 attr-landing "attr-landing.sh exited $c7_rc — measured verdict deviates from the declared expectation (a finding, not a filter to drop)"
 fi
 
 # ---------------------------------------------------------------------------
