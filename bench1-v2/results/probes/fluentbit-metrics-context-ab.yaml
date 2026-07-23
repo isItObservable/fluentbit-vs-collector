@@ -1,0 +1,154 @@
+# ISI-1816 — A/B probe: does the metrics-signal content_modifier need `context:`?
+#
+# Run on a SCRATCH cluster (observable-agentsandbox), never on the measured one:
+# adding a pod to observable-otelarrow perturbs a measured window, and restarting
+# the engine there would replace the pod and VOID the run.
+#
+# Output is `stdout`, not `opentelemetry`, for two reasons: the failure is on an
+# INPUT-side processor (scope=input) entirely upstream of the output plugin, so
+# stdout reproduces it faithfully; and it keeps synthetic probe metrics out of
+# the Dynatrace tenant during a measured window.
+#
+#   kubectl apply -f fluentbit-metrics-context-ab.yaml
+#   kubectl port-forward -n fbscratch deploy/fb-a 14318:4318 &
+#   curl -X POST localhost:14318/v1/metrics -H 'Content-Type: application/json' \
+#        --data-binary @otlp-metrics-probe.json      # x5, expect 201
+#   kubectl port-forward -n fbscratch deploy/fb-a 12020:2020 &
+#   curl -s localhost:12020/api/v2/metrics/prometheus | grep processor_
+#
+# RESULT 2026-07-23, fluent/fluent-bit:5.0.9:
+#   fb-a (no context)  stage 0: 5 invocations / 5 errors (100%)
+#                      stages 1,2,3: no counters -- never reached
+#                      input_records 0 · output_proc_records 0
+#   fb-b (context)     stages 0,1,2: 5 invocations / 0 errors
+#                      stage 3 cumulative_to_delta: 5 invocations
+#                      input_records 5 · output_proc_records 5
+#
+# => our config defect, NOT a Fluent Bit limitation.
+# CAVEAT: counters prove the chain completes and exports; they do NOT prove the
+# stamped VALUES are right (stdout does not render cmetrics). Verify in Dynatrace.
+apiVersion: v1
+kind: Namespace
+metadata: { name: fbscratch }
+---
+# CONFIG A — byte-faithful copy of the metrics block from engines/fluentbit-v5.yaml.
+# Output swapped to stdout ON PURPOSE: the failure is on an INPUT-side processor
+# (scope=input, owner=opentelemetry.0), entirely upstream of the output plugin,
+# so stdout reproduces it faithfully AND avoids pushing synthetic test metrics
+# into the Dynatrace tenant during a measured window.
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: fb-a, namespace: fbscratch }
+data:
+  fluent-bit.yaml: |
+    service:
+      flush: 1
+      daemon: off
+      log_level: info
+      http_server: on
+      http_listen: 0.0.0.0
+      http_port: 2020
+    pipeline:
+      inputs:
+        - name: opentelemetry
+          listen: 0.0.0.0
+          port: 4318
+          http2: on
+          tag: otlp
+          processors:
+            metrics:
+              - name: content_modifier
+                action: upsert
+                key: k8s.cluster.name
+                value: observable-otelarrow
+              - name: content_modifier
+                action: upsert
+                key: benchmark.engine
+                value: fluentbit-v5
+              - name: content_modifier
+                action: upsert
+                key: benchmark.run
+                value: isi1779-b1v2
+              - name: cumulative_to_delta
+      outputs:
+        - name: stdout
+          match: '*'
+---
+# CONFIG B — identical, plus `context: otel_resource_attributes` on the three
+# content_modifier stages. This is the hypothesis under test.
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: fb-b, namespace: fbscratch }
+data:
+  fluent-bit.yaml: |
+    service:
+      flush: 1
+      daemon: off
+      log_level: info
+      http_server: on
+      http_listen: 0.0.0.0
+      http_port: 2020
+    pipeline:
+      inputs:
+        - name: opentelemetry
+          listen: 0.0.0.0
+          port: 4318
+          http2: on
+          tag: otlp
+          processors:
+            metrics:
+              - name: content_modifier
+                context: otel_resource_attributes
+                action: upsert
+                key: k8s.cluster.name
+                value: observable-otelarrow
+              - name: content_modifier
+                context: otel_resource_attributes
+                action: upsert
+                key: benchmark.engine
+                value: fluentbit-v5
+              - name: content_modifier
+                context: otel_resource_attributes
+                action: upsert
+                key: benchmark.run
+                value: isi1779-b1v2
+              - name: cumulative_to_delta
+      outputs:
+        - name: stdout
+          match: '*'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: fb-a, namespace: fbscratch }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: fb-a } }
+  template:
+    metadata: { labels: { app: fb-a } }
+    spec:
+      containers:
+        - name: fb
+          image: fluent/fluent-bit:5.0.9
+          args: ["-c","/cfg/fluent-bit.yaml"]
+          ports: [{containerPort: 4318},{containerPort: 2020}]
+          volumeMounts: [{name: cfg, mountPath: /cfg}]
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: 300m, memory: 256Mi } }
+      volumes: [{name: cfg, configMap: {name: fb-a}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: fb-b, namespace: fbscratch }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: fb-b } }
+  template:
+    metadata: { labels: { app: fb-b } }
+    spec:
+      containers:
+        - name: fb
+          image: fluent/fluent-bit:5.0.9
+          args: ["-c","/cfg/fluent-bit.yaml"]
+          ports: [{containerPort: 4318},{containerPort: 2020}]
+          volumeMounts: [{name: cfg, mountPath: /cfg}]
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: 300m, memory: 256Mi } }
+      volumes: [{name: cfg, configMap: {name: fb-b}}]

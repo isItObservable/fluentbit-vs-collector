@@ -133,15 +133,55 @@ data:
                 action: delete
                 key: log.file.path
             metrics:
+              # ==================================================================
+              # `context:` IS MANDATORY ON THE METRICS SIGNAL. Added 2026-07-23.
+              # ------------------------------------------------------------------
+              # NOT APPLIED TO R1-P2-fluentbit. That run (08:34:49Z -> 10:34:49Z)
+              # executed the version WITHOUT these three `context:` lines and
+              # delivered NO app-OTLP metrics at all. This fix is effective from
+              # Round 2 onward; do not back-date it onto R1P2's numbers.
+              #
+              # WHY: on logs and traces, content_modifier's default context is a
+              # valid target, so those stages run clean (0 errors, 443,941 trace
+              # invocations in R1P2). On METRICS there is no such default -- the
+              # stage errors on EVERY batch and the chain aborts at the FIRST
+              # processor, so `cumulative_to_delta` is never reached and nothing
+              # is exported. It is silent at log_level: info; the only evidence
+              # anywhere is one counter on :2020.
+              #
+              # PROVEN A/B, fluent/fluent-bit:5.0.9, on a scratch instance on
+              # observable-agentsandbox (NOT the measured cluster -- zero
+              # perturbation of the R1P2 window), 5 identical OTLP/HTTP payloads,
+              # output stdout so no synthetic data reached the tenant:
+              #
+              #   WITHOUT context:  stage 0 -> 5 invocations / 5 ERRORS (100%)
+              #                     stages 1,2,3 no counters -- NEVER REACHED
+              #                     input_records 0 · output_proc_records 0
+              #   WITH context:     stages 0,1,2 -> 5 invocations / 0 errors
+              #                     stage 3 cumulative_to_delta -> 5 invocations
+              #                     input_records 5 · output_proc_records 5
+              #
+              # So this is OUR CONFIG DEFECT, not a Fluent Bit limitation. Do not
+              # report it as "Fluent Bit cannot do metrics".
+              #
+              # STILL TO VERIFY when this is first run for real: the counters
+              # prove the chain completes and exports, they do NOT prove the
+              # stamped VALUES are correct (the stdout plugin does not render
+              # cmetrics). Confirm the three attributes actually appear on the
+              # datapoints in Dynatrace before trusting a Round 2 metrics tile.
+              # ==================================================================
               - name: content_modifier
+                context: otel_resource_attributes
                 action: upsert
                 key: k8s.cluster.name
                 value: observable-otelarrow
               - name: content_modifier
+                context: otel_resource_attributes
                 action: upsert
                 key: benchmark.engine
                 value: fluentbit-v5
               - name: content_modifier
+                context: otel_resource_attributes
                 action: upsert
                 key: benchmark.run
                 value: isi1779-b1v2

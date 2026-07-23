@@ -1,0 +1,6 @@
+{"resourceMetrics":[{"resource":{"attributes":[
+  {"key":"service.name","value":{"stringValue":"scratch-probe"}},
+  {"key":"host.name","value":{"stringValue":"fbscratch"}}]},
+ "scopeMetrics":[{"scope":{"name":"probe"},"metrics":[
+  {"name":"probe.counter","unit":"1","sum":{"aggregationTemporality":2,"isMonotonic":true,
+   "dataPoints":[{"startTimeUnixNano":"1784798484000000000","timeUnixNano":"1784798544000000000","asInt":"42"}]}}]}]}]}
