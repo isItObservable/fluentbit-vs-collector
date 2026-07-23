@@ -2,7 +2,22 @@
 
 Two separate things live here. Read the second one even if you don't care about the first.
 
-## 1. The smoke run (Q1 step 1)
+## 1. The smoke run (Q1 step 1) — RESULT: SURVIVED
+
+**41m41s** (engine start `14:07:46Z` → watch end `14:49:27Z`), **0 restarts, 0 panic lines**,
+8878 OTLP requests started and 8878 completed, demo fully up at 22 pods, 650–910 spans/60s
+sustained. **19/19 gate PASS on the END snapshot.** Full output in `VERDICT.txt`.
+
+R1P3 had all four cores dead **30 seconds** after start, so this ran **~83x longer** than
+the failure it was built to reproduce.
+
+The zero-panic assertion was checked against a positive control rather than taken at face
+value: the engine log is 27 real lines, a word that *should* appear matches 14 of them, and
+the panic-class pattern matches 0. A failed `kubectl logs` would also have grepped to 0.
+
+⚠️ **This does NOT establish that excluding metrics fixed the engine — see the confound
+below.** Two of the three shipped changes plausibly bear on the majority panic.
+
 
 Corrected `df_engine` 0.50.0 + `otel-demo` 0.40.10 on `observable-agentsandbox`, off the
 benchmark cluster. `watcher.log` samples readiness, restarts, panic lines and sink
