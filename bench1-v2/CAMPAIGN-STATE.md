@@ -3,10 +3,18 @@
 This file tracks mutations made to clusters *outside* this repo for the duration of
 the ISI-1779 B1-v2 benchmark campaign. Each one leaves a cluster in a non-default
 state that no `kubectl delete -f` in this repo will undo. **Revert every row below
-after the last phase (R2P3) completes**, before closing ISI-1779.
+after the last phase completes**, before closing ISI-1779.
 
 Tracked as **ISI-1826** (backlog, do-not-self-start) so it cannot be lost with an
 individual phase issue.
+
+> ⚠️ **The last phase is now R2P2 (ISI-1819), not R2P3.** Updated 2026-07-23 under
+> ISI-1820. The OTel-Arrow arm is DNF (ISI-1849) and both of its remaining phases are
+> cancelled — R1P3/ISI-1817, R2P3/ISI-1820 and soak S3/ISI-1824. Every "R2P3" that
+> appeared in this file as a *revert owner* has been repointed at R2P2, because a
+> cancelled phase tears nothing down: leaving the owner as R2P3 would have orphaned
+> the CAAPH un-pause and the leftover-loadgenerator cleanup with no phase left to run
+> them. Campaign order is now **R1P1 → R1P2 → R2P1 → R2P2 (last)**.
 
 ---
 
@@ -17,7 +25,7 @@ individual phase issue.
 | **Added** | 2026-07-22, ISI-1815 (R1P1) |
 | **Cluster** | management cluster `capmox-mgmt-prod` (NOT the workload cluster) |
 | **Object** | `HelmReleaseProxy/istiod-observable-otelarrow-x57wm` |
-| **Revert owner** | last phase of the campaign (R2P3) |
+| **Revert owner** | last phase of the campaign — **R2P2 (ISI-1819)** since ISI-1820 cancelled R2P3 |
 
 ### What was done
 
@@ -91,7 +99,7 @@ so the parity audit has a complete list.
 | **Found** | 2026-07-22, ISI-1815 (R1P1) teardown — it survived `kubectl delete -f apps/hipster-shop-otel-collector.yaml` |
 | **Cluster** | workload cluster `observable-otelarrow`, namespace `hipster-shop` |
 | **Object** | `Deployment/loadgenerator`, created `2026-07-21T15:59:35Z`, 10 VU → `frontend:80` |
-| **Revert owner** | campaign end (R2P3), **not** any phase teardown |
+| **Revert owner** | campaign end — **R2P2 (ISI-1819)** since ISI-1820 cancelled R2P3 — **not** any phase teardown |
 
 ### What it is
 
@@ -101,10 +109,11 @@ methodology."** `grep -c 'name: loadgenerator'` returns `0` on all three phase m
 and this object's `last-applied-configuration` carries none of the overlay's kustomize
 labels. It was applied by hand before the campaign started.
 
-### Why it must be left alone until R2P3
+### Why it must be left alone until the campaign's last phase (R2P2)
 
 Because it is in no phase manifest, **teardown never removes it and redeploy never
-recreates it** — so it is present, unchanged, for all six runs. That makes it a constant,
+recreates it** — so it is present, unchanged, for every run in the campaign (four, not
+six: the two OTel-Arrow phases are cancelled). That makes it a constant,
 and constants cancel in an engine-vs-engine comparison. Deleting it at a phase boundary is
 the harmful move: R1P1 would have run with ~10 extra VU of hipster-shop load and every
 later phase without, manufacturing exactly the asymmetry the overlay comment warns about.

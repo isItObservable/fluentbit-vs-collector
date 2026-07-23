@@ -67,6 +67,12 @@ down" was rejected because it would void two valid, irreplaceable results.
 
 ### Q2 — Arrow arm delivers logs and traces only; metrics tiles are empty BY DESIGN
 
+> 🛑 **MOOT — the arrow arm is DNF and both its phases are cancelled** (ISI-1849 / ISI-1817 /
+> ISI-1820, 2026-07-23). This decision is kept as the record of what was *decided and built*,
+> not of what was measured: the arm died at the validation gate twice and produced no run, so
+> nothing below was ever exercised under timed load. Read it as history. The one row that
+> must **not** be applied as written is **Dashboard caveat** — see its superseding note.
+
 > **Upstream:** reported as [open-telemetry/otel-arrow#3561](https://github.com/open-telemetry/otel-arrow/issues/3561) (2026-07-23, `bug` /
 > `triage:deciding`). The `boo` metrics-encoder panic is separately root-caused upstream by
 > draft PR #2984, unmerged at our build SHA. ⚠️ The `DictionaryKeyOverflowError` is **not**
@@ -84,7 +90,7 @@ down" was rejected because it would void two valid, irreplaceable results.
 | **What the other two arms do** | Both carry metrics through a `cumulativetodelta` conversion and export them to DT. |
 | **Relation to D0** | The arrow arm had no banked R1 row, so this config change was open. It is not a workaround to preserve an old result; it is the honest fix that makes the arm runnable while exposing what version 0.50.0 can and cannot do. |
 | **attr-landing verdict** | `results/attr-landing.sh --gate` must predict `metrics=NO-DATA` for R1P3 and R2P3. `NO-DATA` is its own verdict and must never fold into `SAFE` ("did not run" ≠ "passed"). |
-| **Dashboard caveat** | R1P3/R2P3 metrics tiles will be empty or report zero. **A note must appear next to those tiles** (not only in this file) stating: *"Metrics empty by design — df_engine 0.50.0 metrics encoder panics on this workload; metrics are routed to noop."* |
+| **Dashboard caveat** | ~~R1P3/R2P3 metrics tiles will be empty or report zero, and must carry a "*metrics empty by design*" note.~~ **SUPERSEDED 2026-07-23 (ISI-1820).** The arrow arm never ran, so **every** arrow tile is empty — metrics, logs and traces alike — and the reason is DNF, not design. Do **not** put "empty by design" next to an arrow tile: on camera that reads as *the arm ran and chose to drop metrics*, which is false. The correct note is *"OTel-Arrow did not complete a run — see `results/r1p3-dnf/DNF.md`."* Better still, remove the arrow series from the comparison dashboard entirely rather than showing an empty column. |
 | **Camera sentence** | *"The Arrow engine carries logs and traces in this benchmark. Metrics are routed to a noop exporter — by construction, not by failure. Version 0.50.0's metrics encoder panics on the cumulative-Sum workload this cluster produces, and it has no cumulative-to-delta converter. We are treating that as the finding it is: a production-readiness gap that this version has not yet closed."* |
 
 ---
@@ -180,7 +186,13 @@ breakdown when one signal (arrow metrics) is never delivered by construction.
 
 ## Status Summary
 
-| Item | Collector | Fluent Bit v5 | Arrow native | Status |
+> 🛑 **The "Arrow native" column below describes a build, not a measurement.** The arm is DNF
+> (ISI-1849) and both phases are cancelled (R1P3/ISI-1817, R2P3/ISI-1820), so no arrow value
+> in this table was ever confirmed under timed load. The **only two engines in the campaign
+> readout are Collector and Fluent Bit v5** — every arrow-vs-other comparison here is a
+> comparison of *configurations*, never of results.
+
+| Item | Collector | Fluent Bit v5 | Arrow native (DNF — config only) | Status |
 |------|-----------|---------------|--------------|--------|
 | Step 1: static attrs | ✅ | ✅ | ✅ | Closed |
 | Step 2: severity normalise | ✅ conditional | ✅ conditional | ⚠️ constant write | **Disclosed P-SEV** |
