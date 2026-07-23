@@ -43,6 +43,31 @@ Two consequences:
 Grounding: all 4 cores were dead **30 seconds** after start in R1P3 (engine up 10:53:29,
 last panic 10:53:59). Read the smoke's elapsed time against that 30s, not against 120 min.
 
+## 1b. `config-provenance.sh` — is the engine running the COMMITTED config?
+
+Run this **before trusting any smoke or benchmark result**. "The repo is correct" and "the
+cluster is running what the repo says" are two independent assertions, and the second
+decays every time someone `kubectl edit`s. Here the smoke ConfigMap is even *named*
+`df-nodeproof-config` — a leftover from the node-proof work — so the name is actively
+misleading and only the content settles it.
+
+**PROVENANCE VERIFIED**: all 9 nodes and the full connection graph are identical to
+`engines/df-engine-config.tmpl.yaml`; the only deviation is the exporter destination
+(`http://sink.dfsmoke...:4318` vs the tenant), which is the intended, disclosed smoke swap
+and is redacted before comparison.
+
+It compares the **semantic node graph, not the text**, for two reasons that both bit me:
+
+- kubectl re-serialises the stored copy (comments stripped, flow maps expanded to block
+  style), so a plain `diff` is ~100 lines of pure noise.
+- `grep -c` is worse than useless — the template's *header comments* mention
+  `processor:type_router` and `min_size: 1000`, so a naive count reports
+  `template=2 deployed=1` and reads as a mismatch when nothing is wrong.
+
+Verified against a known-bad input too: flipping `max_batch_duration` to 3s in the template
+yields 2 FAILs and **exit 1** (both gates' exit codes were checked to propagate, not just
+their printed verdicts — a gate that prints FAIL and exits 0 silently passes automation).
+
 ## 2. `engine-counters.sh` — the arrow arm has an engine-side gate after all
 
 ISI-1817 recorded *"df_engine's admin port serves HTML, so there are no engine-side
