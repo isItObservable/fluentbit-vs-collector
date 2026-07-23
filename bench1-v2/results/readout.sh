@@ -120,10 +120,63 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|1 pod, full-window coverage")
 ')
 echo "$verdict" | sed 's/^\(PASS\|FAIL\)|/CENSUS \1 — /'
 
+# ---------------------------------------------------------------------------
+# COVERAGE-GAP DISCRIMINATOR — added 2026-07-23 (ISI-1816)
+# ---------------------------------------------------------------------------
+# D12 says a failed census VOIDS the run. That is right for the failure it was
+# written against — a pod REPLACED mid-window, which the restarts metric cannot
+# see. But the census measures metric COVERAGE, and coverage has a second,
+# entirely different cause: nobody was COLLECTING.
+#
+# Measured live during R1P2: the engine pod's coverage read 93.10% (54/58) with
+# two nulls mid-window. The pod was never replaced — same name, same
+# creationTimestamp, 0 restarts. Checking every pod on the cluster settled it:
+# **all 112 pods shared the identical mid-window gap**, i.e. a cluster-wide
+# Dynatrace k8s collection hiccup of ~2 minutes.
+#
+# At ~2 minutes over a 120-minute window that costs ~1.6% and nothing else. But
+# a 15-minute collection outage would drag a PERFECTLY VALID run under the 90%
+# line and void two hours of cluster time for a reason that has nothing to do
+# with the engine. That is a false negative in the validity gate, and it is
+# silent — low coverage looks identical either way.
+#
+# The discriminator is cheap: a pod-lifetime gap belongs to ONE pod, a
+# collection gap is shared by ALL of them. This never auto-passes a failed
+# census — D12 stands — it just tells you which of the two you are looking at,
+# so the decision to void is made on evidence instead of on a percentage.
+if [[ "$verdict" != PASS* ]] || printf '%s' "$census" | grep -q '"coverage_pct": *[0-9]*\.[0-9]'; then
+  shared=$(dql "timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.pod.name}, $TF, filter: k8s.cluster.name == \"$CLUSTER\"
+| fieldsAdd nulls = arraySize(mem) - arraySize(arrayRemoveNulls(mem))
+| summarize pods = count(), with_gap = countIf(nulls > 0)")
+  SH="$shared" python3 -c '
+import json, os
+rows = json.loads(os.environ["SH"] or "[]")
+if not rows:
+    print("  gap discriminator: no cluster-wide data returned"); raise SystemExit
+r = rows[0]
+pods = int(float(r.get("pods") or 0)); gap = int(float(r.get("with_gap") or 0))
+if pods and gap == pods:
+    print("  gap discriminator: ALL %d pods on the cluster show a gap in this window" % pods)
+    print("    -> COLLECTION outage, NOT a pod-lifetime gap. The engine pod was not")
+    print("       replaced. Confirm pod identity with pod-census.sh before voiding.")
+elif gap:
+    print("  gap discriminator: %d of %d cluster pods show a gap" % (gap, pods))
+    print("    -> partial. If the engine pod is among the few, suspect its lifetime;")
+    print("       if most pods are affected, suspect collection.")
+else:
+    print("  gap discriminator: no other pod on the cluster has a gap")
+    print("    -> a gap here would be specific to the engine pod. Treat as a")
+    print("       LIFETIME problem and check pod identity immediately.")
+'
+fi
+
 if [[ "$verdict" == FAIL* ]]; then
   echo
   echo "REFUSING TO PRINT NUMBERS. A failed census VOIDS the run (D12) — it gets"
-  echo "re-run, not reported with a caveat. Fix or re-run the phase."
+  echo "re-run, not reported with a caveat."
+  echo "Read the gap discriminator above FIRST: if the whole cluster shares the gap,"
+  echo "this is a collection outage and the run may well be valid — confirm the pod"
+  echo "name and creationTimestamp are unchanged before throwing the window away."
   exit 1
 fi
 
