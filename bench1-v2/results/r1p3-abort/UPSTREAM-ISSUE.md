@@ -1,4 +1,17 @@
 <!--
+⚠️ SUPERSEDED FOR FILING (2026-07-23). The repo uses an ISSUE FORM:
+   https://github.com/open-telemetry/otel-arrow/issues/new?template=bug_report.yaml
+   Use UPSTREAM-ISSUE-FORM.md in this directory, which is split into the form's 11 fields.
+   This file is kept for the fuller narrative and the evidence trail.
+
+⚠️ AND THE DUPLICATE SEARCH CHANGED THE FINDINGS. This file reports the `boo` panic as an
+   unknown bug. It is NOT: draft PR #2984 root-causes it (shared protobuf cursor =>
+   inconsistent column row counts), open + unmerged, so absent from main @ 7502e7d. The
+   genuinely unreported bug is the DictionaryKeyOverflowError (0 search hits), which was
+   the majority failure. UPSTREAM-ISSUE-FORM.md reflects this; this file does not.
+-->
+
+<!--
 ISI-1843 — READY TO FILE against open-telemetry/otel-arrow. NOT YET FILED.
 
 BLOCKED ON A CREDENTIAL, tested rather than assumed: both GitHub PATs available
