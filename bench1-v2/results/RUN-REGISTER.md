@@ -342,6 +342,7 @@ ends, count == expected replicas.**
 | `R1-P2-fluentbit` | End | `bench-fluentbit-v5-67978b69d8-h8st4` | `2026-07-23T08:16:26Z` | `observable-otelarrow-workers-k5hgq-lz9mb` | 0 | `MATCH` |
 | `R1-P3-arrow` | — | `DNF` | `DNF` | `DNF` | `DNF` | **`DNF`** — no window exists to take a census over. See `results/r1p3-dnf/DNF.md`. |
 | `R2-P1-collector` | Start | `bench-otel-collector-collector-cbd58d94c-qg4mh` | `2026-07-23T16:44:09Z` | `observable-otelarrow-workers-k5hgq-9r662` | 0 | baseline — pods=1, expected replicas=1, cluster `observable-otelarrow` |
+| `R2-P1-collector` | Mid `T+8m23s` (`2026-07-23T17:09:36Z`) | `bench-otel-collector-collector-cbd58d94c-qg4mh` | `2026-07-23T16:44:09Z` | `observable-otelarrow-workers-k5hgq-9r662` | 0 | identity **unchanged from Start** — pods=1, expected=1. Not a D12 requirement (Start + End are); recorded because it bounds *when* a replacement could have happened if the End census fails, and because catching a void at T+8m costs 8 minutes instead of 120. |
 | `R2-P1-collector` | End | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ |
 | `R2-P2-fluentbit` | Start | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ |
 | `R2-P2-fluentbit` | End | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ |

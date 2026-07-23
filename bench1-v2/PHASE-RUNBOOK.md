@@ -209,6 +209,16 @@ ramp applies cleanly and then exports the driver's telemetry into a Service that
 not exist — silently, while the run looks healthy. CHECK 0 proves the right one exists
 and is correct before the window opens.
 
+**During the run, 4 of the 8 ramp pods sit in `Pending` — that is the design, not a
+fault.** The VU steps are staggered by an init container `sleep 0 / 1800 / 3600 / 5400`,
+and a pod whose init container is still running reports `phase: Pending` with
+`reason: ContainersNotInitialized`. So a `kubectl get pods` at T+10m shows 2 Running and
+6 Pending, at T+40m 4 and 4, and only after T+90m are all 8 Running. Read the *offset*,
+not the phase: offset + `--run-time` sums to 7200 s on every job, so all eight stop at
+the same instant. **Do not "fix" a Pending ramp pod and do not re-apply the manifest** —
+deleting one drops a VU tier out of the load profile and makes the phase
+non-comparable, which voids the run exactly as a mid-run engine-pod replacement does.
+
 ## 10. Register the END — the moment load stops, before any teardown
 
 Take it from Kubernetes, not from a wall clock:
