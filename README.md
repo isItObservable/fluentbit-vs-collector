@@ -1,8 +1,8 @@
-# Fluent Bit v5 vs OpenTelemetry Collector vs OTel-Arrow — a reproducible benchmark
+# Fluent Bit v5 vs OpenTelemetry Collector — a reproducible benchmark
 
 <img src="image/logo.png" width="120" align="right" alt="Is It Observable">
 
-**What this measures:** how much CPU and memory three different telemetry
+**What this measures:** how much CPU and memory two different telemetry
 engines burn to ingest and forward the *same* traces, logs and metrics from the
 *same* two applications to the *same* Dynatrace tenant, over an identical
 120-minute load profile.
@@ -25,12 +25,20 @@ describes an "edge → gateway hop" is describing the old one.
 
 | Arm | Engine | Image |
 |-----|--------|-------|
-| **P1** | OpenTelemetry Collector (contrib) | `otel/opentelemetry-collector-contrib:0.154.0` |
+| **P1** | OpenTelemetry Collector (contrib) | `otel/opentelemetry-collector-contrib:0.157.0` |
 | **P2** | Fluent Bit v5 | `fluent/fluent-bit:5.0.9` |
-| **P3** | OTel-Arrow native (`df_engine` / otap-dataflow, Rust) | `ghcr.io/isitobservable/df_engine:0.50.0` |
 
-One arm runs at a time. A round is all three arms; the campaign is two rounds,
-so every number gets a replication.
+One arm runs at a time. A round is both arms; the campaign is two rounds, so
+every number gets a replication.
+
+> **The published numbers were measured on collector `0.157.0`'s predecessor,
+> `0.154.0`.** This branch pins the current contrib release, so the manifest
+> you deploy is one minor ahead of the manifest that produced
+> [results/RESULTS.md](results/RESULTS.md). Treat those numbers as the
+> collector's `0.154.0` behaviour until a run on `0.157.0` replaces them —
+> a version bump is a change to the thing under test, and back-dating new
+> numbers onto an old build is exactly the error this repo documents
+> elsewhere.
 
 ---
 
@@ -46,10 +54,8 @@ It is a **trade, not a win**. Quoting only the CPU column — or quoting the
 was never handed — overstates the result. Full numbers, caveats and the two
 disclosures that qualify them are in **[results/RESULTS.md](results/RESULTS.md)**.
 
-The third arm (OTel-Arrow native) **has not produced a valid run**:
-`df_engine:0.50.0` panicked on all four pipeline cores within a minute of start,
-while still reporting `Ready` with zero restarts. See
-[results/RESULTS.md](results/RESULTS.md#p3--otel-arrow-native--no-valid-run).
+A third engine (OTel-Arrow native) is benchmarked on the
+`collector-fluentbitV5-otel-arrow` branch; it has not yet produced a valid run.
 
 ---
 
@@ -87,8 +93,8 @@ kubectl apply -f loadtest/ramp-jobs-$ENGINE.yaml     # the 120-minute timed run
 cluster/      preflight.sh — refuses a cluster that cannot host a valid run
 deploy/       ONE source of truth per component
   _templates/   the per-arm files are RENDERED from these; edit here, not there
-  render.sh     regenerates engines/apps/istio artifacts for all three arms
-  engines/      the three engines under test
+  render.sh     regenerates engines/apps/istio artifacts for both arms
+  engines/      the two engines under test
   apps/         otel-demo Helm values + a resolved Online Boutique manifest
   istio/        istiod values + Telemetry CRs (tracing + access logs only)
   dynatrace/    DynaKube
@@ -101,7 +107,7 @@ publication-scrub.sh   the gate that keeps this branch publishable
 ```
 
 **Edit `deploy/_templates/`, not the rendered files.** `deploy/render.sh`
-regenerates all twelve per-arm artifacts; `./deploy/render.sh --check` fails if
+regenerates all eight per-arm artifacts; `./deploy/render.sh --check` fails if
 a committed file has drifted. A hand-edit to a rendered file survives until
 someone re-renders, and then vanishes — silently, mid-campaign, in a file
 nobody was looking at.
@@ -156,8 +162,8 @@ hostname, a token value or a lab IP address reaches a tracked file.
 | branch | what it is |
 |--------|------------|
 | `master` | the original *Fluent Bit vs OpenTelemetry Collector* tutorial |
-| `collector-fluentbitV5-otel-arrow` | **this branch** — the three-engine benchmark: OpenTelemetry Collector vs Fluent Bit v5 vs OTel-Arrow |
-| `Otelcollecto-fluentbitv5` | the two-engine benchmark: OpenTelemetry Collector (latest contrib) vs Fluent Bit v5 |
+| `collector-fluentbitV5-otel-arrow` | the three-engine benchmark: OpenTelemetry Collector vs Fluent Bit v5 vs OTel-Arrow |
+| `Otelcollecto-fluentbitv5` | **this branch** — the two-engine benchmark: OpenTelemetry Collector (current contrib) vs Fluent Bit v5 |
 
 ## Scope limits, stated up front
 

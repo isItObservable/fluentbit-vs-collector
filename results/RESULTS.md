@@ -171,41 +171,11 @@ of the engine.
 
 ---
 
-## P3 — OTel-Arrow native — no valid run
+## A third engine
 
-`ghcr.io/isitobservable/df_engine:0.50.0` **panicked on all four pipeline cores
-18–43 seconds after start** and then ran dead, while reporting `1/1 Running`,
-`ready: True`, `restarts: 0`.
-
-```
-crates/pdata/src/encode/record/metrics.rs:266   — panic
-arrow-data/transform/mod.rs:680                 — MutableArrayData::new is
-                                                  infallible: DictionaryKeyOverflowError  (×3)
-controller.pipeline_runtime_failed              — cores 0-3
-POST /v1/metrics                                — 400 Bad Request
-```
-
-Deterministic: reproduced on two pods, dead within ~48 s the second time. Caught
-at the gate, before the timed run started — **nothing was voided, because
-nothing had been measured.**
-
-What caught it was not the sophisticated check. The 15-minute lookback found
-31,426 spans, the pod census passed, and the pod reported healthy — all true, all
-consistent with an engine that had been dead for six minutes. `grep -c panic`
-over the container log was the only check that failed.
-
-That gap is now closed by check **5c**, which asserts liveness over a **disjoint
-forward window**. Validating that fix produced its own lesson:
-
-> **Never validate a recency check by replaying history — history backfills.**
-> Live, the check read 0. Replayed against the same past window it read 845.
-
-The arrow arm is blocked on the engine, not on this repo. Its manifests,
-config template and attribute-landing probe are all present and were verified
-working: `benchmark.engine`, `k8s.cluster.name` and `benchmark.run` land on
-**100% of spans, logs and metric datapoints** — see [probes/](probes/).
-
----
+OTel-Arrow native (`df_engine`) is benchmarked on the
+`collector-fluentbitV5-otel-arrow` branch, using this same harness. It has not
+produced a valid run yet, so there is no third column to compare against here.
 
 ## Reproducing these numbers
 

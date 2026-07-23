@@ -50,14 +50,13 @@ the pods holding the deliverable.
 |---|---|
 | `ramp-jobs-otel-collector.yaml` | the eight ramp Jobs, labelled for the collector arm |
 | `ramp-jobs-fluentbit-v5.yaml` | same, Fluent Bit arm |
-| `ramp-jobs-otel-arrow-native.yaml` | same, OTel-Arrow arm |
 
-The three files are **identical apart from the engine name** — verify it:
+The two files are **identical apart from the engine name** — verify it:
 
 ```bash
-for e in otel-collector fluentbit-v5 otel-arrow-native; do
+for e in otel-collector fluentbit-v5; do
   sed "s/$e/@@E@@/g" loadtest/ramp-jobs-$e.yaml | md5sum
-done   # three identical checksums
+done   # two identical checksums
 ```
 
 That is the point of rendering rather than hand-maintaining them: "the arms got

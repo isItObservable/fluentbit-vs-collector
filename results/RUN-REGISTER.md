@@ -13,10 +13,8 @@ Keep the column order. Timestamps are ISO-8601 UTC to the second.
 |---|---|---|---|---|---|---|
 | `R1-P1-collector` | otel-collector | `otel/opentelemetry-collector-contrib:0.154.0` | 1 | 6/6 | `2026-07-22T15:58:43Z` | `2026-07-22T17:59:21Z` |
 | `R1-P2-fluentbit` | fluentbit-v5 | `fluent/fluent-bit:5.0.9` | 1 | 6/6 (blind on metrics — see note) | `2026-07-23T08:34:49Z` | `2026-07-23T10:35:12Z` |
-| `R1-P3-arrow` | otel-arrow-native | `ghcr.io/isitobservable/df_engine:0.50.0` | 1 | **ABORTED at the gate** | — | — |
 | `R2-P1-collector` | otel-collector | | 2 | | | |
 | `R2-P2-fluentbit` | fluentbit-v5 | | 2 | | | |
-| `R2-P3-arrow` | otel-arrow-native | | 2 | | | |
 
 ## Pod census
 
@@ -46,7 +44,6 @@ signal the engine dropped from a signal the filter hid.
 |---|---|---|---|
 | `R1-P1-collector` | SAFE | SAFE | SAFE |
 | `R1-P2-fluentbit` | SAFE | **UNSAFE** — `k8s.cluster.name` lands on 0 of 2,782,904 logs | n/a — no metrics delivered |
-| `R1-P3-arrow` | SAFE (probed) | SAFE (probed) | SAFE (probed) |
 
 ## Run notes
 

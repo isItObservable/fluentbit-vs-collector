@@ -66,12 +66,12 @@ SAFE_PCT="${SAFE_PCT:-95}"
 if [[ "${1:-}" == "--selftest" ]]; then
   # Replay the R1P2 finding against the live/most-recent fluentbit arm. If this
   # does not reproduce spans=SAFE + logs=UNSAFE, the probe is not measuring what
-  # it claims and its verdict for the arrow arm cannot be trusted either.
+  # it claims, so its verdict cannot be trusted either.
   echo "SELFTEST — expecting spans SAFE and logs UNSAFE for fluentbit-v5"
   exec "$(dirname "${BASH_SOURCE[0]}")/attr-landing.sh" fluentbit-v5 --window 30m --selftest-assert
 fi
 
-ENGINE="${1:?engine required: otel-collector | fluentbit-v5 | otel-arrow-native}"
+ENGINE="${1:?engine required: otel-collector | fluentbit-v5}"
 shift || true
 WINDOW="15m"; FROM=""; TO=""; ASSERT=0
 while [[ $# -gt 0 ]]; do
@@ -172,7 +172,7 @@ if [[ $ASSERT -eq 1 ]]; then
   case "$verdicts" in
     *spans=SAFE*logs=UNSAFE*) echo "  SELFTEST PASS — reproduced R1P2: spans SAFE, logs UNSAFE"; exit 0 ;;
     *) echo "  SELFTEST FAIL — did not reproduce R1P2 (got:$verdicts). Probe is not"
-       echo "     measuring what it claims; its arrow-arm verdict cannot be trusted."; exit 3 ;;
+       echo "     measuring what it claims; its verdict cannot be trusted."; exit 3 ;;
   esac
 fi
 

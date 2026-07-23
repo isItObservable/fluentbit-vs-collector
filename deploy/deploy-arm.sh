@@ -4,7 +4,6 @@
 # ----------------------------------------------------------------------------
 #   ENGINE=otel-collector ./deploy/deploy-arm.sh
 #   ENGINE=fluentbit-v5   ./deploy/deploy-arm.sh
-#   ENGINE=otel-arrow-native ./deploy/deploy-arm.sh
 #
 # The order is not stylistic. Steps 3-6 each undo something an earlier step did
 # if they are run out of sequence:
@@ -27,14 +26,14 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENGINE="${ENGINE:?set ENGINE to otel-collector | fluentbit-v5 | otel-arrow-native}"
+ENGINE="${ENGINE:?set ENGINE to otel-collector | fluentbit-v5}"
 : "${KUBECONFIG:?set KUBECONFIG to the benchmark cluster (see .env.example)}"
 : "${CLUSTER_NAME:?set CLUSTER_NAME (see .env.example)}"
 : "${DT_ENDPOINT_HOST:?set DT_ENDPOINT_HOST (see .env.example)}"
 NS_ENGINE="${NS_ENGINE:-default}"
 
 case "$ENGINE" in
-  otel-collector|fluentbit-v5|otel-arrow-native) ;;
+  otel-collector|fluentbit-v5) ;;
   *) echo "unknown ENGINE '$ENGINE'" >&2; exit 2 ;;
 esac
 
@@ -51,11 +50,6 @@ step() { printf '\n== %s\n' "$*"; }
 # ---------------------------------------------------------------- 1. engine
 step "1/6 engine: $ENGINE -> namespace $NS_ENGINE"
 render_manifest "$HERE/engines/${ENGINE}.yaml" | kubectl apply -n "$NS_ENGINE" -f -
-if [[ "$ENGINE" == "otel-arrow-native" ]]; then
-  # df_engine has no ${env:VAR} expansion, so its pipeline config is rendered
-  # in-cluster from the Secret and never written to disk with a token in it.
-  "$HERE/engines/render-df-engine-config.sh" "$NS_ENGINE"
-fi
 
 # ---------------------------------------------------------------- 2. apps
 step "2/6 apps: otel-demo + hipster-shop, pointed at this engine"

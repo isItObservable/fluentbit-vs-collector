@@ -46,7 +46,7 @@ A_ID="${1:?runA id}"; A_FROM="${2:?A start}"; A_TO="${3:?A end}"
 B_ID="${4:?runB id}"; B_FROM="${5:?B start}"; B_TO="${6:?B end}"
 
 engine_of(){ case "$1" in *collector*) echo otel-collector;; *fluentbit*) echo fluentbit-v5;;
-                          *arrow*) echo otel-arrow-native;; *) echo UNKNOWN;; esac; }
+                          *) echo UNKNOWN;; esac; }
 
 dql(){ dtctl query "$1" -o json 2>/dev/null | python3 -c "
 import sys,json

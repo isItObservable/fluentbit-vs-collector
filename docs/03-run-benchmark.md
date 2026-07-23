@@ -8,7 +8,7 @@ is worse than a missing phase because it still looks like data.**
 
 ```bash
 set -a && . ./.env && set +a
-export ENGINE=otel-collector     # | fluentbit-v5 | otel-arrow-native
+export ENGINE=otel-collector     # | fluentbit-v5
 export RUN_ID=R1-P1-collector    # R<round>-P<phase>-<engine>
 ```
 
@@ -176,7 +176,7 @@ near-threshold number.
   a namespace**, re-checks mechanically that no manifest it deletes *defines* the
   protected object (G4), and verifies it survived (P1).
 
-G3 refuses while any ramp pod is still running. P2/P3 confirm no
+G3 refuses while any ramp pod is still running. P2 confirms no
 `benchmark=logship` object and no run-lock annotation are left. Istio is
 deliberately left up — the next phase reconfigures it in place.
 

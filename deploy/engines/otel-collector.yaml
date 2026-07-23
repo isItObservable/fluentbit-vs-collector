@@ -34,7 +34,7 @@
 #   cumulative -> delta  -> cumulativetodelta
 # The tenant permanently rejects cumulative Sum/Histogram and Summary, and the
 # one remaining emitter (otel-demo `currency`, C++) cannot be configured off.
-# Collector and Fluent Bit CONVERT; otel-arrow-native DROPS if its filter can
+# Both Collector and Fluent Bit CONVERT cumulative metrics if their filter can
 # express the predicate. Applied with no include/exclude so the work is
 # unconditional on every point rather than input-dependent.
 # Fluent Bit and df_engine run the same five steps in their own idiom. The one
@@ -66,7 +66,7 @@ metadata:
 spec:
   mode: deployment
   replicas: 1
-  image: otel/opentelemetry-collector-contrib:0.154.0
+  image: otel/opentelemetry-collector-contrib:0.157.0
   resources:
     requests: { cpu: "500m", memory: "512Mi" }
     limits:   { cpu: "4",    memory: "2Gi" }
@@ -116,7 +116,7 @@ spec:
 
       # 5. cumulative -> delta (METRICS PIPELINE ONLY)
       # Methodology decision (2026-07-22): the collector and Fluent Bit
-      # CONVERT cumulative metrics; otel-arrow-native drops them if its filter
+      # CONVERT cumulative metrics if the filter
       # can express the predicate.
       #
       # This tenant permanently rejects cumulative Sum, cumulative Histogram and

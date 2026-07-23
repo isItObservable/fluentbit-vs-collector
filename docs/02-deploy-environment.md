@@ -59,19 +59,6 @@ sed -e "s|__CLUSTER_NAME__|$CLUSTER_NAME|g" -e "s|__DT_ENDPOINT_HOST__|$DT_ENDPO
     deploy/engines/${ENGINE}.yaml | kubectl apply -f -
 ```
 
-For `otel-arrow-native` there is a second step: `df_engine` has no `${env:VAR}`
-expansion, so its pipeline config is rendered **in-cluster** by
-`deploy/engines/render-df-engine-config.sh`, which reads the token from the
-Secret, substitutes, and pipes straight into `kubectl apply`. Nothing with a
-token in it is ever written to disk.
-
-> **The OTLP gRPC Service port must be named `grpc-otlp` with
-> `appProtocol: grpc`.** It already is. Do not "tidy" it to `otlp-grpc` — Istio
-> classifies protocol from the port-name *prefix*, and `otlp-` is not a prefix
-> it knows, so the hop degrades to plain TCP and the engine receives nothing over
-> gRPC. `benchmark/validate-phase.sh` check 4d enforces this; the reasoning is in
-> `deploy/engines/README-port-naming.md`.
-
 ## Step 2 — the applications
 
 Both apps, both pointed at this arm's engine Service:

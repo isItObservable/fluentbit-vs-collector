@@ -23,7 +23,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENGINES=(otel-collector fluentbit-v5 otel-arrow-native)
+ENGINES=(otel-collector fluentbit-v5)
 NS_ENGINE="${NS_ENGINE:-default}"
 
 OUT="$HERE"

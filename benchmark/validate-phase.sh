@@ -2,7 +2,7 @@
 # ============================================================================
 # B1-v2 — the phase validation gate 
 # ----------------------------------------------------------------------------
-#   ./validate-phase.sh <engine>            # otel-collector | fluentbit-v5 | otel-arrow-native
+#   ./validate-phase.sh <engine>            # otel-collector | fluentbit-v5
 #   ./validate-phase.sh <engine> --window 15m
 #
 # Run this after the smoke traffic and BEFORE the 120-minute timed run. Exit 0
@@ -32,8 +32,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$ENGINE" in
-  otel-collector|fluentbit-v5|otel-arrow-native) ;;
-  *) echo "usage: $0 <otel-collector|fluentbit-v5|otel-arrow-native> [--window 15m]" >&2; exit 2 ;;
+  otel-collector|fluentbit-v5) ;;
+  *) echo "usage: $0 <otel-collector|fluentbit-v5> [--window 15m]" >&2; exit 2 ;;
 esac
 
 ENGINE_NS="${ENGINE_NS:-default}"
@@ -360,7 +360,6 @@ hdr "CHECK 5: engine healthy with non-zero accepted + exported"
 case "$ENGINE" in
   otel-collector)     SEL="app.kubernetes.io/instance=${ENGINE_NS}.bench-otel-collector" ;;
   fluentbit-v5)       SEL="app=bench-fluentbit-v5" ;;
-  otel-arrow-native)  SEL="app=bench-otel-arrow-native" ;;
 esac
 POD=$(kubectl -n "$ENGINE_NS" get pods -l "$SEL" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 c5_fail=0
@@ -404,16 +403,6 @@ try:
 except Exception:
     print(0); raise SystemExit
 print(sum(v.get("proc_records", 0) for v in d.get("output", {}).values()))' 2>/dev/null || echo 0)
-      ;;
-    otel-arrow-native)
-      # df_engine's admin port serves an HTML dashboard, not a Prometheus
-      # endpoint (paid for on 2026-07-21: /metrics/* is a 404). Its throughput
-      # is therefore confirmed from the Dynatrace side, which is the only
-      # counter that proves receive AND export in one number anyway.
-      q5="fetch logs, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"otel-arrow-native\" | summarize n = count()"
-      r5=$(dql "$q5"); say "  $r5"
-      accepted=$(dql_num "$r5" n)
-      exported=$accepted
       ;;
   esac
   say "  accepted=$accepted exported=$exported"
@@ -471,7 +460,7 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
       # on stdout and a GREEN gate, which is precisely the R1P2 failure mode 5b
       # was created to stop (Fluent Bit's metrics pipeline failing on 100% of
       # batches while logs and traces carried the totals). Printing a number is
-      # not checking it. Named when the arrow arm aborted; closed here.
+      # not checking it.
       #
       # These are CUMULATIVE counters, so >0 answers "did this signal EVER flow",
       # not "is it flowing now" — 5c owns liveness. The two are deliberately
@@ -489,80 +478,6 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
         c5_fail=1
       else
         say "  5b per-signal: all three signals accepted (non-zero)"
-      fi
-      ;;
-    otel-arrow-native)
-      # df_engine exposes no Prometheus endpoint (its admin port serves HTML —
-      # paid for 2026-07-21), so there are NO engine-side per-signal counters to
-      # read. Leaving it at "not available" would give this arm no per-signal
-      # guard at all — and R1P2 proved what that costs: Fluent Bit's metrics
-      # pipeline failed on 100% of batches, silently, and only a per-signal
-      # counter caught it. df_engine could fail the same way with nothing to see
-      # it.
-      #
-      # So assert per signal from the SINK side instead. This is strictly better
-      # than a counter for the question that matters: a counter proves the engine
-      # thinks it exported, Grail proves the data actually landed. It works for
-      # any engine regardless of what its admin port serves.
-      #
-      # Metrics are checked as SERIES PRESENCE, not record count — an OTLP metric
-      # arrives as a series, not a countable record (dashboard caveat), so
-      # `count()` on it is meaningless. The timeseries-returns-a-non-null-row
-      # shape is exactly what exposed R1P2's dead metrics arm.
-      arrow_bad=""
-      # ⚠️ NEITHER signal filters on k8s.cluster.name — corrected 2026-07-23
-      # (engine pre-flight). The spans branch used to, on the strength of
-      # "Fluent Bit lands it on spans, just not on logs". That is the
-      # Fluent-Bit-specific FINDING, not the generalisable one, and inheriting
-      # it across arms is exactly the mistake R1P2 warns about.
-      #
-      # k8s.cluster.name is stamped BY THE ENGINE, with a different processor in
-      # every arm. R1P2 proved one engine can land an attribute on one signal
-      # and silently drop it on another. df_engine's attribute processor is a
-      # different implementation, unproven on EVERY signal — so a healthy
-      # df_engine that simply does not upsert k8s.cluster.name onto spans would
-      # have returned spans=0 here and VOIDED a good gate. A false FAIL at the
-      # gate is not a safe direction: it burns cluster time and invites someone
-      # to "fix" a frozen config at the worst possible moment.
-      #
-      # benchmark.engine is campaign-unique (nothing outside this benchmark ever
-      # sets it, verified on-tenant), so it discriminates safely on its own.
-      # Depending on a SECOND engine-stamped attribute where one suffices adds a
-      # failure mode and buys no safety. The cluster-scoped count is still
-      # measured — as a labelled diagnostic below, never as the pass condition —
-      # because it is what tells the readout whether the dashboard tiles for this
-      # arm can be trusted. results/attr-landing.sh reports it per signal.
-      n_sp=$(dql_num "$(dql "fetch spans, from:now()-${WINDOW} | filter benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
-      n_sp_c=$(dql_num "$(dql "fetch spans, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
-      n_lg=$(dql_num "$(dql "fetch logs, from:now()-${WINDOW} | filter benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
-      n_lg_c=$(dql_num "$(dql "fetch logs, from:now()-${WINDOW} | filter k8s.cluster.name == \"${CLUSTER}\" and benchmark.engine == \"${ENGINE}\" | summarize n = count()")" n)
-      n_mt=$(dql "timeseries v = avg(system.cpu.utilization), by:{benchmark.engine}, from:now()-${WINDOW}, filter: benchmark.engine == \"${ENGINE}\"" \
-             | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo 0)
-      say "  5b sink-side per-signal: spans=$n_sp logs=$n_lg metric-series=$n_mt"
-      # Diagnostic, NOT a pass condition. A signal whose cluster-scoped count is
-      # far below its tagged count still PASSES the gate — the data is arriving,
-      # the engine just is not stamping k8s.cluster.name on it — but every
-      # readout and dashboard tile for that signal must then drop the cluster
-      # filter, or it reports a large, directional, entirely plausible zero.
-      for pair in "spans:${n_sp:-0}:${n_sp_c:-0}" "logs:${n_lg:-0}:${n_lg_c:-0}"; do
-        IFS=: read -r s tot cl <<<"$pair"
-        if [[ "$tot" -gt 0 && "$cl" -lt "$tot" ]]; then
-          say "  5b ⚠️  cluster-filter UNSAFE for $s: $cl of $tot tagged records carry"
-          say "     k8s.cluster.name. Read $s on benchmark.engine alone and correct the"
-          say "     dashboard tile. Record this in the RUN-REGISTER row."
-        elif [[ "$tot" -gt 0 ]]; then
-          say "  5b cluster-filter safe for $s ($cl of $tot)"
-        fi
-      done
-      [[ "${n_sp:-0}" -gt 0 ]] || arrow_bad="$arrow_bad spans=0"
-      [[ "${n_lg:-0}" -gt 0 ]] || arrow_bad="$arrow_bad logs=0"
-      [[ "${n_mt:-0}" -gt 0 ]] || arrow_bad="$arrow_bad metric-series=0"
-      if [[ -n "$arrow_bad" ]]; then
-        say "  5b FAIL —${arrow_bad}. A signal is not reaching Grail. This is the R1P2"
-        say "     failure mode: one signal dead while aggregate throughput looks healthy."
-        c5_fail=1
-      else
-        say "  5b per-signal: all three signals present in Grail"
       fi
       ;;
   esac
@@ -583,14 +498,13 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
   # still sitting inside a 15-minute lookback. Replayed after the fact:
   # 15m lookback spans=32,271 logs=1,950 — both comfortably non-zero.
   #
-  # The blind spot is NOT arrow-specific, which is why this check is not inside
+  # The blind spot is not engine-specific, which is why this check is not inside
   # the per-engine case:
   #   * otel-collector  `otelcol_receiver_accepted_*` are cumulative counters.
   #                     A dead collector's counters FREEZE at a large value and
   #                     `accepted>0 && exported>0` passes forever. (Its 5b branch
   #                     only PRINTS the per-signal numbers — it asserts nothing.)
   #   * fluentbit-v5    the 5b error-RATIO is frozen too; frozen ratios pass.
-  #   * otel-arrow-native  sink-side counts over a lookback pass on pre-death data.
   #
   # The window must be DISJOINT and FORWARD — a slice of time beginning only
   # after the check starts. Two earlier shapes are both wrong:

@@ -43,7 +43,6 @@ cd "$REPO"
 case "$RUN_ID" in
   *collector*) ENGINE=otel-collector ;;
   *fluentbit*) ENGINE=fluentbit-v5 ;;
-  *arrow*)     ENGINE=otel-arrow-native ;;
   *) echo "cannot derive engine from run id '$RUN_ID'"; exit 2 ;;
 esac
 
