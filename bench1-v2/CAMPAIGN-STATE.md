@@ -8,13 +8,33 @@ after the last phase completes**, before closing ISI-1779.
 Tracked as **ISI-1826** (backlog, do-not-self-start) so it cannot be lost with an
 individual phase issue.
 
-> ⚠️ **The last phase is now R2P2 (ISI-1819), not R2P3.** Updated 2026-07-23 under
-> ISI-1820. The OTel-Arrow arm is DNF (ISI-1849) and both of its remaining phases are
+> ⚠️ **R2P3 is cancelled and can no longer own a revert.** Updated 2026-07-23 under
+> ISI-1820. The OTel-Arrow arm is DNF (ISI-1849) and all three of its phases are
 > cancelled — R1P3/ISI-1817, R2P3/ISI-1820 and soak S3/ISI-1824. Every "R2P3" that
-> appeared in this file as a *revert owner* has been repointed at R2P2, because a
-> cancelled phase tears nothing down: leaving the owner as R2P3 would have orphaned
-> the CAAPH un-pause and the leftover-loadgenerator cleanup with no phase left to run
-> them. Campaign order is now **R1P1 → R1P2 → R2P1 → R2P2 (last)**.
+> appeared in this file as a *revert owner* has been repointed, because a cancelled
+> phase tears nothing down: leaving the owner as R2P3 would have orphaned the CAAPH
+> un-pause and the leftover-loadgenerator cleanup with no phase left to run them.
+>
+> 🛑 **The repoint to "R2P2 (last)" is NOT yet safe to act on — the soaks are missing
+> from this file's model of the campaign.** Rampup order is
+> `R1P1 → R1P2 → R2P1 → R2P2`, but **Soak S1 (ISI-1811) and Soak S2 (ISI-1823) are
+> still scheduled and unchanged** (only S3 was cancelled), and *nothing in this repo
+> records where the two 24h soaks sit relative to Round 2*. If R2P2 is genuinely last
+> the repoint is correct; if either soak runs after it, then firing these reverts at
+> R2P2 would:
+>
+> - resume CAAPH reconciliation of `istiod` **during a 24h measurement window**, and
+> - delete the standing `hipster-shop/loadgenerator` (10 VU, §3) **before** the soaks,
+>   so the soaks would run against a different load baseline than every rampup arm they
+>   are read against — the exact asymmetry §3 exists to prevent.
+>
+> **Operational rule until the order is pinned: do not execute any revert in this file
+> while any soak issue (ISI-1811, ISI-1823) is not yet `done`.** Ordering decision is
+> tracked separately — see the campaign issue ISI-1779. Raised 2026-07-23 under ISI-1824.
+>
+> ⭐ Root cause of this gap: "last phase" is a **relative** pointer. The ISI-1820 repoint
+> corrected *which id* it named without re-checking whether the referent was still the
+> true end of the campaign. Cancelling a phase invalidates relative owners twice over.
 
 ---
 
@@ -25,7 +45,7 @@ individual phase issue.
 | **Added** | 2026-07-22, ISI-1815 (R1P1) |
 | **Cluster** | management cluster `capmox-mgmt-prod` (NOT the workload cluster) |
 | **Object** | `HelmReleaseProxy/istiod-observable-otelarrow-x57wm` |
-| **Revert owner** | last phase of the campaign — **R2P2 (ISI-1819)** since ISI-1820 cancelled R2P3 |
+| **Revert owner** | last run of the campaign — **provisionally R2P2 (ISI-1819)** since ISI-1820 cancelled R2P3, **but not before Soak S1 (ISI-1811) and Soak S2 (ISI-1823) are `done`** — see the 🛑 note at the top |
 
 ### What was done
 
@@ -99,7 +119,7 @@ so the parity audit has a complete list.
 | **Found** | 2026-07-22, ISI-1815 (R1P1) teardown — it survived `kubectl delete -f apps/hipster-shop-otel-collector.yaml` |
 | **Cluster** | workload cluster `observable-otelarrow`, namespace `hipster-shop` |
 | **Object** | `Deployment/loadgenerator`, created `2026-07-21T15:59:35Z`, 10 VU → `frontend:80` |
-| **Revert owner** | campaign end — **R2P2 (ISI-1819)** since ISI-1820 cancelled R2P3 — **not** any phase teardown |
+| **Revert owner** | campaign end — **provisionally R2P2 (ISI-1819)** since ISI-1820 cancelled R2P3 — **not** any phase teardown, and **not before Soak S1 (ISI-1811) / Soak S2 (ISI-1823) are `done`** — see the 🛑 note at the top |
 
 ### What it is
 
