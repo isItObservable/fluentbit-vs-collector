@@ -23,12 +23,20 @@
 // VERIFIED: hipster-shop.frontend = 6,591,068 = 3,296,095 (mesh) + 3,294,973 (app-SDK).
 //           otel-demo.frontend    = 1,390,604 =   498,180 (mesh) +   892,424 (app-SDK).
 //
-// CAVEAT - do NOT use `ns` as an engine-comparison dimension without checking first.
-// k8s.namespace.name is applied by the ENGINE UNDER TEST (k8sattributes processor), while
-// service.namespace comes from the app SDK. Grouping a cross-engine comparison by a key
-// that depends on engine enrichment can manufacture an engine difference that is not real.
-// For retrieval and per-service drill-down this is fine; for A/B/C volume comparison keep
-// scoping on benchmark.engine (99.04% coverage in R1-P1).
+// ISI-1836 CORRECTION (2026-07-23) - this file previously derived the namespace as
+// `coalesce(service.namespace, k8s.namespace.name)` and carried a caveat warning not to use
+// the result as an engine-comparison dimension. The caveat is gone because the DEPENDENCY is
+// gone. k8s.namespace.name is written by the k8sattributes processor, i.e. by the ENGINE
+// UNDER TEST, and a key that depends on engine enrichment can manufacture an engine
+// difference that is not real. Istio already encodes the namespace in service.name as
+// "<service>.<namespace>", and Istio config is frozen and identical across all three arms,
+// so parsing it there gives the SAME coverage (95.07%) using only attributes written
+// UPSTREAM of the engine:
+//     service.namespace  <- the application's OTel SDK
+//     service.name       <- the app SDK, or Istio's own naming convention
+//     telemetry.sdk.name <- the emitting SDK/proxy
+// The key is therefore safe as a comparison dimension, not only for drill-down.
+// Verified identical row-for-row against the previous k8s.namespace.name form on R1-P1.
 //
 // KNOWN GAP: ~912,130 spans (4.9%) carry NEITHER attribute - almost all of them
 // hipster-shop currencyservice app-SDK spans, which never set service.namespace. They
@@ -37,12 +45,16 @@
 
 fetch spans
 | filter k8s.cluster.name == "observable-otelarrow" and isNotNull(benchmark.engine)
-| fieldsAdd ns   = coalesce(service.namespace, k8s.namespace.name)
-| fieldsAdd bare = if(isNull(service.namespace) and isNotNull(k8s.namespace.name),
-                      replaceString(service.name, concat(".", k8s.namespace.name), ""),
-                      else: service.name)
-| fieldsAdd svc  = if(isNull(ns),
-                      concat("<unattributed>.", service.name),
-                      else: concat(ns, ".", bare))
-| summarize spans = count(), by:{ engine = benchmark.engine, svc }
+| fieldsAdd svc_parts = splitString(service.name, ".")
+// namespace: app SDK first, then Istio's "<service>.<namespace>" convention
+| fieldsAdd app = coalesce(service.namespace, svc_parts[1], "<unattributed>")
+// service: strip Istio's namespace suffix so mesh and app-SDK spans land on ONE key
+| fieldsAdd svc = coalesce(svc_parts[0], service.name)
+| fieldsAdd service_key = concat(app, ".", svc)
+// ingest path, derived independently of benchmark.telemetry_source so a dropped stamp
+// cannot silently rewrite the split (ISI-1836 defect 2). NB "envoy" alone is NOT enough:
+// otel-demo's own frontend-proxy emits 422,380 Envoy spans that are not mesh sidecar
+// spans - the dotted Istio service name is what separates them.
+| fieldsAdd ingest = if(telemetry.sdk.name == "envoy" and isNotNull(svc_parts[1]), "istio-mesh", else: "app-sdk")
+| summarize spans = count(), by:{ engine = benchmark.engine, service_key, ingest }
 | sort spans desc
