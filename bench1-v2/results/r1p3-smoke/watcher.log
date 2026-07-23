@@ -1,0 +1,25 @@
+engine pod: df-engine-589fdbf59f-tsrw5  started: 2026-07-23T14:08:42Z
+2026-07-23T14:08:42Z ready=true restarts=0 panic_lines=0 demo_running=0 spans_last60s=0 logs_last60s=0
+2026-07-23T14:09:12Z ready=true restarts=0 panic_lines=0 demo_running=1 spans_last60s=0 logs_last60s=0
+2026-07-23T14:09:42Z ready=true restarts=0 panic_lines=0 demo_running=2 spans_last60s=1 logs_last60s=1
+2026-07-23T14:10:12Z ready=true restarts=0 panic_lines=0 demo_running=5 spans_last60s=1 logs_last60s=21
+2026-07-23T14:10:45Z ready=true restarts=0 panic_lines=0 demo_running=5 spans_last60s=0 logs_last60s=157
+2026-07-23T14:11:15Z ready=true restarts=0 panic_lines=0 demo_running=7 spans_last60s=0 logs_last60s=146
+2026-07-23T14:11:46Z ready=true restarts=0 panic_lines=0 demo_running=9 spans_last60s=0 logs_last60s=13
+2026-07-23T14:12:16Z ready=true restarts=0 panic_lines=0 demo_running=9 spans_last60s=0 logs_last60s=14
+2026-07-23T14:12:46Z ready=true restarts=0 panic_lines=0 demo_running=10 spans_last60s=0 logs_last60s=18
+2026-07-23T14:13:17Z ready=true restarts=0 panic_lines=0 demo_running=11 spans_last60s=0 logs_last60s=41
+2026-07-23T14:13:47Z ready=true restarts=0 panic_lines=0 demo_running=12 spans_last60s=0 logs_last60s=40
+--- extended watcher started 2026-07-23T14:14:10Z ---
+2026-07-23T14:14:10Z ready=true restarts=0 panic_lines=0 demo_running=12 spans_last60s=56 logs_last60s=67
+2026-07-23T14:14:40Z ready=true restarts=0 panic_lines=0 demo_running=14 spans_last60s=121 logs_last60s=107
+2026-07-23T14:15:11Z ready=true restarts=0 panic_lines=0 demo_running=15 spans_last60s=179 logs_last60s=251
+2026-07-23T14:15:41Z ready=true restarts=0 panic_lines=0 demo_running=15 spans_last60s=174 logs_last60s=264
+2026-07-23T14:16:11Z ready=true restarts=0 panic_lines=0 demo_running=16 spans_last60s=118 logs_last60s=274
+2026-07-23T14:16:41Z ready=true restarts=0 panic_lines=0 demo_running=16 spans_last60s=128 logs_last60s=433
+2026-07-23T14:17:12Z ready=true restarts=0 panic_lines=0 demo_running=16 spans_last60s=141 logs_last60s=275
+2026-07-23T14:17:42Z ready=true restarts=0 panic_lines=0 demo_running=17 spans_last60s=131 logs_last60s=83
+2026-07-23T14:18:12Z ready=true restarts=0 panic_lines=0 demo_running=17 spans_last60s=129 logs_last60s=81
+2026-07-23T14:18:42Z ready=true restarts=0 panic_lines=0 demo_running=17 spans_last60s=137 logs_last60s=105
+2026-07-23T14:19:13Z ready=true restarts=0 panic_lines=0 demo_running=17 spans_last60s=148 logs_last60s=105
+2026-07-23T14:19:43Z ready=true restarts=0 panic_lines=0 demo_running=18 spans_last60s=155 logs_last60s=88
