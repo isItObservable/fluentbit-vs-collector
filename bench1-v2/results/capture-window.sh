@@ -43,21 +43,35 @@ RUN_ID="${1:?run id required, e.g. R1-P1-collector}"
 export KUBECONFIG="${2:-${KUBECONFIG:-/tmp/otelarrow.kubeconfig}}"
 SEL='ramp=isi1779'
 
-read -r START END < <(kubectl get pods -A -l "$SEL" -o json | python3 -c '
+CAP="$(kubectl get pods -A -l "$SEL" -o json | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
-starts,ends=[],[]
-for p in d.get("items",[]):
-    s=p.get("status",{})
+starts,ends,pending=[],[],[]
+pods=d.get("items",[])
+for p in pods:
+    s=p.get("status",{}); name=p["metadata"]["namespace"]+"/"+p["metadata"]["name"]
     if s.get("startTime"): starts.append(s["startTime"])
-    for cs in s.get("containerStatuses") or []:
-        t=(cs.get("state") or {}).get("terminated") or {}
-        if t.get("finishedAt"): ends.append(t["finishedAt"])
-print(min(starts) if starts else "NO-RAMP-PODS", max(ends) if ends else ("STILL-RUNNING" if starts else "NO-RAMP-PODS"))')
+    # A pod counts as finished only when EVERY app container has terminated.
+    # initContainers are deliberately ignored: the ramp ladder parks each stage
+    # in a `wait` initContainer, which terminates when that rung STARTS.
+    cses=s.get("containerStatuses") or []
+    fin=[((cs.get("state") or {}).get("terminated") or {}).get("finishedAt") for cs in cses]
+    if cses and all(fin):
+        ends.append(max(fin))
+    else:
+        pending.append(name)
+print(min(starts) if starts else "NO-RAMP-PODS",
+      max(ends) if ends else ("STILL-RUNNING" if starts else "NO-RAMP-PODS"),
+      len(pods), len(ends))
+print(" ".join(pending))')"
+
+read -r START END NPODS NTERM <<<"$(sed -n 1p <<<"$CAP")"
+PENDING="$(sed -n 2p <<<"$CAP")"
 
 echo "Run:   $RUN_ID"
 echo "Start: $START   (first ramp pod start; cross-check against the date -u you recorded)"
 echo "End:   $END   (max terminated.finishedAt across all ramp pods)"
+echo "Pods:  $NTERM/$NPODS finished"
 
 if [[ "$END" == "NO-RAMP-PODS" ]]; then
   echo "no pods matching -l $SEL in any namespace -- the ramp has not been applied,"
@@ -66,6 +80,17 @@ if [[ "$END" == "NO-RAMP-PODS" ]]; then
 fi
 if [[ "$END" == "STILL-RUNNING" ]]; then
   echo "load still running -- no End yet. Do NOT tear down."
+  exit 1
+fi
+# PARTIAL is the dangerous case, not the empty one. With >=1 pod finished and
+# >=1 still running, max(finishedAt) is a well-formed timestamp that can sit
+# within 120 +/-2 and PASS the duration check below -- while load is still
+# flowing past the End we just recorded. Fail closed instead.
+if (( NTERM != NPODS )); then
+  echo "PARTIAL -- $((NPODS-NTERM)) of $NPODS ramp pod(s) have NOT finished:"
+  for p in $PENDING; do echo "    still running: $p"; done
+  echo "End above is the max over the FINISHED subset only and would silently"
+  echo "truncate the window. Wait for the stragglers and re-run. Do NOT tear down."
   exit 1
 fi
 
