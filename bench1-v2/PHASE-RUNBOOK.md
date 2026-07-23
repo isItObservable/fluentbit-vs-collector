@@ -128,6 +128,23 @@ pods that hold this value, so capture it first.
 
 ```bash
 ./pod-census.sh          # ≥90% coverage per bucket; a failed census VOIDS the run
+./teardown.sh <run-id>            # DRY RUN — prints the plan, deletes nothing
+./teardown.sh <run-id> --confirm  # actually deletes
 ```
 
-Then delete both apps and the engine and confirm the namespaces are clean.
+**Do not hand-type the deletes.** This step is irreversible, runs last when a
+120-minute run is already in the bank, and sits next to two traps:
+
+- **Teardown destroys the End timestamp.** It lives only on the ramp pods'
+  `.state.terminated.finishedAt`; nothing is captured locally. `teardown.sh`
+  refuses (G1/G2) until the register carries a real End *and* an End census row.
+- **`kubectl delete ns hipster-shop` would destroy a constant.**
+  `hipster-shop/loadgenerator` is a pre-campaign leftover in **no** manifest that
+  must survive every teardown — it contributes identical load to all six runs, so
+  removing it manufactures a difference that is not the engine. The script never
+  deletes a namespace, re-checks mechanically that no manifest *defines* it (G4),
+  and verifies it survived (P1).
+
+It also refuses while any ramp pod is still running (G3), and confirms afterwards
+that no `benchmark=isi1779` object and no run-lock annotation is left (P2/P3).
+Istio is deliberately left up — the next phase reconfigures it in place (step 6).
