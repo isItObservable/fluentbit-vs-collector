@@ -106,6 +106,41 @@ a committed file has drifted. A hand-edit to a rendered file survives until
 someone re-renders, and then vanishes — silently, mid-campaign, in a file
 nobody was looking at.
 
+## Configuration — the variables you must set
+
+Nothing in this repo is wired to a particular Dynatrace environment or cluster.
+Every environment-specific value is a variable, supplied once via `.env`, and
+the scripts refuse to run rather than guess a default. Copy the template and
+fill it in:
+
+```bash
+cp .env.example .env && $EDITOR .env
+set -a && . ./.env && set +a
+```
+
+### Required
+
+| variable | what it is | example |
+|---|---|---|
+| `KUBECONFIG` | Path to the kubeconfig for the **benchmark cluster**. Every script requires it explicitly instead of inheriting whatever context happens to be current — `teardown.sh` deletes namespaces, and a benchmark that tears down the wrong cluster is an expensive kind of typo. | `~/.kube/bench.config` |
+| `CLUSTER_NAME` | The name this cluster reports as `k8s.cluster.name` in Dynatrace. Every DQL query in `benchmark/` is scoped by it. Workload names collide across clusters on one tenant: without this, a `bench-fluentbit-v5` pod on some *other* cluster is silently averaged into your results. | `logship-bench` |
+| `DT_ENDPOINT_HOST` | Your Dynatrace environment host — **no scheme, no trailing slash**. This is the one value that used to be hard-coded; it is now the only thing standing between this repo and your tenant. Manifests carry the placeholder `__DT_ENDPOINT_HOST__`, scripts and docs use `${DT_ENDPOINT_HOST}`, and `deploy-arm.sh` substitutes it at apply time. | `YOUR_ENV_ID.live.dynatrace.com` |
+
+### Optional
+
+| variable | what it is | default |
+|---|---|---|
+| `DT_SECRET` | Name of the in-cluster Secret holding the OTLP ingest token, under key `apiToken`. | `gateway-dynatrace` |
+| `NS_ENGINE` | Namespace the engine under test is deployed into. | `default` |
+
+**The API token is deliberately not one of these.** It is read from a
+Kubernetes Secret at deploy time and never passes through a file in this repo.
+`cluster/preflight.sh` checks the Secret exists before you start a 120-minute
+run, rather than letting you discover it was missing at minute 118.
+
+`.env` is gitignored. `publication-scrub.sh` fails the build if a tenant
+hostname, a token value or a lab IP address reaches a tracked file.
+
 ## Requirements
 
 - A Kubernetes cluster that meets [docs/01](docs/01-provision-cluster.md) — in
@@ -121,7 +156,8 @@ nobody was looking at.
 | branch | what it is |
 |--------|------------|
 | `master` | the original *Fluent Bit vs OpenTelemetry Collector* tutorial |
-| `collector-vs-fluentbitv5` | **this branch** — the advanced engine benchmark |
+| `collector-fluentbitV5-otel-arrow` | **this branch** — the three-engine benchmark: OpenTelemetry Collector vs Fluent Bit v5 vs OTel-Arrow |
+| `Otelcollecto-fluentbitv5` | the two-engine benchmark: OpenTelemetry Collector (latest contrib) vs Fluent Bit v5 |
 
 ## Scope limits, stated up front
 
