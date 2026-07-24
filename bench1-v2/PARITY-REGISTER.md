@@ -96,6 +96,50 @@ The original disclosure is kept below as history:
 
 ---
 
+### P-MET — OPL can filter Dynatrace-rejected metrics, and carries all three signals (ISI-1859 step B)
+
+> **Ask (Henrik, ISI-1859 2026-07-24):** can OPL drop the cumulative + Summary
+> metrics Dynatrace rejects, and can the transform handle a
+> traces / spans / metrics / logs scenario, not just logs?
+> **Answer: yes to all — runtime-proven on the unchanged `7502e7d` image**
+> (`engines/opl-proof/multisignal.yaml` + `verify-multisignal.sh`, **11/11 PASS**).
+> As always on this engine the `--validate-and-exit` validator is worthless; every
+> number below is read off the wire from a debug sink.
+
+**Drop predicate (the deliverable):**
+
+```
+metrics | where not(aggregation_temporality == 2) | where metric_type != 5
+```
+
+- Drops **cumulative** (`aggregation_temporality == 2`) — covers cumulative Sum /
+  Histogram / ExponentialHistogram.
+- Drops **Summary** (`metric_type == 5`).
+- Keeps **Gauge** (type 1, no temporality) and **delta** (temporality 1).
+
+Enum integers pinned from source @ `7502e7d`
+(`rust/otap-dataflow/crates/pdata/src/otlp/metrics.rs`, `#[repr(u8)] MetricType`):
+`Empty=0 Gauge=1 Sum=2 Histogram=3 ExponentialHistogram=4 Summary=5`;
+`aggregation_temporality` is the OTLP enum (`UNSPECIFIED=0 DELTA=1 CUMULATIVE=2`).
+
+**Runtime evidence (off the wire):** 20 cumulative Sum + 20 Gauge + 40 spans + 100
+logs fed through **one** `signals` pipeline. Emitted: Gauge **20/20 kept**,
+cumulative Sum **0/20 (dropped)**, spans **40/40 kept + tagged**, logs **50 ERROR /
+50 CLEARED** with **50 redacted / 0 e-mail leaked** — i.e. the metric drop, the
+span pass-through, and the P-SEV/P-PII log parity all hold **simultaneously**. That
+`metric_type` and `aggregation_temporality` are genuinely *read* (not the KQL
+failure mode) is proven per-predicate in isolation: `where metric_type == 1` keeps
+exactly the 20 Gauges; `where aggregation_temporality == 2` keeps exactly the 20
+cumulative Sums.
+
+| | |
+|---|---|
+| **Runtime finding (semantics)** | A single `and` combining `not(aggregation_temporality == 2)` with `metric_type != 5` **spuriously drops Gauges** — a Gauge has no `aggregation_temporality`, and the `and` mishandles the absent field (standalone `where not(absent == 2)` keeps the record; inside the `and` it drops). **Chained `where` filters are the correct form** and are what the deliverable uses. Worth a docs/semantics note upstream. |
+| **Scope boundary (what this does NOT do)** | This exercises the **OTLP-proto exporter path** (`exporter:otlp_http`) at **telemetrygen scale / low cardinality**. It does **not** exercise or refute the separate **Arrow/OTAP metrics-*encoder* `boo` panic** and `DictionaryKeyOverflowError` (see Q2 below) — those are encode-path defects on high-cardinality real workload, not transform-language limits. It also does **not** re-open the benchmark arm (DNF, ISI-1849). This is purely the upstream-conversation capability answer. |
+| **Relation to Q2** | Q2 routed metrics to a noop because the *encoder* panics. OPL's ability to *drop by type/temporality* is an orthogonal, now-demonstrated capability of the transform language; it would let an operator drop Dynatrace-rejected metrics explicitly rather than route the whole signal away — but only over an export path the metrics encoder survives. |
+
+---
+
 ### Q2 — Arrow arm delivers logs and traces only; metrics tiles are empty BY DESIGN
 
 > 🛑 **MOOT — the arrow arm is DNF and both its phases are cancelled** (ISI-1849 / ISI-1817 /
@@ -240,6 +284,8 @@ breakdown when one signal (arrow metrics) is never delivered by construction.
 | Step 4: drop log.file.path | ✅ | ✅ | ✅ (ISI-1843) | Closed |
 | Step 5: batch | ✅ size+duration | ⚠️ duration only | ⚠️ size 1 000, duration 1 s | **Disclosed Q6** |
 | Q2: metrics signal | ✅ delivered | ✅ delivered | ⚠️ noop BY DESIGN | **Disclosed Q2** |
+| Metric drop (cumulative + Summary) | ✅ filter/OTTL | ✅ Lua/selector | ✅ OPL `where` (OPL, ISI-1859) | **P-MET — runtime-proven, OTLP path** |
+| Multi-signal transform (logs+metrics+traces) | ✅ | ✅ | ✅ one `signals` pipeline (OPL, ISI-1859) | **P-MET — 11/11 PASS** |
 | Q7: export resilience | ✅ retry+queue | ⚠️ retry only | ❌ none | **Disclosed Q7 + measured** |
 | Q8: memory request | 512 Mi | 256 Mi | 512 Mi | **Disclosed Q8** |
 | severity\_number alignment | not an issue | not an issue | ⚠️ INFO despite text=ERROR | **Disclosed SNUM** |
