@@ -6,7 +6,7 @@ The `df_engine` container in the failing runs had **no `readinessProbe`, no `liv
 
 I also confirmed your point in the source at the commit we built (`7502e7d`): `crates/admin/src/health.rs` registers `/api/v1/readyz`, and it returns `503 SERVICE_UNAVAILABLE` whenever any pipeline's `Ready` condition is not `True` (and separately on hard memory pressure), `200` otherwise. `/api/v1/livez` is there too and returns `500` on a failing `Accepted` condition. So the engine already exposes exactly the signal we said was missing — we just never wired a probe to it.
 
-Worth connecting to the one engine-side observation in my follow-up: the `metric_sets` count collapsing 289 → 1 and your `readyz` going `503` are two reads of the **same** observed-state store. So that wasn't a competing detection mechanism — it was the hard way to see what `/api/v1/readyz` reports directly. `readyz` is the right signal; my heuristic was just me not having found the probe endpoint yet.
+One engine-side observation that lines up with your finding: when the cores die, the admin metrics endpoint (`/api/v1/metrics?format=json&keep_all_zeroes=true`) collapses from **289** metric sets to **1** (`engine` only). That and your `readyz` going `503` are two reads of the **same** observed-state store — so `readyz` is just the direct, purpose-built version of a signal I'd been reading the hard way. `readyz` is the right one to probe; I simply hadn't found the endpoint yet.
 
 The fix on our side, which we'll adopt:
 
