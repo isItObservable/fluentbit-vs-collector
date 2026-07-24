@@ -1,0 +1,1274 @@
+2026-07-24T08:09:24.840Z	info	otelconftelemetry/tracer.go:47	Internal trace telemetry disabled	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}}
+2026-07-24T08:09:24.842Z	info	service@v0.154.0/service.go:241	Starting otelcol-contrib...	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "Version": "0.154.0", "NumCPU": 4}
+2026-07-24T08:09:24.842Z	info	extensions/extensions.go:41	Starting extensions...	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}}
+2026-07-24T08:09:24.842Z	info	otlpreceiver@v0.154.0/otlp.go:120	Starting GRPC server	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "otlp", "otelcol.component.kind": "receiver", "endpoint": "[::]:4317"}
+2026-07-24T08:09:24.842Z	info	otlpreceiver@v0.154.0/otlp.go:175	Starting HTTP server	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "otlp", "otelcol.component.kind": "receiver", "endpoint": "[::]:4318"}
+2026-07-24T08:09:24.842Z	info	service@v0.154.0/service.go:264	Everything is ready. Begin running and processing data.	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}}
+2026-07-24T08:10:32.818Z	info	Logs	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "logs", "resource logs": 1, "log records": 50}
+2026-07-24T08:10:32.819Z	info	ResourceLog #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(opl-err)
+ScopeLogs #0
+ScopeLogs SchemaURL: 
+InstrumentationScope  
+LogRecord #0
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:43.486420189 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> pii.email.detected: Str(true)
+     -> probe.stream: Str(err)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #1
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:43.486436018 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #2
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:44.48655186 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #3
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:45.48686856 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #4
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:46.486976187 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #5
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:47.487124069 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #6
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:48.487199173 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #7
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:49.487287994 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #8
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:50.487376934 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #9
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:51.486722125 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #10
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:52.486832738 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #11
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:53.48690728 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #12
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:54.486983929 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #13
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:55.487059064 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #14
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:56.487365554 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #15
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:57.486784934 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #16
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:58.48687129 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #17
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:59.486950493 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #18
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:00.486575149 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> pii.email.detected: Str(true)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #19
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:01.486734462 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #20
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:02.486813154 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #21
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:03.486904369 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #22
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:04.48655255 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #23
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:05.486634588 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #24
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:06.486712038 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #25
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:07.486552913 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #26
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:08.486641252 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #27
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:09.486557158 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> probe.stream: Str(err)
+     -> app: Str(server)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #28
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:10.486982352 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #29
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:11.487092584 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #30
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:12.487478114 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #31
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:13.48688479 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #32
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:14.486975975 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #33
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:15.487058174 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #34
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:16.487133089 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #35
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:17.487222291 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> pii.email.detected: Str(true)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #36
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:18.487324006 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #37
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:19.487448073 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #38
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:20.486593309 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #39
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:21.486702507 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #40
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:22.486799123 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #41
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:23.487094494 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> pii.email.detected: Str(true)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #42
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:24.487198623 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #43
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:25.487101855 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> pii.email.detected: Str(true)
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #44
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:26.487188631 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #45
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:27.487286258 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #46
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:28.48737493 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #47
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:29.48675673 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #48
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:30.486820384 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #49
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:31.486558555 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(REDACTED:bcd712632c394acc5c832d4296255736e427be571efa5827d25e9cea9eb07e50)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(err)
+     -> pii.email.detected: Str(true)
+Trace ID: 
+Span ID: 
+Flags: 0
+	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "logs"}
+2026-07-24T08:10:32.819Z	info	Logs	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "logs", "resource logs": 1, "log records": 50}
+2026-07-24T08:10:32.820Z	info	ResourceLog #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(opl-ok)
+ScopeLogs #0
+ScopeLogs SchemaURL: 
+InstrumentationScope  
+LogRecord #0
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:43.74067995 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #1
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:43.740695329 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #2
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:44.740802524 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #3
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:45.74090931 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #4
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:46.740998803 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #5
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:47.740756901 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #6
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:48.740867643 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #7
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:49.740965581 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #8
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:50.741106379 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #9
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:51.741249903 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #10
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:52.741381914 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #11
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:53.741357492 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #12
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:54.74083947 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #13
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:55.740924834 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #14
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:56.741039333 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #15
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:57.740741025 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #16
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:58.74169867 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #17
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:09:59.740796025 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #18
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:00.741193996 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #19
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:01.741331589 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #20
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:02.741418718 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #21
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:03.741515272 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #22
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:04.740736791 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #23
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:05.740850278 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #24
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:06.740938558 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #25
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:07.741775426 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #26
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:08.741347455 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #27
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:09.741160887 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #28
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:10.741535777 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #29
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:11.74165288 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #30
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:12.740764905 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #31
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:13.740877249 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #32
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:14.741007809 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #33
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:15.741523492 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #34
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:16.740823911 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #35
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:17.74090108 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #36
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:18.740977797 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #37
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:19.741055448 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #38
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:20.741441839 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #39
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:21.740846892 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #40
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:22.740943799 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #41
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:23.741023183 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #42
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:24.741114549 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #43
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:25.740814948 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #44
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:26.740932744 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #45
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:27.740720117 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #46
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:28.740825971 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #47
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:29.741613716 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #48
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:30.740813304 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #49
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-24 08:10:31.741577736 +0000 UTC
+SeverityText: CLEARED
+SeverityNumber: Info(9)
+Body: Str(request completed successfully)
+Attributes:
+     -> app: Str(server)
+     -> probe.stream: Str(ok)
+Trace ID: 
+Span ID: 
+Flags: 0
+	{"resource": {"service.instance.id": "144f49cd-d5a9-4ae0-b53f-1466f8a41a6f", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "logs"}

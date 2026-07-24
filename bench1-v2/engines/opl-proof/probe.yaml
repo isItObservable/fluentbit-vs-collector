@@ -1,0 +1,244 @@
+# ============================================================================
+# ISI-1859 — OPL runtime node-proof for df_engine 0.50.0 (build @ 7502e7d)
+# ----------------------------------------------------------------------------
+# WHY THIS EXISTS
+#
+# otel-arrow#3561 follow-up (@lquerel): "use OPL, not KQL; KQL is Microsoft-
+# compat only". ISI-1843 disclosed two parity gaps that were really KQL-surface
+# limits, not engine limits:
+#   * P-SEV (parity step 2): the KQL transform could WRITE severity_text but
+#     could not READ a field to make the write conditional, so the arrow arm
+#     wrote severity_text=ERROR unconditionally.
+#   * P-PII (parity step 3): a conditional field read + redact was not
+#     implementable at all on the arrow side.
+#
+# This probe feeds real logs through the REAL binary with an OPL transform and
+# reads what it emits off the wire. `--validate-and-exit` is ZERO evidence for
+# this engine (ISI-1817/1843), so every claim below is proven against emitted
+# bytes, not a green validate.
+#
+# THE DECISIVE TEST (step 2): the OPL `if/else` sets TWO DIFFERENT values —
+# `severity_text = "ERROR"` on the if-branch and `severity_text = "CLEARED"`
+# on the else-branch. If the engine could not READ `body` (the KQL failure
+# mode) it could not produce this split. Two distinct outputs, driven by a
+# read predicate, is the whole point.
+#
+#   OPL under test (logs branch):
+#     logs
+#     | if (contains(body, "error")) { set severity_text = "ERROR" }
+#       else { set severity_text = "CLEARED" }
+#     | if (matches(body, r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9._-]+")) {
+#         set attributes["pii.email.detected"] = "true",
+#             body = concat("REDACTED:", encode(sha256(body), "hex"))
+#       }
+#
+# Two generators, distinguished by resource service.name:
+#   gen-err  body = "database error for user alice@example.com"  -> ERROR + redacted
+#   gen-ok   body = "request completed successfully"             -> CLEARED, untouched
+#
+# gen-ok is the built-in control: it exercises the else-branch and the
+# unmatched PII predicate, so a PASS on gen-err cannot be an unconditional
+# write in disguise.
+# ============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dfopl
+  labels: { isi: "1859", purpose: opl-node-proof }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: sink-config, namespace: dfopl }
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    exporters:
+      debug:
+        verbosity: detailed
+    service:
+      pipelines:
+        logs: { receivers: [otlp], exporters: [debug] }
+      telemetry:
+        logs: { level: info }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: sink, namespace: dfopl }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: sink } }
+  template:
+    metadata:
+      labels: { app: sink }
+      annotations: { dynatrace.com/inject: "false" }
+    spec:
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.154.0
+          args: ["--config", "/etc/otelcol/config.yaml"]
+          ports:
+            - { containerPort: 4317 }
+            - { containerPort: 4318 }
+          volumeMounts:
+            - { name: cfg, mountPath: /etc/otelcol, readOnly: true }
+      volumes:
+        - name: cfg
+          configMap: { name: sink-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sink, namespace: dfopl }
+spec:
+  selector: { app: sink }
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+---
+# ----------------------------------------------------------------------------
+# DF_ENGINE — minimal faithful pipeline isolating the OPL transform under test.
+# receiver:otlp -> processor:transform(OPL) -> exporter:otlp_http(debug sink)
+# Same image, same node types and config shapes as the shipping template; the
+# transform's query surface is the only thing under test here.
+# ----------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: df-opl-config, namespace: dfopl }
+data:
+  config.yaml: |
+    version: otel_dataflow/v1
+    engine: {}
+    groups:
+      default:
+        pipelines:
+          main:
+            policies:
+              channel_capacity:
+                control: { node: 100, pipeline: 100 }
+                pdata: 128
+            nodes:
+              otlp_in:
+                type: receiver:otlp
+                config:
+                  protocols:
+                    grpc: { listening_addr: 0.0.0.0:4317 }
+                    http: { listening_addr: 0.0.0.0:4318 }
+
+              parity:
+                type: processor:transform
+                config:
+                  opl_query: |
+                    logs
+                    | if (contains(body, "error")) { set severity_text = "ERROR" } else { set severity_text = "CLEARED" }
+                    | if (matches(body, r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9._-]+")) { set attributes["pii.email.detected"] = "true", body = concat("REDACTED:", encode(sha256(body), "hex")) }
+
+              dt_out:
+                type: exporter:otlp_http
+                config:
+                  endpoint: http://sink.dfopl.svc.cluster.local:4318
+                  client_pool_size: 4
+                  http:
+                    headers:
+                      Authorization: "Api-Token PROBE-DUMMY-VALUE-NOT-A-TOKEN"
+
+            connections:
+              - { from: otlp_in, to: parity }
+              - { from: parity,  to: dt_out }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: df-engine, namespace: dfopl }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: df-engine } }
+  template:
+    metadata:
+      labels: { app: df-engine }
+      annotations: { dynatrace.com/inject: "false" }
+    spec:
+      containers:
+        - name: df-engine
+          image: ghcr.io/isitobservable/df_engine:0.50.0
+          args:
+            - "--config"
+            - "file:/etc/df-engine/config.yaml"
+            - "--http-admin-bind"
+            - "0.0.0.0:8080"
+          ports:
+            - { containerPort: 4317 }
+            - { containerPort: 4318 }
+            - { containerPort: 8080 }
+          volumeMounts:
+            - { name: cfg, mountPath: /etc/df-engine, readOnly: true }
+      volumes:
+        - name: cfg
+          configMap: { name: df-opl-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: df-engine, namespace: dfopl }
+spec:
+  selector: { app: df-engine }
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+    - { name: admin, port: 8080, targetPort: 8080 }
+---
+# ----------------------------------------------------------------------------
+# GENERATORS. Distinguished by service.name so the debug sink groups them into
+# separate ResourceLog blocks for per-stream assertions.
+# ----------------------------------------------------------------------------
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-err, namespace: dfopl }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "logs"
+            - "--otlp-endpoint"
+            - "df-engine.dfopl.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--logs"
+            - "50"
+            - "--body"
+            - "database error for user alice@example.com"
+            - "--telemetry-attributes"
+            - 'probe.stream="err"'
+            - "--service"
+            - "opl-err"
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-ok, namespace: dfopl }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "logs"
+            - "--otlp-endpoint"
+            - "df-engine.dfopl.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--logs"
+            - "50"
+            - "--body"
+            - "request completed successfully"
+            - "--telemetry-attributes"
+            - 'probe.stream="ok"'
+            - "--service"
+            - "opl-ok"

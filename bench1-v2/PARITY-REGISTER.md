@@ -41,27 +41,58 @@ down" was rejected because it would void two valid, irreplaceable results.
 
 ### P-SEV — Severity normalise: constant write vs. conditional write
 
+> ✅ **RETRACTED as an engine gap (ISI-1859, 2026-07-24).** The conditional read
+> was a **KQL-surface limit, not a df_engine limit.** Rewritten in OPL and
+> runtime-proven on `observable-agentsandbox` against the unchanged `7502e7d`
+> image: `logs | if (contains(body, "error")) { set severity_text = "ERROR" }
+> else { set severity_text = "CLEARED" }` produced 50 `ERROR` (matching bodies)
+> and 50 `CLEARED` (non-matching) off the wire — the `if` predicate **read**
+> `body` and branched, which KQL could not. Evidence:
+> `engines/opl-proof/probe.yaml` + `verify.sh` (9/9 PASS),
+> `results/opl-retest/FINDINGS.md`, `results/opl-retest/sink-evidence.log`.
+> Retracted upstream on otel-arrow#3561 (paste-ready follow-up in
+> `results/opl-retest/`). **Moot for the readout — the arm is DNF (ISI-1849) —**
+> but corrected here because the register is a public correctness record.
+
+The original disclosure (KQL surface) is kept below as history:
+
 | | |
 |---|---|
 | **Arms affected** | OTel-Arrow native (Phase 3) vs. Collector (Phase 1) + Fluent Bit (Phase 2) |
 | **What the frozen arms do** | Write `severity_text = ERROR` only when the log body matches `/(?i)error/` |
-| **What the arrow arm does** | Write `severity_text = ERROR` unconditionally on every log record |
-| **Root cause** | `processor:transform` (KQL) in df_engine 0.50.0 can write a field but cannot read one at runtime. Every conditional expression (`body contains`, `body == "…"`, `replace_regex`, `body matches regex`) raises an opaque runtime error while `--validate-and-exit` still reports VALID. Verified live on observable-otelarrow 2026-07-22 (evidence in `engines/otel-arrow-native.yaml` header, `engines/node-proof/`). |
-| **Why not fixed** | Would require either (a) a KQL read predicate (not available in 0.50.0) or (b) levelling the frozen arms down — which voids two valid timed runs. |
-| **Camera sentence** | *"All three engines write `severity_text = ERROR`. The Collector and Fluent Bit do so conditionally — only when the body matches an error pattern. The Arrow engine does it unconditionally, because its KQL transform can write a field but cannot read one. That is a processing-work difference, and we are naming it."* |
+| **What the arrow arm did (on KQL)** | Write `severity_text = ERROR` unconditionally on every log record |
+| **Root cause (KQL surface only)** | `processor:transform` with `kql_query` in df_engine 0.50.0 could write a field but not read one at runtime — every conditional (`body contains`, `body == "…"`, `matches regex`) raised an opaque runtime error while `--validate-and-exit` reported VALID. Tracked upstream as #1634. **The OPL surface (`opl_query`) does not have this limit** — see the retraction above. |
+| **Camera sentence (superseded)** | ~~*"…the Arrow engine does it unconditionally, because its KQL transform can write a field but cannot read one."*~~ No longer true: OPL reads the field. If the arm ever ran, all three would write conditionally. |
 
 ---
 
 ### P-PII — PII redaction: hash vs. substring mask vs. not implemented
 
+> ✅ **"Not implementable at all" RETRACTED (ISI-1859, 2026-07-24).** The
+> conditional field-read + redact **is** implementable on the arrow side — in
+> OPL, not KQL. Runtime-proven against the `7502e7d` image:
+> `logs | if (matches(body, r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9._-]+")) { set
+> attributes["pii.email.detected"] = "true", body = concat("REDACTED:",
+> encode(sha256(body), "hex")) }` fired on exactly the 50 e-mail-bearing records,
+> rewrote their body to a SHA-256, left the original e-mail nowhere in the output
+> (0 occurrences), and did not touch the 50 clean records. Evidence as for P-SEV.
+> **Remaining nuance (a semantic difference, not an inability):** OPL at `7502e7d`
+> has no `regexp_replace` verb (only literal `replace`, plus `regexp_substr` /
+> `regexp_capture`), so the Collector's *substring* mask is not a single OPL
+> operation. The arrow arm redacts by whole-value hash — identical semantics to
+> the Fluent Bit arm. So the three-way split becomes **substring-mask vs
+> whole-value-hash vs whole-value-hash**, all implemented, rather than
+> "…vs not implemented." Retracted upstream on #3561.
+
+The original disclosure is kept below as history:
+
 | | |
 |---|---|
-| **Arms affected** | All three; arrow arm cannot implement it at all |
+| **Arms affected** | All three; ~~arrow arm cannot implement it at all~~ arrow arm redacts by whole-value hash (see retraction) |
 | **Collector** | `replace_pattern(body, <e-mail-regex>, "***REDACTED***")` — replaces only the matched substring; the rest of the body is unchanged |
-| **Fluent Bit v5** | `content_modifier action: hash key: log` + e-mail regex condition — SHA-256s the **entire log value** when the body matches; no substring substitution verb exists in the native processor |
-| **Arrow native** | No implementation. `processor:transform` cannot read a field to form a condition (see P-SEV); `processor:filter` accepts any config including `{__bogus__: 1}` while reporting VALID, and has no redaction action. |
-| **Why not fixed** | Same constraint as P-SEV for the conditional. Collector and Fluent Bit already diverge from each other (substring vs. whole-value hash); forcing three identical redaction semantics would require either rebuilding 0.50.0 or voiding frozen arms. |
-| **Camera sentence** | *"Three engines, three redaction approaches: the Collector masks the matched e-mail substring; Fluent Bit hashes the entire field value; the Arrow engine has no conditional field operation in 0.50.0, so it skips PII redaction entirely. Comparable processing intent, genuinely different outputs — and the point of the benchmark is to show what each engine can and cannot do."* |
+| **Fluent Bit v5** | `content_modifier action: hash key: log` + e-mail regex condition — SHA-256s the **entire log value** when the body matches |
+| **Arrow native (on OPL)** | `if (matches(body, r"…@…")) { set body = encode(sha256(body), "hex") }` — reads the field, forms the condition, hashes the whole value. Same semantics as Fluent Bit. The KQL surface could not read a field (see P-SEV / #1634); the OPL surface can. |
+| **Camera sentence (updated)** | *"Three engines, three redaction approaches: the Collector masks the matched e-mail substring; Fluent Bit and the Arrow engine both hash the whole field value. All three read the body, detect the e-mail, and redact — the outputs differ because the verbs differ, not because one engine can't do it."* |
 
 ---
 
@@ -204,8 +235,8 @@ breakdown when one signal (arrow metrics) is never delivered by construction.
 | Item | Collector | Fluent Bit v5 | Arrow native (DNF — config only) | Status |
 |------|-----------|---------------|--------------|--------|
 | Step 1: static attrs | ✅ | ✅ | ✅ | Closed |
-| Step 2: severity normalise | ✅ conditional | ✅ conditional | ⚠️ constant write | **Disclosed P-SEV** |
-| Step 3: PII redact | ✅ substring mask | ⚠️ whole-value hash | ❌ not implementable | **Disclosed P-PII** |
+| Step 2: severity normalise | ✅ conditional | ✅ conditional | ✅ conditional (OPL, ISI-1859) | **P-SEV RETRACTED** |
+| Step 3: PII redact | ✅ substring mask | ⚠️ whole-value hash | ✅ whole-value hash (OPL, ISI-1859) | **P-PII retracted; hash-not-substring nuance** |
 | Step 4: drop log.file.path | ✅ | ✅ | ✅ (ISI-1843) | Closed |
 | Step 5: batch | ✅ size+duration | ⚠️ duration only | ⚠️ size 1 000, duration 1 s | **Disclosed Q6** |
 | Q2: metrics signal | ✅ delivered | ✅ delivered | ⚠️ noop BY DESIGN | **Disclosed Q2** |
