@@ -87,6 +87,24 @@ spec:
           resources:
             requests: { cpu: "500m", memory: "512Mi" }
             limits:   { cpu: "4",    memory: "2Gi" }
+          # ISI-1850 — the engine already exposes health at :8080/api/v1. Verified in
+          # crates/admin/src/health.rs @ 7502e7d: readyz 503s on any pipeline Ready!=True
+          # (or hard memory pressure), livez 500s on a failing Accepted condition. Earlier
+          # runs wired NO probes, so k8s defaulted the pod Ready while every core was dead;
+          # these close that gap. startupProbe gives the engine room to come up before
+          # liveness can kill it; readiness on livez is deliberate — see note below.
+          startupProbe:
+            httpGet: { path: /api/v1/livez, port: admin }
+            periodSeconds: 5
+            failureThreshold: 24        # up to ~120s to start before liveness engages
+          livenessProbe:
+            httpGet: { path: /api/v1/livez, port: admin }
+            periodSeconds: 10
+            failureThreshold: 3         # ~30s of failed liveness -> pod restart
+          readinessProbe:
+            httpGet: { path: /api/v1/readyz, port: admin }
+            periodSeconds: 10
+            failureThreshold: 3
           volumeMounts:
             - { name: cfg, mountPath: /etc/df-engine, readOnly: true }
       volumes:
