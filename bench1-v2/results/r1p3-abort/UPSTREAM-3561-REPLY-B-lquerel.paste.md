@@ -1,0 +1,9 @@
+@lquerel Thank you — and that's a genuinely useful correction, not a footnote for us.
+
+The parity step where we hit the wall was a conditional severity rewrite: `set severity_text = "ERROR" where the body matches "(?i)error"`. In KQL on this engine the predicate side wouldn't evaluate at runtime — `contains`, `==`, `matches regex` and `replace_regex` all validated clean and then did nothing on the wire — so we fell back to an **unconditional** write and disclosed it as a parity gap. A second step (PII redaction — read a field, mask a substring) we couldn't express at all, for the same read-predicate reason.
+
+If OPL evaluates those predicates against the underlying engine where KQL only compiles for Microsoft-compatibility, then the gap we recorded may be a **KQL-surface limitation, not an engine capability gap** — which would be a materially better story for df_engine than the one we wrote down. That reframes it from "the engine can't read a field in transform" to "we used the wrong query surface."
+
+So, concretely: we'll re-run the same two parity steps in OPL rather than KQL and report what the engine actually does on the wire — same method as the rest of the report (feed one span/log/metric, read what comes out). If OPL closes the conditional-write and field-read gaps, I'll say so plainly here and retract that part of the disclosure. If anything doesn't translate, you'll get a precise, reproducible note rather than a vague one.
+
+And +1 to making the KQL-is-compat-only point explicit in the docs — we reached for KQL precisely because it was the documented example and there was no signal it was the fallback surface rather than the recommended one. That, plus #1634 (which @AaronRM linked for the validate-but-can't-evaluate behaviour), would together have steered us to OPL from the start.
