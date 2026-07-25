@@ -1,0 +1,113 @@
+==================================================================
+=== driver start 2026-07-25T08:23:18Z pid 408719 ===
+grep self-test (must be >=1): 2
+--- stage 1: wait for build 30150098818 ---
+08:23:18Z build: in_progress None
+08:24:04Z build: in_progress None
+08:24:49Z build: in_progress None
+08:25:34Z build: in_progress None
+08:26:20Z build: in_progress None
+08:27:05Z build: in_progress None
+08:27:51Z build: in_progress None
+08:28:36Z build: in_progress None
+08:29:22Z build: in_progress None
+08:30:07Z build: in_progress None
+08:30:52Z build: in_progress None
+08:31:38Z build: completed success
+--- stage 2: deploy smoke rig ---
+namespace/dfsmoke created
+configmap/fanout-config created
+deployment.apps/fanout created
+service/fanout created
+configmap/sink-old-config created
+deployment.apps/sink-old created
+service/sink-old created
+configmap/sink-new-config created
+deployment.apps/sink-new created
+service/sink-new created
+configmap/df-old-config created
+deployment.apps/engine-old created
+service/engine-old created
+configmap/df-new-config created
+deployment.apps/engine-new created
+service/engine-new created
+Waiting for deployment "engine-new" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "engine-new" rollout to finish: 0 of 1 updated replicas are available...
+deployment "engine-new" successfully rolled out
+deployment "fanout" successfully rolled out
+deployment "sink-new" successfully rolled out
+deployment "sink-old" successfully rolled out
+deployment "engine-old" successfully rolled out
+engine-new imageID: ghcr.io/isitobservable/df_engine@sha256:0f85174d9ddc024f4aa1205dd0edd90d21712e0744e2fe3d35e35c6e31b43db1
+--- stage 3: deploy otel-demo load ---
+WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /home/hrexed/.config/capmox/observable-agentsandbox.kubeconfig
+WARNING: Kubernetes configuration file is world-readable. This is insecure. Location: /home/hrexed/.config/capmox/observable-agentsandbox.kubeconfig
+Release "otel-demo" does not exist. Installing it now.
+NAME: otel-demo
+LAST DEPLOYED: Sat Jul 25 10:32:09 2026
+NAMESPACE: otel-demo
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+=======================================================================================
+
+
+ ██████╗ ████████╗███████╗██╗         ██████╗ ███████╗███╗   ███╗ ██████╗
+██╔═══██╗╚══██╔══╝██╔════╝██║         ██╔══██╗██╔════╝████╗ ████║██╔═══██╗
+██║   ██║   ██║   █████╗  ██║         ██║  ██║█████╗  ██╔████╔██║██║   ██║
+██║   ██║   ██║   ██╔══╝  ██║         ██║  ██║██╔══╝  ██║╚██╔╝██║██║   ██║
+╚██████╔╝   ██║   ███████╗███████╗    ██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝
+ ╚═════╝    ╚═╝   ╚══════╝╚══════╝    ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝
+
+
+- All services are available via the Frontend proxy: http://localhost:8080
+  by running these commands:
+     kubectl --namespace otel-demo port-forward svc/frontend-proxy 8080:8080
+
+  The following services are available at these paths after the frontend-proxy service is exposed with port forwarding:
+  Webstore             http://localhost:8080/
+  Jaeger UI            http://localhost:8080/jaeger/ui/
+  Grafana              http://localhost:8080/grafana/
+  Load Generator UI    http://localhost:8080/loadgen/
+  Feature Flags UI     http://localhost:8080/feature/
+waiting 150s for demo services + loadgen to warm...
+NAME                               READY   STATUS            RESTARTS      AGE
+accounting-7bf4c68747-85rjx        1/1     Running           0             2m29s
+ad-7899c74569-4zp2h                1/1     Running           0             2m30s
+cart-7dc67fc6fc-p4n6r              0/1     Init:0/2          0             2m30s
+checkout-77d785b897-cnrf9          1/1     Running           0             2m30s
+currency-6ddfbb4cb6-s65z7          1/1     Running           0             2m29s
+email-5757b4cf97-wh7m8             1/1     Running           0             2m30s
+flagd-855bd889c4-vpzjx             2/2     Running           0             2m27s
+fraud-detection-56d7969fc9-sr9kk   1/1     Running           0             2m28s
+frontend-75d576879b-rv29g          1/1     Running           0             2m30s
+frontend-proxy-5786854d6c-q49bh    1/1     Running           0             2m28s
+image-provider-6dd968cd56-95gzl    1/1     Running           0             2m30s
+kafka-d887b58bb-ctmdb              1/1     Running           0             2m28s
+llm-6c57987657-hppcp               1/1     Running           0             2m29s
+load-generator-b95475c58-m8c9p     1/1     Running           1 (33s ago)   2m30s
+payment-869c545464-cqpjk           1/1     Running           0             2m27s
+postgresql-6fdf44b444-8lms9        1/1     Running           0             2m29s
+product-catalog-654f8b6b75-zcftx   1/1     Running           2 (83s ago)   2m30s
+product-reviews-694fd4bc6b-6nbsl   1/1     Running           0             2m30s
+quote-7b95fc5ff5-wd28v             1/1     Running           0             2m29s
+recommendation-85b5bfd895-c6x5c    1/1     Running           0             2m28s
+shipping-6c594c6cbd-gmldt          1/1     Running           0             2m30s
+valkey-cart-5c986c984d-cn72m       0/1     PodInitializing   0             2m28s
+--- stage 4: smoke measurement 2760s ---
+2026-07-25T08:34:40Z,0,633,1,171,0
+0,0
+0,0
+0,0
+0,0
+0,0
+0
+!!! NEW ENGINE FAILURE DETECTED at 2026-07-25T08:34:40Z (alive=0 overflow=0
+0 boo=0
+0 panic=0
+0)
+--- measurement ended, elapsed 7s ---
+old_failed=1 new_died=1 elapsed=7
+VERDICT=FAIL_NEW_OVERFLOW:elapsed=7s at 2026-07-25T08:34:47Z
+=== driver end 2026-07-25T08:34:47Z ===

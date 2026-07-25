@@ -1,0 +1,32 @@
+System Information:
+  Available CPU cores: 4
+  Available memory: 8.67 GB / 11.68 GB
+  Build mode: release
+  Memory allocator: jemalloc
+
+Available Component URNs:
+  Receivers: urn:otel:receiver:host_metrics, urn:otel:receiver:internal_telemetry, urn:otel:receiver:journald, urn:otel:receiver:otap, urn:otel:receiver:otlp, urn:otel:receiver:syslog_cef, urn:otel:receiver:topic, urn:otel:receiver:traffic_generator
+  Processors: urn:otel:processor:attribute, urn:otel:processor:batch, urn:otel:processor:content_router, urn:otel:processor:debug, urn:otel:processor:delay, urn:otel:processor:durable_buffer, urn:otel:processor:fanout, urn:otel:processor:filter, urn:otel:processor:log_sampling, urn:otel:processor:partition, urn:otel:processor:retry, urn:otel:processor:temporal_reaggregation, urn:otel:processor:transform, urn:otel:processor:type_router
+  Exporters: urn:otel:exporter:console, urn:otel:exporter:error, urn:otel:exporter:noop, urn:otel:exporter:otap, urn:otel:exporter:otlp_grpc, urn:otel:exporter:otlp_http, urn:otel:exporter:parquet, urn:otel:exporter:perf, urn:otel:exporter:topic
+  Controller Extensions: urn:otel:extension:controller_monitor, urn:otel:extension:opamp
+
+Example configuration files can be found in the configs/ directory.
+[2m2026-07-25T08:31:42.721Z[0m  [32mINFO [0m [1motap-df-controller::pipeline.core_allocation[0m: [pipeline_group_id=default, pipeline_id=main, num_cores=2, core_allocation=[2 cores]]
+[2m2026-07-25T08:31:42.723Z[0m  [32mINFO [0m [1motap-df-admin::endpoint.start[0m: Admin HTTP server listening [bind_address=0.0.0.0:8080][35m[0m
+[2m2026-07-25T08:31:42.724Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.exporter.http.start[0m: [logs_endpoint=http://sink-old.dfsmoke.svc.cluster.local:4318/v1/logs, metrics_endpoint=http://sink-old.dfsmoke.svc.cluster.local:4318/v1/metrics, traces_endpoint=http://sink-old.dfsmok[...]][35m entity/node.attrs: node.id=sink_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0[0m
+[2m2026-07-25T08:31:42.724Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.exporter.http.start[0m: [logs_endpoint=http://sink-old.dfsmoke.svc.cluster.local:4318/v1/logs, metrics_endpoint=http://sink-old.dfsmoke.svc.cluster.local:4318/v1/metrics, traces_endpoint=http://sink-old.dfsmok[...]][35m entity/node.attrs: node.id=sink_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0[0m
+[2m2026-07-25T08:31:42.726Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.grpc.start[0m: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0[0m
+[2m2026-07-25T08:31:42.726Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.http.start[0m: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0[0m
+[2m2026-07-25T08:31:42.727Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.grpc.start[0m: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0[0m
+[2m2026-07-25T08:31:42.727Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.http.start[0m: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0[0m
+
+thread 'pipeline-default-main-core-1-gen-0' (12) panicked at crates/pdata/src/encode/record/metrics.rs:266:13:
+boo [21, 21, 21, 7, 21, 21, 21, 21, 21, 21]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[2m2026-07-25T08:34:50.670Z[0m  [31mERROR[0m [1motap-df-state::state.observed_error[0m: Pipeline encountered a runtime error. [pipeline_group_id=default, pipeline_id=main, core_id=1][35m[0m
+[2m2026-07-25T08:34:50.670Z[0m  [31mERROR[0m [1motap-df-controller::controller.pipeline_runtime_failed[0m: Pipeline terminated with a runtime error [core_id=1][35m[0m
+
+thread 'pipeline-default-main-core-0-gen-0' (11) panicked at crates/pdata/src/encode/record/metrics.rs:266:13:
+boo [15, 15, 15, 8, 15, 15, 15, 15, 15, 15]
+[2m2026-07-25T08:35:03.921Z[0m  [31mERROR[0m [1motap-df-state::state.observed_error[0m: Pipeline encountered a runtime error. [pipeline_group_id=default, pipeline_id=main, core_id=0][35m[0m
+[2m2026-07-25T08:35:03.921Z[0m  [31mERROR[0m [1motap-df-controller::controller.pipeline_runtime_failed[0m: Pipeline terminated with a runtime error [core_id=0][35m[0m
