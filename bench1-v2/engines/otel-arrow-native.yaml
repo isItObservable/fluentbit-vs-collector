@@ -1,8 +1,10 @@
 # ============================================================================
 # ISI-1814 / ISI-1779 B1-v2 — ENGINE 3: OTel-Arrow native (df_engine / otap-dataflow)
 # ----------------------------------------------------------------------------
-# Phase 3 of the sequential campaign. Image ghcr.io/isitobservable/df_engine:0.50.0
-# (built by ISI-1795, publicly pullable, no pull secret).
+# Phase 3 of the sequential campaign. Image ghcr.io/isitobservable/df_engine:0.51.0
+# (ISI-1879 rebuild from otel-arrow main @eaf8f4cc = #3574+#3573+#3582; digest
+# sha256:0f85174d9ddc..., publicly pullable, no pull secret). 0.50.0 DNF'd on the
+# `boo` metrics-encoder panic; #3582 fixes it, smoke-proven (ISI-1879, 46min/0-panic).
 #
 #   ./engines/render-df-engine-config.sh   # creates the ConfigMap in-cluster
 #   kubectl apply -f engines/otel-arrow-native.yaml
@@ -74,7 +76,7 @@ spec:
     spec:
       containers:
         - name: df-engine
-          image: ghcr.io/isitobservable/df_engine:0.50.0
+          image: ghcr.io/isitobservable/df_engine:0.51.0@sha256:0f85174d9ddc024f4aa1205dd0edd90d21712e0744e2fe3d35e35c6e31b43db1
           args:
             - "--config"
             - "file:/etc/df-engine/config.yaml"

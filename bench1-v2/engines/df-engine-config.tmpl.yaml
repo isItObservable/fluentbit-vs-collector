@@ -16,7 +16,8 @@
 #                        and     [{key, action: delete}]      — ISI-1843
 #   processor:type_router  node-level `outputs: [logs, metrics, traces]`;
 #                        routing is IMPLICIT by signal type, `config: {}`
-#   processor:transform  kql_query: <string>   — see the READ/WRITE gap below
+#   processor:transform  opl_query: <string>   — OPL (NOT kql_query); reads
+#                        fields at runtime, closing the KQL read gap (ISI-1859)
 #   processor:batch      otap: {min_size, sizer}, max_batch_duration
 #   exporter:noop        config: {}
 #   exporter:otlp_http   endpoint + client_pool_size at top level;
@@ -65,10 +66,19 @@
 # PARITY SET (plan §2 — "equal processing work") — arrow-side mapping
 # ----------------------------------------------------------------------------
 #   1. static attribute add   -> processor:attribute  (3 upserts)
-#   2. severity normalise     -> processor:transform  (KQL, logs branch)
-#   3. PII redact             -> NOT IMPLEMENTABLE — disclosed gap (ISI-1845)
+#   2. severity normalise     -> processor:transform  (OPL, logs branch, CONDITIONAL on body)
+#   3. PII redact             -> processor:transform  (OPL, email -> sha256 hash)
 #   4. drop a key             -> processor:attribute  (delete log.file.path)
 #   5. batch                  -> processor:batch
+#
+# Steps 2 + 3 are OPL, not KQL (Henrik 2026-07-25). OPL reads fields at runtime
+# where KQL could not, so BOTH gaps below are CLOSED (proven ISI-1859):
+#   - severity is now conditional (contains(body,"error") ? ERROR : CLEARED),
+#     matching the Collector's `where IsMatch(body,"(?i)error")`;
+#   - PII redaction now exists (was "not implementable" under KQL).
+# RESIDUAL (disclosed): OPL @ this build has no regexp_replace, so email redaction
+# is a whole-value sha256 hash (identical to Fluent Bit) rather than the Collector's
+# substring mask — three-way split is mask vs hash vs hash, all implemented.
 #
 # Step 4 is applied on BOTH the logs and the traces branch, because that is
 # what the two frozen arms do: the Collector runs
@@ -78,13 +88,15 @@
 # logs branch"; applying it to logs only would have LEFT a parity gap rather
 # than closing one.
 #
-# PARITY GAP 2 (unchanged): `parity` below is a constant field write.
-# df_engine 0.50.0's KQL transform can write a field but cannot read one —
-# `contains`, `==`, `matches regex` and `replace_regex` all fail at runtime
-# while `--validate-and-exit` still reports the config valid. So step 2 is
-# unconditional where the Collector's is `where IsMatch(body, "(?i)error")`,
-# and step 3 has no arrow-side implementation at all. See the header of
-# engines/otel-arrow-native.yaml for the full evidence table.
+# PARITY GAP 2 (NOW CLOSED via OPL — Henrik 2026-07-25 "use OPL not KQL"):
+# the `parity` node below is OPL, which READS a field at runtime. So step 2 is
+# conditional (contains(body,"error") ? ERROR : CLEARED), matching the
+# Collector's `where IsMatch(body,"(?i)error")`, and step 3 (PII) is implemented
+# (email -> sha256 hash). Under KQL these were a constant write and "not
+# implementable" respectively; the otel-arrow-native.yaml header's KQL evidence
+# table records that superseded state. RUNTIME is still the only oracle
+# (--validate-and-exit accepts garbage) — the engine loads this OPL across all
+# cores and the gate exercises it with real logs before the timed window opens.
 #
 # BATCHING (board decision Q6, ISI-1841): `max_batch_duration` is aligned to
 # the Collector's `timeout: 1s` and Fluent Bit's `flush 1s`. Batch SIZE stays
@@ -155,11 +167,25 @@ groups:
                 - { key: benchmark.run,    action: upsert, value: isi1779-b1v2 }
                 - { key: log.file.path,    action: delete }
 
-          # 2. severity normalise — CONSTANT write, see parity gap note
+          # 2. severity normalise (CONDITIONAL, reads body) + 3. PII redact
+          #    (email -> whole-value sha256 hash). OPL, NOT KQL — Henrik
+          #    2026-07-25 "make sure we don't use KQL but OPL" (KQL is
+          #    Microsoft-compat only; OPL is df_engine's real transform surface,
+          #    per upstream #3561 / @lquerel). OPL READS a field where KQL could
+          #    not (upstream #1634), so this CLOSES both previously-disclosed
+          #    parity gaps: the severity write is now conditional on body, and
+          #    PII redaction is implemented (was "not implementable" under KQL).
+          #    Runtime-proven on df_engine by ISI-1859 (verify.sh 9/9,
+          #    verify-multisignal.sh 11/11; engines/opl-proof/). Regex uses
+          #    character classes, never \. or \d — the pest grammar rejects those
+          #    inside r"..." (ISI-1859 escape trap).
           parity:
             type: processor:transform
             config:
-              kql_query: "logs | extend severity_text = 'ERROR'"
+              opl_query: |
+                logs
+                | if (contains(body, "error")) { set severity_text = "ERROR" } else { set severity_text = "CLEARED" }
+                | if (matches(body, r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9._-]+")) { set attributes["pii.email.detected"] = "true", body = concat("REDACTED:", encode(sha256(body), "hex")) }
 
           # 5. batch — last before export
           batch_logs:
