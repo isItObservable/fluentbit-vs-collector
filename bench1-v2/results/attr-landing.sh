@@ -92,13 +92,15 @@
 #       neither may ever read as SAFE. The drop is separately COUNTABLE on the
 #       engine's own `processor.signal_type_router` /
 #       `signals.routed.named.metrics` counter — see node-proof/FINDINGS.md.
-#   fluentbit-v5       spans=SAFE logs=UNSAFE metrics=NO-DATA
-#       measured live on the R1P2 arm 2026-07-23: spans 1,654,883/1,654,883,
-#       logs 0/951,392. metrics=NO-DATA is the 🛑 R1P2 finding — the metrics
-#       processor chain fails on 100% of batches and the datapoints are LOST,
-#       not merely unlabelled (RUN-REGISTER.md). It is recorded as the EXPECTED
-#       value so the run is not blocked by a known-frozen defect — but it is
-#       recorded as NO-DATA, never as SAFE.
+#   fluentbit-v5       spans=SAFE logs=UNSAFE metrics=SAFE   (metrics: from Round 2, D15)
+#       R1P2 (2026-07-23) measured spans 1,654,883/1,654,883, logs 0/951,392,
+#       metrics=NO-DATA — the 🛑 R1P2 finding: the metrics content_modifier was
+#       missing `context:`, so the chain failed on 100% of batches and the
+#       datapoints were LOST, not merely unlabelled (RUN-REGISTER.md). Fixed in
+#       d655566, effective Round 2 onward (board decision D15, 2026-07-26), so the
+#       EXPECTED metrics verdict is SAFE from R2P2. R1P2's register row keeps
+#       NO-DATA (historical, not back-dated); the R1<->R2 metrics-path
+#       non-comparability is a finding in RESULTS.
 #   otel-collector     spans=SAFE logs=UNKNOWN metrics=UNKNOWN
 #       spans=SAFE is implied by R1P1's CHECK 2, which counted app spans through
 #       a k8s.cluster.name filter and passed. Logs and metrics have NEVER been
@@ -115,7 +117,12 @@ set -euo pipefail
 expected_for() {
   case "$1" in
     otel-arrow-native) echo "spans=SAFE logs=SAFE metrics=NO-DATA" ;;
-    fluentbit-v5)      echo "spans=SAFE logs=UNSAFE metrics=NO-DATA" ;;
+    # metrics: NO-DATA -> SAFE from Round 2 (board decision D15, 2026-07-26). R1P2
+    # shipped zero app-OTLP metrics -- a config defect (metrics content_modifier
+    # missing `context:`), fixed in d655566, effective R2 onward. R1P2's register
+    # row keeps NO-DATA (historical fact, NOT back-dated); the R1<->R2 metrics-path
+    # non-comparability is recorded as a finding in RESULTS.
+    fluentbit-v5)      echo "spans=SAFE logs=UNSAFE metrics=SAFE" ;;
     # Measured for the first time at R2P1 (ISI-1818, gate 8/8 2026-07-23T17:00:54Z),
     # over the pre-run smoke window: spans 481,408/481,408, logs 262,136/262,136,
     # metrics 1/1 series — all 100.00%. Both UNKNOWNs are now real readings, so a
