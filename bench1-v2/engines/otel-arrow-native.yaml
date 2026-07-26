@@ -87,7 +87,10 @@ spec:
             - { name: otlp-http, containerPort: 4318 }
             - { name: admin,     containerPort: 8080 }
           resources:
-            requests: { cpu: "500m", memory: "512Mi" }
+            # ISI-1881 S3: cpu request lowered 500m→100m for scheduling only.
+            # node 9r662 NotReady since 2026-07-26T02:01:58Z; cluster at 2-node capacity.
+            # DT measures actual CPU, not k8s requests. Limits unchanged.
+            requests: { cpu: "100m", memory: "512Mi" }
             limits:   { cpu: "4",    memory: "2Gi" }
           # ISI-1850 — the engine already exposes health at :8080/api/v1. Verified in
           # crates/admin/src/health.rs @ 7502e7d: readyz 503s on any pipeline Ready!=True
