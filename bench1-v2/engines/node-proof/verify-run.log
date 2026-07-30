@@ -1,0 +1,43 @@
+ok
+== --deploy: recreating the probe from scratch
+Waiting for deployment "sink" rollout to finish: 0 of 1 updated replicas are available...
+deployment "sink" successfully rolled out
+Waiting for deployment "sink-control" rollout to finish: 0 of 1 updated replicas are available...
+deployment "sink-control" successfully rolled out
+Waiting for deployment "df-engine" rollout to finish: 0 of 1 updated replicas are available...
+deployment "df-engine" successfully rolled out
+   waiting for the engine to bind its receivers before generating
+   letting the 1s batchers flush
+== Step 0: probe config vs shipping template
+IDENTICAL
+  PASS  probe config == shipping template (modulo endpoint + token)
+
+== Step A: engine side — internal counters
+  router received: logs=1 metrics=1 traces=50
+  attributes: upserted=450 deleted=150   transform: msgs=1
+  PASS  P3a router RECEIVED metrics (drop is a route, not an absence)
+  PASS  P3b router ROUTED metrics out the named 'metrics' port -> exporter:noop
+  PASS  P5a processor:attribute actually DELETED 150 entries (action: delete is NOT an ignored variant)
+  PASS  P4a processor:attribute upserted 450 entries
+  PASS  P6a processor:transform ran on 1 message(s)
+
+== Step B: sink side — what the engine put on the wire
+  spans=100 logs=50 metric-datapoints=0 log.file.path=0 severity_ERROR=50
+  PASS  P1 traces branch delivers (100 spans)
+  PASS  P2 logs branch delivers (50 records)
+  PASS  P3 ZERO metric datapoints on the wire
+  PASS  P5 log.file.path absent from every emitted record
+  PASS  P6 severity_text=ERROR on 50/50 log records
+  PASS  P4 benchmark.engine on 150/150 records
+  PASS  P4 k8s.cluster.name on 150/150 records
+  PASS  P4 benchmark.run on 150/150 records
+  PASS  P7 no panic / observed_error in the engine log
+
+== Step C: the control — same generator, engine BYPASSED
+   (without this, P3 and P5 are tautologies: an input that never carried
+    metrics or log.file.path would make both pass on a dead engine)
+  control: spans=100 metric-datapoints=50 log.file.path=200
+  PASS  C1 the generator DOES emit metrics the sink accepts -> P3 is falsifiable
+  PASS  C2 the generator DOES stamp log.file.path -> P5 is falsifiable
+
+ALL NODE PROOFS PASS

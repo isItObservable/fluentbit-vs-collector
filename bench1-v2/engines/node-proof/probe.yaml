@@ -1,0 +1,446 @@
+# ============================================================================
+# ISI-1843 — NODE-PROOF PROBE for the corrected df_engine 0.50.0 config
+# ----------------------------------------------------------------------------
+# WHY THIS EXISTS
+#
+# `--validate-and-exit` is ZERO evidence for this engine. Proven twice:
+#   * `processor:filter` accepts `config: {__bogus__: 1}` and the binary still
+#     prints "Configuration is valid".
+#   * the KQL transform validates clean and then cannot READ a field at
+#     runtime.
+#   * the attributes processor documents that "unsupported action variants are
+#     accepted for forward compatibility and IGNORED" — so a green validate on
+#     `action: delete` is compatible with delete doing nothing at all.
+#   * confirmed again here: `processor:type_router` with `config: {}` and NO
+#     `outputs:` declared validates clean, even though nothing would be routed.
+#
+# So every node in df-engine-config.tmpl.yaml is proven by feeding real
+# telemetry through the real binary and reading what it EMITS off the wire,
+# via a Collector with `debug/detailed`. Reading the wire rather than a backend
+# removes Grail ingest mapping as a confounder.
+#
+# WHERE THIS RUNS: cluster `observable-agentsandbox` — NOT the measured
+# cluster. Same method as the ISI-1817 attribute-landing probe.
+#
+# WHAT IS IDENTICAL TO THE SHIPPING TEMPLATE: every node and every connection.
+# WHAT DIFFERS: the `dt_out` exporter endpoint points at the local debug sink
+# and the Authorization header carries a dummy value. Both sit DOWNSTREAM of
+# every node under test.
+#
+# WHAT IT PROVES (assertions in verify.sh):
+#   P1 traces  reach dt_out                        -> traces branch is wired
+#   P2 logs    reach dt_out                        -> logs branch is wired
+#   P3 metrics DO NOT reach dt_out                 -> router + noop work
+#   P4 the 3 benchmark attrs land on logs+traces   -> processor:attribute upsert
+#   P5 `log.file.path` is GONE from logs+traces    -> parity step 4 (delete)
+#   P6 severity_text == ERROR on logs              -> processor:transform
+#   P7 no panic / observed_error in the engine log -> the boo site is off-path
+#
+# P3 and P5 are NEGATIVE assertions and are the whole point: both a working
+# node and an ignored node produce a green `--validate-and-exit`, and only the
+# emitted bytes tell them apart. P5 is also guarded against a false pass —
+# the generator stamps `log.file.path` on EVERY record, and verify.sh fails if
+# the attribute never appeared on the input side either (see PRE-P5).
+# ============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dfnodeproof
+  labels: { isi: "1843", purpose: node-proof }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: sink-config, namespace: dfnodeproof }
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    exporters:
+      debug:
+        verbosity: detailed
+    service:
+      pipelines:
+        traces:  { receivers: [otlp], exporters: [debug] }
+        metrics: { receivers: [otlp], exporters: [debug] }
+        logs:    { receivers: [otlp], exporters: [debug] }
+      telemetry:
+        logs: { level: info }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: sink, namespace: dfnodeproof }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: sink } }
+  template:
+    metadata:
+      labels: { app: sink }
+      annotations: { dynatrace.com/inject: "false" }
+    spec:
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.154.0
+          args: ["--config", "/etc/otelcol/config.yaml"]
+          ports:
+            - { containerPort: 4317 }
+            - { containerPort: 4318 }
+          volumeMounts:
+            - { name: cfg, mountPath: /etc/otelcol, readOnly: true }
+      volumes:
+        - name: cfg
+          configMap: { name: sink-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sink, namespace: dfnodeproof }
+spec:
+  selector: { app: sink }
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+---
+# ----------------------------------------------------------------------------
+# CONTROL SINK — a SECOND, identical debug sink used only by the control
+# generators, which bypass the engine entirely.
+#
+# Why a separate sink and not the same one: the first run of this probe pointed
+# the control generators at the main sink. Both streams then landed in one log,
+# and the assertions "zero metric datapoints" and "zero log.file.path" counted
+# the CONTROL's records as if the engine had emitted them — three real PASSes
+# reported as FAILs. A negative assertion is only meaningful over a stream that
+# contains nothing but the output under test.
+# ----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: sink-control, namespace: dfnodeproof }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: sink-control } }
+  template:
+    metadata:
+      labels: { app: sink-control }
+      annotations: { dynatrace.com/inject: "false" }
+    spec:
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.154.0
+          args: ["--config", "/etc/otelcol/config.yaml"]
+          ports:
+            - { containerPort: 4317 }
+            - { containerPort: 4318 }
+          volumeMounts:
+            - { name: cfg, mountPath: /etc/otelcol, readOnly: true }
+      volumes:
+        - name: cfg
+          configMap: { name: sink-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sink-control, namespace: dfnodeproof }
+spec:
+  selector: { app: sink-control }
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+---
+# ----------------------------------------------------------------------------
+# DF_ENGINE — engines/df-engine-config.tmpl.yaml verbatim, exporter retargeted.
+# Keep this block in sync with the template; verify.sh diffs the two and
+# refuses to report a PASS if anything other than the two exporter lines
+# differs.
+# ----------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: df-nodeproof-config, namespace: dfnodeproof }
+data:
+  config.yaml: |
+    version: otel_dataflow/v1
+    engine: {}
+    groups:
+      default:
+        pipelines:
+          main:
+            policies:
+              channel_capacity:
+                control: { node: 100, pipeline: 100 }
+                pdata: 128
+            nodes:
+              otlp_in:
+                type: receiver:otlp
+                config:
+                  protocols:
+                    grpc: { listening_addr: 0.0.0.0:4317 }
+                    http: { listening_addr: 0.0.0.0:4318 }
+
+              router:
+                type: processor:type_router
+                outputs: [logs, metrics, traces]
+                config: {}
+
+              metrics_noop:
+                type: exporter:noop
+                config: {}
+
+              enrich_traces:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: otel-arrow-native }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-otelarrow }
+                    - { key: benchmark.run,    action: upsert, value: isi1779-b1v2 }
+                    - { key: log.file.path,    action: delete }
+
+              batch_traces:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+
+              enrich_logs:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: otel-arrow-native }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-otelarrow }
+                    - { key: benchmark.run,    action: upsert, value: isi1779-b1v2 }
+                    - { key: log.file.path,    action: delete }
+
+              parity:
+                type: processor:transform
+                config:
+                  kql_query: "logs | extend severity_text = 'ERROR'"
+
+              batch_logs:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+
+              dt_out:
+                type: exporter:otlp_http
+                config:
+                  endpoint: http://sink.dfnodeproof.svc.cluster.local:4318
+                  client_pool_size: 4
+                  http:
+                    headers:
+                      Authorization: "Api-Token PROBE-DUMMY-VALUE-NOT-A-TOKEN"
+
+            connections:
+              - { from: otlp_in, to: router }
+              - { from: 'router["metrics"]', to: metrics_noop }
+
+              - { from: 'router["traces"]', to: enrich_traces }
+              - { from: enrich_traces, to: batch_traces }
+              - { from: batch_traces,  to: dt_out }
+
+              - { from: 'router["logs"]', to: enrich_logs }
+              - { from: enrich_logs, to: parity }
+              - { from: parity,      to: batch_logs }
+              - { from: batch_logs,  to: dt_out }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: df-engine, namespace: dfnodeproof }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: df-engine } }
+  template:
+    metadata:
+      labels: { app: df-engine }
+      annotations: { dynatrace.com/inject: "false" }
+    spec:
+      containers:
+        - name: df-engine
+          image: ghcr.io/isitobservable/df_engine:0.50.0
+          args:
+            - "--config"
+            - "file:/etc/df-engine/config.yaml"
+            - "--http-admin-bind"
+            - "0.0.0.0:8080"
+          ports:
+            - { containerPort: 4317 }
+            - { containerPort: 4318 }
+            - { containerPort: 8080 }
+          volumeMounts:
+            - { name: cfg, mountPath: /etc/df-engine, readOnly: true }
+      volumes:
+        - name: cfg
+          configMap: { name: df-nodeproof-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: df-engine, namespace: dfnodeproof }
+spec:
+  selector: { app: df-engine }
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+    - { name: admin, port: 8080, targetPort: 8080 }
+
+---
+# ----------------------------------------------------------------------------
+# GENERATORS. `gen-*` traverse the engine; `ctl-*` are the identical invocation
+# pointed straight at the control sink. Every record carries `log.file.path`,
+# which is the attribute parity step 4 must remove, and `probe.marker`, which
+# must SURVIVE — an attribute processor that dropped everything would pass a
+# naive "log.file.path is gone" check, and probe.marker is what rules that out.
+# ----------------------------------------------------------------------------
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-traces, namespace: dfnodeproof }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "traces"
+            - "--otlp-endpoint"
+            - "df-engine.dfnodeproof.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--traces"
+            - "50"
+            - "--telemetry-attributes"
+            - 'log.file.path="/var/log/probe-traces.log"'
+            - "--telemetry-attributes"
+            - 'probe.marker="isi1843"'
+            - "--service"
+            - "nodeproof"
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: ctl-traces, namespace: dfnodeproof }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "traces"
+            - "--otlp-endpoint"
+            - "sink-control.dfnodeproof.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--traces"
+            - "50"
+            - "--telemetry-attributes"
+            - 'log.file.path="/var/log/probe-traces.log"'
+            - "--telemetry-attributes"
+            - 'probe.marker="isi1843"'
+            - "--service"
+            - "nodeproof"
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-logs, namespace: dfnodeproof }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "logs"
+            - "--otlp-endpoint"
+            - "df-engine.dfnodeproof.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--logs"
+            - "50"
+            - "--telemetry-attributes"
+            - 'log.file.path="/var/log/probe-logs.log"'
+            - "--telemetry-attributes"
+            - 'probe.marker="isi1843"'
+            - "--service"
+            - "nodeproof"
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: ctl-logs, namespace: dfnodeproof }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "logs"
+            - "--otlp-endpoint"
+            - "sink-control.dfnodeproof.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--logs"
+            - "50"
+            - "--telemetry-attributes"
+            - 'log.file.path="/var/log/probe-logs.log"'
+            - "--telemetry-attributes"
+            - 'probe.marker="isi1843"'
+            - "--service"
+            - "nodeproof"
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-metrics, namespace: dfnodeproof }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "metrics"
+            - "--otlp-endpoint"
+            - "df-engine.dfnodeproof.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--metrics"
+            - "50"
+            - "--telemetry-attributes"
+            - 'log.file.path="/var/log/probe-metrics.log"'
+            - "--telemetry-attributes"
+            - 'probe.marker="isi1843"'
+            - "--service"
+            - "nodeproof"
+---
+apiVersion: batch/v1
+kind: Job
+metadata: { name: ctl-metrics, namespace: dfnodeproof }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args:
+            - "metrics"
+            - "--otlp-endpoint"
+            - "sink-control.dfnodeproof.svc.cluster.local:4317"
+            - "--otlp-insecure"
+            - "--metrics"
+            - "50"
+            - "--telemetry-attributes"
+            - 'log.file.path="/var/log/probe-metrics.log"'
+            - "--telemetry-attributes"
+            - 'probe.marker="isi1843"'
+            - "--service"
+            - "nodeproof"

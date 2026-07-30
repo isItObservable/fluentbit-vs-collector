@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluent-bit-v5
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluent-bit-v5-read
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluent-bit-v5-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluent-bit-v5-read
+subjects:
+  - kind: ServiceAccount
+    name: fluent-bit-v5
+    namespace: default
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluent-bit-v5
+  namespace: default
+  labels:
+    app: fluent-bit-v5
+spec:
+  selector:
+    matchLabels:
+      app: fluent-bit-v5
+  template:
+    metadata:
+      labels:
+        app: fluent-bit-v5
+      annotations:
+        # Keep the shipper itself out of the mesh and out of DT injection so it
+        # doesn't perturb its own measurement.
+        sidecar.istio.io/inject: "false"
+        oneagent.dynatrace.com/inject: "false"
+    spec:
+      serviceAccountName: fluent-bit-v5
+      containers:
+        - name: fluent-bit
+          # Latest Fluent Bit v5 GA at build time (2026-07). Re-pin to the newest
+          # 5.x GA at record if a later patch has shipped.
+          image: fluent/fluent-bit:5.0.9
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-metrics
+              containerPort: 2020
+          resources:
+            # Deliberately UNCAPPED (requests only) so CPU/mem is measured, not
+            # throttled — same treatment as the collector variants.
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: config
+              mountPath: /fluent-bit/etc/
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: fluent-bit-config
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fluent-bit-v5-metrics
+  namespace: default
+  labels:
+    app: fluent-bit-v5
+spec:
+  selector:
+    app: fluent-bit-v5
+  ports:
+    - name: http-metrics
+      port: 2020
+      targetPort: 2020

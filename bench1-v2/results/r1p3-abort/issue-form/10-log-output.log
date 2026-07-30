@@ -1,0 +1,18 @@
+thread 'pipeline-default-main-core-3-gen-0' (14) panicked at crates/pdata/src/encode/record/metrics.rs:266:13:
+boo [21, 21, 21, 7, 21, 21, 21, 21, 21, 21]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+2026-07-23T10:53:34.869Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=3]
+
+thread 'pipeline-default-main-core-1-gen-0' (12) panicked at /usr/local/cargo/registry/src/index.crates.io-.../arrow-data-58.3.0/src/transform/mod.rs:680:31:
+MutableArrayData::new is infallible: DictionaryKeyOverflowError
+2026-07-23T10:53:52.252Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=1] entity/pipeline.attrs: pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0
+
+thread 'pipeline-default-main-core-0-gen-0' (11) panicked at /usr/local/cargo/registry/src/index.crates.io-.../arrow-data-58.3.0/src/transform/mod.rs:680:31:
+MutableArrayData::new is infallible: DictionaryKeyOverflowError
+2026-07-23T10:53:58.263Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=0]
+
+thread 'pipeline-default-main-core-2-gen-0' (13) panicked at /usr/local/cargo/registry/src/index.crates.io-.../arrow-data-58.3.0/src/transform/mod.rs:680:31:
+MutableArrayData::new is infallible: DictionaryKeyOverflowError
+2026-07-23T10:53:59.582Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=2]
+
+# after this point: process alive, pod Ready, restarts=0, zero records processed

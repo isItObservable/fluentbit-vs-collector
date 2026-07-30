@@ -1,0 +1,167 @@
+# ISI-1859 step A — PASSTHROUGH: resolve the two runtime unknowns Henrik's ask hinges on
+#  (1) does df_engine 0.50.0 transform node actually carry metrics + traces at runtime?
+#  (2) what integers do metric_type / aggregation_temporality resolve to off the wire?
+# Identity OPL query on the `signals` source; debug sink prints the enum integers.
+apiVersion: v1
+kind: Namespace
+metadata: { name: dfopl, labels: { isi: "1859", purpose: opl-multisignal } }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: sink-config, namespace: dfopl }
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    exporters:
+      debug: { verbosity: detailed }
+    service:
+      pipelines:
+        logs:    { receivers: [otlp], exporters: [debug] }
+        metrics: { receivers: [otlp], exporters: [debug] }
+        traces:  { receivers: [otlp], exporters: [debug] }
+      telemetry:
+        logs: { level: info }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: sink, namespace: dfopl }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: sink } }
+  template:
+    metadata: { labels: { app: sink }, annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.154.0
+          args: ["--config", "/etc/otelcol/config.yaml"]
+          ports: [ { containerPort: 4317 }, { containerPort: 4318 } ]
+          volumeMounts: [ { name: cfg, mountPath: /etc/otelcol, readOnly: true } ]
+      volumes: [ { name: cfg, configMap: { name: sink-config } } ]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sink, namespace: dfopl }
+spec:
+  selector: { app: sink }
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: df-opl-config, namespace: dfopl }
+data:
+  config.yaml: |
+    version: otel_dataflow/v1
+    engine: {}
+    groups:
+      default:
+        pipelines:
+          main:
+            policies:
+              channel_capacity:
+                control: { node: 100, pipeline: 100 }
+                pdata: 128
+            nodes:
+              otlp_in:
+                type: receiver:otlp
+                config:
+                  protocols:
+                    grpc: { listening_addr: 0.0.0.0:4317 }
+                    http: { listening_addr: 0.0.0.0:4318 }
+              parity:
+                type: processor:transform
+                config:
+                  opl_query: |
+                    signals | set attributes["parity.seen"] = "true"
+              dt_out:
+                type: exporter:otlp_http
+                config:
+                  endpoint: http://sink.dfopl.svc.cluster.local:4318
+                  client_pool_size: 4
+                  http:
+                    headers:
+                      Authorization: "Api-Token PROBE-DUMMY-VALUE-NOT-A-TOKEN"
+            connections:
+              - { from: otlp_in, to: parity }
+              - { from: parity,  to: dt_out }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: df-engine, namespace: dfopl }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: df-engine } }
+  template:
+    metadata: { labels: { app: df-engine }, annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      containers:
+        - name: df-engine
+          image: ghcr.io/isitobservable/df_engine:0.50.0
+          args: ["--config", "file:/etc/df-engine/config.yaml", "--http-admin-bind", "0.0.0.0:8080"]
+          ports: [ { containerPort: 4317 }, { containerPort: 4318 }, { containerPort: 8080 } ]
+          volumeMounts: [ { name: cfg, mountPath: /etc/df-engine, readOnly: true } ]
+      volumes: [ { name: cfg, configMap: { name: df-opl-config } } ]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: df-engine, namespace: dfopl }
+spec:
+  selector: { app: df-engine }
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+    - { name: admin, port: 8080, targetPort: 8080 }
+---
+# metrics generator: Sum (cumulative by default) — the Dynatrace-rejected shape
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-sum, namespace: dfopl }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args: ["metrics","--otlp-endpoint","df-engine.dfopl.svc.cluster.local:4317","--otlp-insecure",
+                 "--metrics","20","--metric-type","Sum","--service","opl-sum"]
+---
+# metrics generator: Gauge — a Dynatrace-accepted shape
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-gauge, namespace: dfopl }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args: ["metrics","--otlp-endpoint","df-engine.dfopl.svc.cluster.local:4317","--otlp-insecure",
+                 "--metrics","20","--metric-type","Gauge","--service","opl-gauge"]
+---
+# traces generator
+apiVersion: batch/v1
+kind: Job
+metadata: { name: gen-trace, namespace: dfopl }
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { annotations: { dynatrace.com/inject: "false" } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: g
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.154.0
+          args: ["traces","--otlp-endpoint","df-engine.dfopl.svc.cluster.local:4317","--otlp-insecure",
+                 "--traces","20","--service","opl-trace"]

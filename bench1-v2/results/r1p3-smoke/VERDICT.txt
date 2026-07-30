@@ -1,0 +1,47 @@
+=========== ISI-1843 SMOKE VERDICT  2026-07-23T14:49:42Z ===========
+VERDICT: SURVIVED the full watch window (necessary, NOT sufficient — partial reproducer).
+
+--- window ---
+engine pod: df-engine-589fdbf59f-tsrw5  started: 2026-07-23T14:08:42Z
+samples: 81
+2026-07-23T14:46:56Z ready=true restarts=0 panic_lines=0 demo_running=22 spans_last60s=682 logs_last60s=268
+2026-07-23T14:47:26Z ready=true restarts=0 panic_lines=0 demo_running=22 spans_last60s=708 logs_last60s=312
+2026-07-23T14:47:56Z ready=true restarts=0 panic_lines=0 demo_running=22 spans_last60s=711 logs_last60s=337
+2026-07-23T14:48:26Z ready=true restarts=0 panic_lines=0 demo_running=22 spans_last60s=904 logs_last60s=326
+2026-07-23T14:48:56Z ready=true restarts=0 panic_lines=0 demo_running=22 spans_last60s=911 logs_last60s=361
+watch finished 2026-07-23T14:49:27Z
+
+--- pods / restarts ---
+NAME                         READY   STATUS    RESTARTS   AGE   IP             NODE                                          NOMINATED NODE   READINESS GATES
+df-engine-589fdbf59f-tsrw5   1/1     Running   0          41m   10.244.2.58    observable-agentsandbox-workers-4jjsr-stfbr   <none>           <none>
+sink-7b76bbdc4b-jnp2w        1/1     Running   0          41m   10.244.1.226   observable-agentsandbox-workers-4jjsr-frnql   <none>           <none>
+engine restartCount: 0
+engine started:      2026-07-23T14:07:46Z
+
+--- engine log: every error-ish line ---
+matches: 0
+
+--- END counter snapshot + 15-invariant gate ---
+PASS  receiver alive                             requests.started=8878
+PASS  no stalled OTLP requests                   started=8878 completed=8878 inflight=0
+PASS  router saw all three signals               received={'logs': 4262, 'metrics': 604, 'traces': 4012}
+PASS  every signal left by a NAMED port          named={'logs': 4262, 'metrics': 604, 'traces': 4012} received={'logs': 4262, 'metrics': 604, 'traces': 4012}
+PASS  nothing fell through to default            default={'logs': 0, 'metrics': 0, 'traces': 0}  (a typo in outputs: silently falls back here and still "works")
+PASS  metrics DROP is a deliberate route         received.metrics=604 routed.named.metrics=604 exporter.metrics.exported=0
+PASS  enrich_logs enriched                       upserted.entries=37191
+PASS  enrich_traces enriched                     upserted.entries=118500
+PASS  transform ran on logs                      msgs.transformed=4262
+PASS  batch_logs flush age ~1s                   mean=1.003s min=1.000s max=2.467s n=2681 timer_flushes=2681 size_flushes=0
+PASS  batch_logs no batching errors              errors=0 dropped.conversion=0 nacked_in=0 nacked_out=0
+PASS  batch_traces flush age ~1s                 mean=1.002s min=1.000s max=1.439s n=2488 timer_flushes=2488 size_flushes=0
+PASS  batch_traces no batching errors            errors=0 dropped.conversion=0 nacked_in=0 nacked_out=0
+PASS  no batch node on the metrics branch        batch_metrics absent
+PASS  exporter delivered                         exported={'logs': 2681, 'traces': 2488, 'metrics': 0}
+PASS  logs: router -> batch loses nothing        router.received=4262 batch.consumed=4262
+PASS  logs: batch -> exporter loses nothing      batch.produced=2681 exporter.exported=2681  (coalescing 1.59x, not loss)
+PASS  traces: router -> batch loses nothing      router.received=4012 batch.consumed=4012
+PASS  traces: batch -> exporter loses nothing    batch.produced=2488 exporter.exported=2488  (coalescing 1.61x, not loss)
+
+19/19 PASS
+gate_exit=0
+=========== END ===========

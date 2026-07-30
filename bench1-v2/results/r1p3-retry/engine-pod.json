@@ -1,0 +1,460 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "dynakube.dynatrace.com/injected": "true",
+                    "metadata-enrichment.dynatrace.com/injected": "true",
+                    "metadata.dynatrace.com": "{}",
+                    "metadata.dynatrace.com/k8s.workload.kind": "deployment",
+                    "metadata.dynatrace.com/k8s.workload.name": "bench-otel-arrow-native",
+                    "sidecar.istio.io/inject": "false"
+                },
+                "creationTimestamp": "2026-07-23T14:58:53Z",
+                "generateName": "bench-otel-arrow-native-dffb66b55-",
+                "generation": 1,
+                "labels": {
+                    "app": "bench-otel-arrow-native",
+                    "benchmark": "isi1779",
+                    "benchmark.engine": "otel-arrow-native",
+                    "pod-template-hash": "dffb66b55"
+                },
+                "name": "bench-otel-arrow-native-dffb66b55-kq6w2",
+                "namespace": "default",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "ReplicaSet",
+                        "name": "bench-otel-arrow-native-dffb66b55",
+                        "uid": "e9f35dce-abe3-4efd-ac4d-1a67cf6fdb02"
+                    }
+                ],
+                "resourceVersion": "1136104",
+                "uid": "69d906e5-1fe0-4879-9421-b216b4e979aa"
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "args": [
+                            "--config",
+                            "file:/etc/df-engine/config.yaml",
+                            "--http-admin-bind",
+                            "0.0.0.0:8080"
+                        ],
+                        "image": "ghcr.io/isitobservable/df_engine:0.50.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "df-engine",
+                        "ports": [
+                            {
+                                "containerPort": 4317,
+                                "name": "otlp-grpc",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 4318,
+                                "name": "otlp-http",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 8080,
+                                "name": "admin",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {
+                            "limits": {
+                                "cpu": "4",
+                                "memory": "2Gi"
+                            },
+                            "requests": {
+                                "cpu": "500m",
+                                "memory": "512Mi"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/etc/df-engine",
+                                "name": "cfg",
+                                "readOnly": true
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-vlv8s",
+                                "readOnly": true
+                            },
+                            {
+                                "mountPath": "/var/lib/dynatrace",
+                                "name": "dynatrace-config",
+                                "subPath": "df-engine"
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "initContainers": [
+                    {
+                        "args": [
+                            "bootstrap",
+                            "--config-directory=/mnt/config",
+                            "--input-directory=/mnt/input",
+                            "--suppress-error",
+                            "--attribute=k8s.workload.name=bench-otel-arrow-native",
+                            "--attribute=k8s.workload.kind=deployment",
+                            "--attribute=dt.kubernetes.workload.kind=deployment",
+                            "--attribute=dt.kubernetes.workload.name=bench-otel-arrow-native",
+                            "--metadata-enrichment",
+                            "--attribute-container={\"container_image.registry\":\"ghcr.io\",\"container_image.repository\":\"isitobservable/df_engine\",\"container_image.tags\":\"0.50.0\",\"k8s.container.name\":\"df-engine\"}",
+                            "--attribute=k8s.node.name=$(K8S_NODE_NAME)",
+                            "--attribute=k8s.namespace.name=default",
+                            "--attribute=k8s.cluster.uid=cc7b7378-30c5-4c54-a497-a7632b433203",
+                            "--attribute=k8s.cluster.name=observable-otelarrow",
+                            "--attribute=dt.entity.kubernetes_cluster=KUBERNETES_CLUSTER-E10DEBFFA7E2572D",
+                            "--attribute=k8s.pod.name=$(K8S_PODNAME)",
+                            "--attribute=k8s.pod.uid=$(K8S_PODUID)",
+                            "--attribute=dt.kubernetes.cluster.id=cc7b7378-30c5-4c54-a497-a7632b433203"
+                        ],
+                        "env": [
+                            {
+                                "name": "K8S_PODNAME",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.name"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "K8S_PODUID",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.uid"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "K8S_NODE_NAME",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "spec.nodeName"
+                                    }
+                                }
+                            }
+                        ],
+                        "image": "public.ecr.aws/dynatrace/dynatrace-operator:v1.9.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "dynatrace-operator",
+                        "resources": {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "60Mi"
+                            },
+                            "requests": {
+                                "cpu": "30m",
+                                "memory": "30Mi"
+                            }
+                        },
+                        "securityContext": {
+                            "allowPrivilegeEscalation": false,
+                            "capabilities": {
+                                "drop": [
+                                    "ALL"
+                                ]
+                            },
+                            "privileged": false,
+                            "readOnlyRootFilesystem": true,
+                            "runAsGroup": 1001,
+                            "runAsNonRoot": true,
+                            "runAsUser": 1001,
+                            "seccompProfile": {
+                                "type": "RuntimeDefault"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/mnt/config",
+                                "name": "dynatrace-config"
+                            },
+                            {
+                                "mountPath": "/mnt/input",
+                                "name": "dynatrace-input",
+                                "readOnly": true
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-vlv8s",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "nodeName": "observable-otelarrow-workers-k5hgq-lz9mb",
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {},
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "terminationGracePeriodSeconds": 30,
+                "tolerations": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "configMap": {
+                            "defaultMode": 420,
+                            "name": "bench-otel-arrow-native-config"
+                        },
+                        "name": "cfg"
+                    },
+                    {
+                        "name": "kube-api-access-vlv8s",
+                        "projected": {
+                            "defaultMode": 420,
+                            "sources": [
+                                {
+                                    "serviceAccountToken": {
+                                        "expirationSeconds": 3607,
+                                        "path": "token"
+                                    }
+                                },
+                                {
+                                    "configMap": {
+                                        "items": [
+                                            {
+                                                "key": "ca.crt",
+                                                "path": "ca.crt"
+                                            }
+                                        ],
+                                        "name": "kube-root-ca.crt"
+                                    }
+                                },
+                                {
+                                    "downwardAPI": {
+                                        "items": [
+                                            {
+                                                "fieldRef": {
+                                                    "apiVersion": "v1",
+                                                    "fieldPath": "metadata.namespace"
+                                                },
+                                                "path": "namespace"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "dynatrace-input",
+                        "projected": {
+                            "defaultMode": 420,
+                            "sources": [
+                                {
+                                    "secret": {
+                                        "name": "dynatrace-bootstrapper-config",
+                                        "optional": false
+                                    }
+                                },
+                                {
+                                    "secret": {
+                                        "name": "dynatrace-bootstrapper-certs",
+                                        "optional": true
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "emptyDir": {},
+                        "name": "dynatrace-config"
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-07-23T14:59:00Z",
+                        "observedGeneration": 1,
+                        "status": "True",
+                        "type": "PodReadyToStartContainers"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-07-23T14:59:02Z",
+                        "observedGeneration": 1,
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-07-23T14:59:04Z",
+                        "observedGeneration": 1,
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-07-23T14:59:04Z",
+                        "observedGeneration": 1,
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-07-23T14:58:54Z",
+                        "observedGeneration": 1,
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "allocatedResources": {
+                            "cpu": "500m",
+                            "memory": "512Mi"
+                        },
+                        "containerID": "containerd://109bc5c07b2c97481825bc644a7bed53945632bc34ecb42f7b3e9ffb4b0c3cc7",
+                        "image": "ghcr.io/isitobservable/df_engine:0.50.0",
+                        "imageID": "ghcr.io/isitobservable/df_engine@sha256:4679f00ebc5339063777000b38478e9b7bd5fb9d608f435fc4883417761a2198",
+                        "lastState": {},
+                        "name": "df-engine",
+                        "ready": true,
+                        "resources": {
+                            "limits": {
+                                "cpu": "4",
+                                "memory": "2Gi"
+                            },
+                            "requests": {
+                                "cpu": "500m",
+                                "memory": "512Mi"
+                            }
+                        },
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-07-23T14:59:03Z"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/etc/df-engine",
+                                "name": "cfg",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-vlv8s",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            },
+                            {
+                                "mountPath": "/var/lib/dynatrace",
+                                "name": "dynatrace-config"
+                            }
+                        ]
+                    }
+                ],
+                "hostIP": "10.0.0.162",
+                "hostIPs": [
+                    {
+                        "ip": "10.0.0.162"
+                    }
+                ],
+                "initContainerStatuses": [
+                    {
+                        "allocatedResources": {
+                            "cpu": "30m",
+                            "memory": "30Mi"
+                        },
+                        "containerID": "containerd://222b88f52e45667f3ee635c87cc4ec33be54e3711c2d18c8e5e3d5632144dca8",
+                        "image": "public.ecr.aws/dynatrace/dynatrace-operator:v1.9.0",
+                        "imageID": "public.ecr.aws/dynatrace/dynatrace-operator@sha256:8b06ad33d17c0ae132e4d6d034a2f2075635eb609043e5c8ed32f676b4c2f484",
+                        "lastState": {},
+                        "name": "dynatrace-operator",
+                        "ready": true,
+                        "resources": {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "60Mi"
+                            },
+                            "requests": {
+                                "cpu": "30m",
+                                "memory": "30Mi"
+                            }
+                        },
+                        "restartCount": 0,
+                        "started": false,
+                        "state": {
+                            "terminated": {
+                                "containerID": "containerd://222b88f52e45667f3ee635c87cc4ec33be54e3711c2d18c8e5e3d5632144dca8",
+                                "exitCode": 0,
+                                "finishedAt": "2026-07-23T14:59:00Z",
+                                "reason": "Completed",
+                                "startedAt": "2026-07-23T14:58:59Z"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/mnt/config",
+                                "name": "dynatrace-config"
+                            },
+                            {
+                                "mountPath": "/mnt/input",
+                                "name": "dynatrace-input",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-vlv8s",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    }
+                ],
+                "observedGeneration": 1,
+                "phase": "Running",
+                "podIP": "10.244.1.220",
+                "podIPs": [
+                    {
+                        "ip": "10.244.1.220"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2026-07-23T14:58:54Z"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

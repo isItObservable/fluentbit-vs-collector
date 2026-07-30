@@ -1,0 +1,21 @@
+System Information:
+  Available CPU cores: 4
+  Available memory: 9.56 GB / 11.68 GB
+  Build mode: release
+  Memory allocator: jemalloc
+
+Available Component URNs:
+  Receivers: urn:otel:receiver:host_metrics, urn:otel:receiver:internal_telemetry, urn:otel:receiver:journald, urn:otel:receiver:otap, urn:otel:receiver:otlp, urn:otel:receiver:syslog_cef, urn:otel:receiver:topic, urn:otel:receiver:traffic_generator
+  Processors: urn:otel:processor:attribute, urn:otel:processor:batch, urn:otel:processor:content_router, urn:otel:processor:debug, urn:otel:processor:delay, urn:otel:processor:durable_buffer, urn:otel:processor:fanout, urn:otel:processor:filter, urn:otel:processor:log_sampling, urn:otel:processor:partition, urn:otel:processor:retry, urn:otel:processor:temporal_reaggregation, urn:otel:processor:transform, urn:otel:processor:type_router
+  Exporters: urn:otel:exporter:console, urn:otel:exporter:error, urn:otel:exporter:noop, urn:otel:exporter:otap, urn:otel:exporter:otlp_grpc, urn:otel:exporter:otlp_http, urn:otel:exporter:parquet, urn:otel:exporter:perf, urn:otel:exporter:topic
+  Controller Extensions: urn:otel:extension:controller_monitor, urn:otel:extension:opamp
+
+Example configuration files can be found in the configs/ directory.
+[2m2026-07-25T08:32:07.014Z[0m  [32mINFO [0m [1motap-df-controller::pipeline.core_allocation[0m: [pipeline_group_id=default, pipeline_id=main, num_cores=2, core_allocation=[2 cores]]
+[2m2026-07-25T08:32:07.016Z[0m  [32mINFO [0m [1motap-df-admin::endpoint.start[0m: Admin HTTP server listening [bind_address=0.0.0.0:8080][35m[0m
+[2m2026-07-25T08:32:07.016Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.exporter.http.start[0m: [logs_endpoint=http://sink-new.dfsmoke.svc.cluster.local:4318/v1/logs, metrics_endpoint=http://sink-new.dfsmoke.svc.cluster.local:4318/v1/metrics, traces_endpoint=http://sink-new.dfsmok[...]][35m entity/node.attrs: node.id=sink_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0[0m
+[2m2026-07-25T08:32:07.016Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.exporter.http.start[0m: [logs_endpoint=http://sink-new.dfsmoke.svc.cluster.local:4318/v1/logs, metrics_endpoint=http://sink-new.dfsmoke.svc.cluster.local:4318/v1/metrics, traces_endpoint=http://sink-new.dfsmok[...]][35m entity/node.attrs: node.id=sink_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0[0m
+[2m2026-07-25T08:32:07.018Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.grpc.start[0m: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0[0m
+[2m2026-07-25T08:32:07.018Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.http.start[0m: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0[0m
+[2m2026-07-25T08:32:07.019Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.grpc.start[0m: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0[0m
+[2m2026-07-25T08:32:07.019Z[0m  [32mINFO [0m [1motap-df-core-nodes::otlp.receiver.http.start[0m: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318][35m entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0[0m

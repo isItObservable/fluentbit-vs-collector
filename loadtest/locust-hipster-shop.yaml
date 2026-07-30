@@ -1,0 +1,59 @@
+# Locust load driver for hipster-shop (Online Boutique). Same scripts
+# ConfigMap + same phase-aware BenchmarkShape as otel-demo, so both apps get
+# an identical 50-VU profile at the same wall-clock time.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen-hipster-shop
+  namespace: default
+  labels:
+    app.kubernetes.io/name: loadgen-hipster-shop
+    app.kubernetes.io/part-of: isi1779-benchmark
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loadgen-hipster-shop
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loadgen-hipster-shop
+        app.kubernetes.io/part-of: isi1779-benchmark
+      annotations:
+        oneagent.dynatrace.com/inject: "false"
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: locust
+          image: locustio/locust:2.31.8
+          workingDir: /loadtest
+          args:
+            - "-f"
+            - "/loadtest/tasks_hipster_shop.py"
+            - "--headless"
+            - "--host"
+            - "http://frontend.hipster-shop:80"
+          env:
+            - name: LOAD_PHASE
+              value: "stable30"
+            - name: BASE_USERS
+              value: "50"
+            - name: STEP_USERS
+              value: "50"
+            - name: STEP_SECS
+              value: "1800"
+            - name: SPAWN_RATE
+              value: "5"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /loadtest
+      volumes:
+        - name: scripts
+          configMap:
+            name: loadtest-scripts

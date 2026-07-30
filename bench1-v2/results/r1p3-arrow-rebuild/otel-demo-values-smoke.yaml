@@ -1,0 +1,31 @@
+# ISI-1879 arrow-rebuild smoke — otel-demo load source, points at the FANOUT
+# collector which duplicates every signal to engine-old (0.50.0 control) and
+# engine-new (0.51.0). loadgenerator ENABLED and cranked for cardinality/rate;
+# delta temporality at source (matches benchmark), backends off (engine is the
+# only telemetry path).
+default:
+  envOverrides:
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: delta
+    - name: OTEL_COLLECTOR_NAME
+      value: fanout.dfsmoke.svc.cluster.local
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: benchmark.run=isi1879-smoke,service.namespace=otel-demo
+components:
+  load-generator:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+    envOverrides:
+      # crank users up for higher request-attribute cardinality/throughput
+      - name: LOCUST_USERS
+        value: "40"
+      - name: LOCUST_SPAWN_RATE
+        value: "8"
+  frontend-proxy:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+grafana: { enabled: false }
+jaeger: { enabled: false }
+opensearch: { enabled: false }
+prometheus: { enabled: false }
+opentelemetry-collector: { enabled: false }

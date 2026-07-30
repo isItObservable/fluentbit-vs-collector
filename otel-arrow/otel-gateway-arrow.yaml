@@ -1,0 +1,103 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-gateway
+  namespace: default
+spec:
+  mode: statefulset
+  image: otel/opentelemetry-collector-contrib:0.154.0
+  replicas: 1
+  # The operator does not auto-detect a Service port for the otelarrow receiver,
+  # so declare the OTAP gRPC port explicitly or agents cannot reach it.
+  ports:
+    - name: otel-arrow
+      port: 4317
+      protocol: TCP
+  # SOLE DYNATRACE EGRESS. Every signal in the cluster funnels here and only this
+  # collector talks to Dynatrace. Tokens are injected from the gateway-secret.
+  env:
+    - name: K8S_CLUSTER_NAME
+      value: observable-otelarrow
+    - name: DT_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: gateway-dynatrace
+          key: endpoint
+    - name: DT_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: gateway-dynatrace
+          key: apiToken
+  config:
+    receivers:
+      # OTel-Arrow (OTAP) receiver — accepts columnar Apache Arrow streams from the
+      # edge/agent collector. This is the receiving half of the episode's OTAP hop.
+      otelarrow:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+      # Plain OTLP kept open for anything that speaks OTLP directly (fallback / SDKs).
+      otlp:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+      # Prometheus scrape of the collectors' own internal telemetry (:8888) so the
+      # OTAP efficiency metrics (otelcol_exporter_sent_wire_bytes, arrow batch/records,
+      # compression ratio) land in Dynatrace. This is the "prometheus scrape config"
+      # called for in ISI-1773 and the primary data source for the OTAP benchmark.
+      prometheus/collector-selftelemetry:
+        config:
+          scrape_configs:
+            - job_name: otel-collector-self
+              scrape_interval: 30s
+              static_configs:
+                - targets: ['localhost:8888']
+                  labels:
+                    collector: gateway
+                - targets: ['otel-agent-collector.default.svc.cluster.local:8888']
+                  labels:
+                    collector: agent
+    processors:
+      # CRITICAL: memory_limiter MUST be the first processor.
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      resource:
+        attributes:
+          - action: upsert
+            key: k8s.cluster.name
+            value: ${env:K8S_CLUSTER_NAME}
+      # Dynatrace ingests delta metrics; convert cumulative counters at the egress point.
+      cumulativetodelta: {}
+      # CRITICAL: batch MUST be the last processor.
+      batch:
+        send_batch_size: 1000
+        timeout: 10s
+    exporters:
+      otlphttp/dynatrace:
+        endpoint: ${env:DT_ENDPOINT}/v2/otlp
+        headers:
+          Authorization: Api-Token ${env:DT_API_TOKEN}
+    service:
+      pipelines:
+        traces:
+          receivers: [otelarrow, otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [otlphttp/dynatrace]
+        metrics:
+          receivers: [otelarrow, otlp, prometheus/collector-selftelemetry]
+          processors: [memory_limiter, resource, cumulativetodelta, batch]
+          exporters: [otlphttp/dynatrace]
+        logs:
+          receivers: [otelarrow, otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [otlphttp/dynatrace]
+      telemetry:
+        metrics:
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 0.0.0.0
+                    port: 8888

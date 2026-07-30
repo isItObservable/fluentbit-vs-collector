@@ -1,0 +1,53 @@
+System Information:
+  Available CPU cores: 4
+  Available memory: 12.02 GB / 15.62 GB
+  Build mode: release
+  Memory allocator: jemalloc
+
+Available Component URNs:
+  Receivers: urn:otel:receiver:host_metrics, urn:otel:receiver:internal_telemetry, urn:otel:receiver:journald, urn:otel:receiver:otap, urn:otel:receiver:otlp, urn:otel:receiver:syslog_cef, urn:otel:receiver:topic, urn:otel:receiver:traffic_generator
+  Processors: urn:otel:processor:attribute, urn:otel:processor:batch, urn:otel:processor:content_router, urn:otel:processor:debug, urn:otel:processor:delay, urn:otel:processor:durable_buffer, urn:otel:processor:fanout, urn:otel:processor:filter, urn:otel:processor:log_sampling, urn:otel:processor:partition, urn:otel:processor:retry, urn:otel:processor:temporal_reaggregation, urn:otel:processor:transform, urn:otel:processor:type_router
+  Exporters: urn:otel:exporter:console, urn:otel:exporter:error, urn:otel:exporter:noop, urn:otel:exporter:otap, urn:otel:exporter:otlp_grpc, urn:otel:exporter:otlp_http, urn:otel:exporter:parquet, urn:otel:exporter:perf, urn:otel:exporter:topic
+  Controller Extensions: urn:otel:extension:controller_monitor, urn:otel:extension:opamp
+
+Example configuration files can be found in the configs/ directory.
+2026-07-23T10:53:29.238Z  INFO  otap-df-controller::pipeline.core_allocation: [pipeline_group_id=default, pipeline_id=main, num_cores=4, core_allocation=*]
+2026-07-23T10:53:29.240Z  INFO  otap-df-admin::endpoint.start: Admin HTTP server listening [bind_address=0.0.0.0:8080]
+2026-07-23T10:53:29.241Z  INFO  otap-df-core-nodes::otlp.exporter.http.start: [logs_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/logs, metrics_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/metrics, traces_endpoint=https://oat05854.d[...]] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0
+2026-07-23T10:53:29.241Z  INFO  otap-df-core-nodes::otlp.exporter.http.start: [logs_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/logs, metrics_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/metrics, traces_endpoint=https://oat05854.d[...]] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=2 numa.node.id=0
+2026-07-23T10:53:29.241Z  INFO  otap-df-core-nodes::otlp.exporter.http.start: [logs_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/logs, metrics_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/metrics, traces_endpoint=https://oat05854.d[...]] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=3 numa.node.id=0
+2026-07-23T10:53:29.242Z  INFO  otap-df-core-nodes::otlp.exporter.http.start: [logs_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/logs, metrics_endpoint=https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/metrics, traces_endpoint=https://oat05854.d[...]] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0
+2026-07-23T10:53:29.243Z  INFO  otap-df-core-nodes::otlp.receiver.grpc.start: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0
+2026-07-23T10:53:29.244Z  INFO  otap-df-core-nodes::otlp.receiver.grpc.start: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=2 numa.node.id=0
+2026-07-23T10:53:29.244Z  INFO  otap-df-core-nodes::otlp.receiver.http.start: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=2 numa.node.id=0
+2026-07-23T10:53:29.244Z  INFO  otap-df-core-nodes::otlp.receiver.grpc.start: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=3 numa.node.id=0
+2026-07-23T10:53:29.244Z  INFO  otap-df-core-nodes::otlp.receiver.http.start: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=3 numa.node.id=0
+2026-07-23T10:53:29.244Z  INFO  otap-df-core-nodes::otlp.receiver.http.start: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0
+2026-07-23T10:53:29.245Z  INFO  otap-df-core-nodes::otlp.receiver.grpc.start: Starting OTLP gRPC receiver [endpoint=0.0.0.0:4317] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0
+2026-07-23T10:53:29.245Z  INFO  otap-df-core-nodes::otlp.receiver.http.start: Starting OTLP HTTP receiver [endpoint=0.0.0.0:4318] entity/node.attrs: node.id=otlp_in node.urn=urn:otel:receiver:otlp node.type=receiver pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0
+
+thread 'pipeline-default-main-core-3-gen-0' (14) panicked at crates/pdata/src/encode/record/metrics.rs:266:13:
+boo [21, 21, 21, 7, 21, 21, 21, 21, 21, 21]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+2026-07-23T10:53:34.865Z  INFO  otap-df-core-nodes::otlp.exporter.http.shutdown: [reason=pdata channel closed] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=3 numa.node.id=0
+2026-07-23T10:53:34.869Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=3]
+2026-07-23T10:53:34.869Z  ERROR otap-df-state::state.observed_error: Pipeline encountered a runtime error. [pipeline_group_id=default, pipeline_id=main, core_id=3]
+2026-07-23T10:53:49.873Z  WARN  otap-df-core-nodes::otlp.exporter.http.export_error: An error occurred sending HTTP request: HTTP status client error (400 Bad Request) for url (https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/metrics) [retryable=false] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0
+
+thread 'pipeline-default-main-core-1-gen-0' (12) panicked at /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-data-58.3.0/src/transform/mod.rs:680:31:
+MutableArrayData::new is infallible: DictionaryKeyOverflowError
+2026-07-23T10:53:52.249Z  INFO  otap-df-core-nodes::otlp.exporter.http.shutdown: [reason=pdata channel closed] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0
+2026-07-23T10:53:52.252Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=1] entity/pipeline.attrs: pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=1 numa.node.id=0
+2026-07-23T10:53:52.252Z  ERROR otap-df-state::state.observed_error: Pipeline encountered a runtime error. [pipeline_group_id=default, pipeline_id=main, core_id=1]
+
+thread 'pipeline-default-main-core-0-gen-0' (11) panicked at /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-data-58.3.0/src/transform/mod.rs:680:31:
+MutableArrayData::new is infallible: DictionaryKeyOverflowError
+2026-07-23T10:53:58.260Z  INFO  otap-df-core-nodes::otlp.exporter.http.shutdown: [reason=pdata channel closed] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=0 numa.node.id=0
+2026-07-23T10:53:58.263Z  ERROR otap-df-state::state.observed_error: Pipeline encountered a runtime error. [pipeline_group_id=default, pipeline_id=main, core_id=0]
+2026-07-23T10:53:58.263Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=0]
+
+thread 'pipeline-default-main-core-2-gen-0' (13) panicked at /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrow-data-58.3.0/src/transform/mod.rs:680:31:
+MutableArrayData::new is infallible: DictionaryKeyOverflowError
+2026-07-23T10:53:59.578Z  INFO  otap-df-core-nodes::otlp.exporter.http.shutdown: [reason=pdata channel closed] entity/node.attrs: node.id=dt_out node.urn=urn:otel:exporter:otlp_http node.type=exporter pipeline.id=main pipeline.group.id=default deployment.generation=0 core.id=2 numa.node.id=0
+2026-07-23T10:53:59.582Z  ERROR otap-df-controller::controller.pipeline_runtime_failed: Pipeline terminated with a runtime error [core_id=2]
+2026-07-23T10:53:59.582Z  ERROR otap-df-state::state.observed_error: Pipeline encountered a runtime error. [pipeline_group_id=default, pipeline_id=main, core_id=2]

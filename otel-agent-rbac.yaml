@@ -1,0 +1,30 @@
+# RBAC for the agent collector's k8sattributesprocessor. The operator provisions
+# the ServiceAccount (otel-agent-collector) but not the cluster-scoped read access
+# k8sattributes needs to enrich telemetry with pod/namespace/node/workload metadata.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-agent-k8sattributes
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-agent-k8sattributes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-agent-k8sattributes
+subjects:
+  - kind: ServiceAccount
+    name: otel-agent-collector
+    namespace: default

@@ -1,0 +1,14 @@
+ISI-1850 — df_engine health endpoints proven on the wire (observable-agentsandbox, ns dfreadyz, 2026-07-24)
+Image ghcr.io/isitobservable/df_engine:0.50.0, minimal otlp_in -> exporter:noop pipeline.
+
+HEALTHY engine:
+  GET /api/v1/readyz -> 200 {"probe":"readyz","status":"ok",...}
+  GET /api/v1/livez  -> 200 {"probe":"livez","status":"ok",...}
+  GET /api/v1/bogus  -> 404   (negative control: real routes, not a catch-all)
+
+DEAD-cores direction: readyz -> 503 observed by maintainer @AaronRM in their repro,
+and verified in source crates/admin/src/health.rs @ 7502e7d (readyz 503 on any pipeline
+Ready!=True or hard memory pressure; livez 500 on failing Accepted condition).
+
+Manifest wired in engines/otel-arrow-native.yaml: startupProbe+livenessProbe on livez,
+readinessProbe on readyz, all -> port admin (8080). Scratch ns torn down after proof.

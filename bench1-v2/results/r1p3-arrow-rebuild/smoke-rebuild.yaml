@@ -1,0 +1,427 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dfsmoke
+  labels: { isi: '1879', purpose: arrow-rebuild-smoke }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: fanout-config, namespace: dfsmoke }
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    exporters:
+      otlp/old:
+        endpoint: engine-old.dfsmoke.svc.cluster.local:4317
+        tls: { insecure: true }
+      otlp/new:
+        endpoint: engine-new.dfsmoke.svc.cluster.local:4317
+        tls: { insecure: true }
+    service:
+      telemetry:
+        logs: { level: warn }
+      pipelines:
+        traces:  { receivers: [otlp], exporters: [otlp/old, otlp/new] }
+        metrics: { receivers: [otlp], exporters: [otlp/old, otlp/new] }
+        logs:    { receivers: [otlp], exporters: [otlp/old, otlp/new] }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fanout
+  namespace: dfsmoke
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: fanout } }
+  template:
+    metadata:
+      labels: { app: fanout }
+      annotations: { dynatrace.com/inject: 'false' }
+    spec:
+      containers:
+      - name: otelcol
+        image: otel/opentelemetry-collector-contrib:0.154.0
+        args: [ "--config", "/etc/otelcol/config.yaml" ]
+        ports: [ { containerPort: 4317 }, { containerPort: 4318 } ]
+        resources: { requests: { cpu: 100m, memory: 128Mi } }
+        volumeMounts: [ { name: cfg, mountPath: /etc/otelcol, readOnly: true } ]
+      volumes:
+      - name: cfg
+        configMap: { name: fanout-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: fanout, namespace: dfsmoke }
+spec:
+  selector: { app: fanout }
+  ports:
+  - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+  - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: sink-old-config, namespace: dfsmoke }
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    exporters:
+      debug: { verbosity: basic }
+    service:
+      telemetry:
+        logs: { level: warn }
+      pipelines:
+        traces:  { receivers: [otlp], exporters: [debug] }
+        metrics: { receivers: [otlp], exporters: [debug] }
+        logs:    { receivers: [otlp], exporters: [debug] }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sink-old
+  namespace: dfsmoke
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: sink-old } }
+  template:
+    metadata:
+      labels: { app: sink-old }
+      annotations: { dynatrace.com/inject: 'false' }
+    spec:
+      containers:
+      - name: otelcol
+        image: otel/opentelemetry-collector-contrib:0.154.0
+        args: [ "--config", "/etc/otelcol/config.yaml" ]
+        ports: [ { containerPort: 4317 }, { containerPort: 4318 } ]
+        resources: { requests: { cpu: 100m, memory: 128Mi } }
+        volumeMounts: [ { name: cfg, mountPath: /etc/otelcol, readOnly: true } ]
+      volumes:
+      - name: cfg
+        configMap: { name: sink-old-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sink-old, namespace: dfsmoke }
+spec:
+  selector: { app: sink-old }
+  ports:
+  - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+  - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: sink-new-config, namespace: dfsmoke }
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    exporters:
+      debug: { verbosity: basic }
+    service:
+      telemetry:
+        logs: { level: warn }
+      pipelines:
+        traces:  { receivers: [otlp], exporters: [debug] }
+        metrics: { receivers: [otlp], exporters: [debug] }
+        logs:    { receivers: [otlp], exporters: [debug] }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sink-new
+  namespace: dfsmoke
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: sink-new } }
+  template:
+    metadata:
+      labels: { app: sink-new }
+      annotations: { dynatrace.com/inject: 'false' }
+    spec:
+      containers:
+      - name: otelcol
+        image: otel/opentelemetry-collector-contrib:0.154.0
+        args: [ "--config", "/etc/otelcol/config.yaml" ]
+        ports: [ { containerPort: 4317 }, { containerPort: 4318 } ]
+        resources: { requests: { cpu: 100m, memory: 128Mi } }
+        volumeMounts: [ { name: cfg, mountPath: /etc/otelcol, readOnly: true } ]
+      volumes:
+      - name: cfg
+        configMap: { name: sink-new-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sink-new, namespace: dfsmoke }
+spec:
+  selector: { app: sink-new }
+  ports:
+  - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+  - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: df-old-config, namespace: dfsmoke }
+data:
+  config.yaml: |
+    version: otel_dataflow/v1
+    engine: {}
+    groups:
+      default:
+        pipelines:
+          main:
+            policies:
+              channel_capacity:
+                control: { node: 100, pipeline: 100 }
+                pdata: 128
+            nodes:
+              otlp_in:
+                type: receiver:otlp
+                config:
+                  protocols:
+                    grpc: { listening_addr: 0.0.0.0:4317 }
+                    http: { listening_addr: 0.0.0.0:4318 }
+              router:
+                type: processor:type_router
+                outputs: [logs, metrics, traces]
+                config: {}
+              # ---- metrics branch: THROUGH (tests #3582 boo + adds concat cardinality) ----
+              enrich_metrics:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: df-old }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-agentsandbox }
+                    - { key: benchmark.run,    action: upsert, value: isi1879-smoke }
+              batch_metrics:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+              # ---- traces branch ----
+              enrich_traces:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: df-old }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-agentsandbox }
+                    - { key: benchmark.run,    action: upsert, value: isi1879-smoke }
+                    - { key: log.file.path,    action: delete }
+              batch_traces:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+              # ---- logs branch ----
+              enrich_logs:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: df-old }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-agentsandbox }
+                    - { key: benchmark.run,    action: upsert, value: isi1879-smoke }
+                    - { key: log.file.path,    action: delete }
+              parity:
+                type: processor:transform
+                config:
+                  kql_query: "logs | extend severity_text = 'ERROR'"
+              batch_logs:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+              sink_out:
+                type: exporter:otlp_http
+                config:
+                  endpoint: http://sink-old.dfsmoke.svc.cluster.local:4318
+                  client_pool_size: 4
+                  http: {}
+            connections:
+              - { from: otlp_in, to: router }
+              - { from: 'router["metrics"]', to: enrich_metrics }
+              - { from: enrich_metrics, to: batch_metrics }
+              - { from: batch_metrics,  to: sink_out }
+              - { from: 'router["traces"]', to: enrich_traces }
+              - { from: enrich_traces, to: batch_traces }
+              - { from: batch_traces,  to: sink_out }
+              - { from: 'router["logs"]', to: enrich_logs }
+              - { from: enrich_logs, to: parity }
+              - { from: parity,      to: batch_logs }
+              - { from: batch_logs,  to: sink_out }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engine-old
+  namespace: dfsmoke
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: engine-old } }
+  template:
+    metadata:
+      labels: { app: engine-old }
+      annotations: { dynatrace.com/inject: 'false' }
+    spec:
+      containers:
+      - name: df-engine
+        image: ghcr.io/isitobservable/df_engine:0.50.0
+        args: [ "--config", "file:/etc/df-engine/config.yaml", "--http-admin-bind", "0.0.0.0:8080", "--num-cores", "2" ]
+        ports: [ { containerPort: 4317 }, { containerPort: 4318 }, { containerPort: 8080 } ]
+        resources: { requests: { cpu: 200m, memory: 256Mi } }
+        volumeMounts: [ { name: cfg, mountPath: /etc/df-engine, readOnly: true } ]
+      volumes:
+      - name: cfg
+        configMap: { name: df-old-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: engine-old, namespace: dfsmoke }
+spec:
+  selector: { app: engine-old }
+  ports:
+  - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+  - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+  - { name: admin, port: 8080, targetPort: 8080 }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: df-new-config, namespace: dfsmoke }
+data:
+  config.yaml: |
+    version: otel_dataflow/v1
+    engine: {}
+    groups:
+      default:
+        pipelines:
+          main:
+            policies:
+              channel_capacity:
+                control: { node: 100, pipeline: 100 }
+                pdata: 128
+            nodes:
+              otlp_in:
+                type: receiver:otlp
+                config:
+                  protocols:
+                    grpc: { listening_addr: 0.0.0.0:4317 }
+                    http: { listening_addr: 0.0.0.0:4318 }
+              router:
+                type: processor:type_router
+                outputs: [logs, metrics, traces]
+                config: {}
+              # ---- metrics branch: THROUGH (tests #3582 boo + adds concat cardinality) ----
+              enrich_metrics:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: df-new }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-agentsandbox }
+                    - { key: benchmark.run,    action: upsert, value: isi1879-smoke }
+              batch_metrics:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+              # ---- traces branch ----
+              enrich_traces:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: df-new }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-agentsandbox }
+                    - { key: benchmark.run,    action: upsert, value: isi1879-smoke }
+                    - { key: log.file.path,    action: delete }
+              batch_traces:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+              # ---- logs branch ----
+              enrich_logs:
+                type: processor:attribute
+                config:
+                  actions:
+                    - { key: benchmark.engine, action: upsert, value: df-new }
+                    - { key: k8s.cluster.name, action: upsert, value: observable-agentsandbox }
+                    - { key: benchmark.run,    action: upsert, value: isi1879-smoke }
+                    - { key: log.file.path,    action: delete }
+              parity:
+                type: processor:transform
+                config:
+                  kql_query: "logs | extend severity_text = 'ERROR'"
+              batch_logs:
+                type: processor:batch
+                config:
+                  otap: { min_size: 1000, sizer: items }
+                  max_batch_duration: 1s
+              sink_out:
+                type: exporter:otlp_http
+                config:
+                  endpoint: http://sink-new.dfsmoke.svc.cluster.local:4318
+                  client_pool_size: 4
+                  http: {}
+            connections:
+              - { from: otlp_in, to: router }
+              - { from: 'router["metrics"]', to: enrich_metrics }
+              - { from: enrich_metrics, to: batch_metrics }
+              - { from: batch_metrics,  to: sink_out }
+              - { from: 'router["traces"]', to: enrich_traces }
+              - { from: enrich_traces, to: batch_traces }
+              - { from: batch_traces,  to: sink_out }
+              - { from: 'router["logs"]', to: enrich_logs }
+              - { from: enrich_logs, to: parity }
+              - { from: parity,      to: batch_logs }
+              - { from: batch_logs,  to: sink_out }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engine-new
+  namespace: dfsmoke
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: engine-new } }
+  template:
+    metadata:
+      labels: { app: engine-new }
+      annotations: { dynatrace.com/inject: 'false' }
+    spec:
+      containers:
+      - name: df-engine
+        image: ghcr.io/isitobservable/df_engine:0.51.0
+        args: [ "--config", "file:/etc/df-engine/config.yaml", "--http-admin-bind", "0.0.0.0:8080", "--num-cores", "2" ]
+        ports: [ { containerPort: 4317 }, { containerPort: 4318 }, { containerPort: 8080 } ]
+        resources: { requests: { cpu: 200m, memory: 256Mi } }
+        volumeMounts: [ { name: cfg, mountPath: /etc/df-engine, readOnly: true } ]
+      volumes:
+      - name: cfg
+        configMap: { name: df-new-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: engine-new, namespace: dfsmoke }
+spec:
+  selector: { app: engine-new }
+  ports:
+  - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+  - { name: http-otlp, appProtocol: http, port: 4318, targetPort: 4318 }
+  - { name: admin, port: 8080, targetPort: 8080 }
+

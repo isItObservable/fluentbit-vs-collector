@@ -1,0 +1,3199 @@
+Defaulted container "otelcol" out of: otelcol, dynatrace-operator (init)
+2026-07-23T10:09:39.836Z	info	otelconftelemetry/tracer.go:47	Internal trace telemetry disabled	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}}
+2026-07-23T10:09:39.838Z	info	service@v0.154.0/service.go:241	Starting otelcol-contrib...	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "Version": "0.154.0", "NumCPU": 4}
+2026-07-23T10:09:39.838Z	info	extensions/extensions.go:41	Starting extensions...	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}}
+2026-07-23T10:09:39.838Z	info	otlpreceiver@v0.154.0/otlp.go:120	Starting GRPC server	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "otlp", "otelcol.component.kind": "receiver", "endpoint": "[::]:4317"}
+2026-07-23T10:09:39.838Z	info	otlpreceiver@v0.154.0/otlp.go:175	Starting HTTP server	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "otlp", "otelcol.component.kind": "receiver", "endpoint": "[::]:4318"}
+2026-07-23T10:09:39.838Z	info	service@v0.154.0/service.go:264	Everything is ready. Begin running and processing data.	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}}
+2026-07-23T10:10:26.718Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 3, "spans": 6}
+2026-07-23T10:10:26.718Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : d787296b91897ae5fe91bf16a66dfcfa
+    Parent ID      : 5fef3af5b29d021d
+    ID             : 0a6e03f43586db99
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:21.706375976 +0000 UTC
+    End time       : 2026-07-23 10:10:21.706498976 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> network.peer.address: Str(1.2.3.4)
+Span #1
+    Trace ID       : d787296b91897ae5fe91bf16a66dfcfa
+    Parent ID      : 
+    ID             : 5fef3af5b29d021d
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:21.706375976 +0000 UTC
+    End time       : 2026-07-23 10:10:21.706498976 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 4be7776793763b0aa72be808594bad36
+    Parent ID      : 22ac3bc404cddcec
+    ID             : 3b5897dd45949966
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:22.707450606 +0000 UTC
+    End time       : 2026-07-23 10:10:22.707573606 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 4be7776793763b0aa72be808594bad36
+    Parent ID      : 
+    ID             : 22ac3bc404cddcec
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:22.707450606 +0000 UTC
+    End time       : 2026-07-23 10:10:22.707573606 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> service.peer.name: Str(telemetrygen-server)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(traces)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> network.peer.address: Str(1.2.3.4)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #2
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : a83ab6189757f423a37bed7b871e7bc6
+    Parent ID      : c5f144ed77c800ae
+    ID             : c189558dfa8a9a39
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:24.706818965 +0000 UTC
+    End time       : 2026-07-23 10:10:24.706941965 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : a83ab6189757f423a37bed7b871e7bc6
+    Parent ID      : 
+    ID             : c5f144ed77c800ae
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:24.706818965 +0000 UTC
+    End time       : 2026-07-23 10:10:24.706941965 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:31.716Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:31.716Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 25eaecbfb416c14d50a729b0fc2a20fc
+    Parent ID      : 651b9109195c1505
+    ID             : bd0c3675d86c512a
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:26.706698916 +0000 UTC
+    End time       : 2026-07-23 10:10:26.706821916 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 25eaecbfb416c14d50a729b0fc2a20fc
+    Parent ID      : 
+    ID             : 651b9109195c1505
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:26.706698916 +0000 UTC
+    End time       : 2026-07-23 10:10:26.706821916 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : c128dc09ddf1eb9ca02a26194a924ec9
+    Parent ID      : a34c66a26937a38c
+    ID             : abc1fe4e1b98cc4e
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:28.706742076 +0000 UTC
+    End time       : 2026-07-23 10:10:28.706865076 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : c128dc09ddf1eb9ca02a26194a924ec9
+    Parent ID      : 
+    ID             : a34c66a26937a38c
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:28.706742076 +0000 UTC
+    End time       : 2026-07-23 10:10:28.706865076 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:35.718Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:35.718Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 3b891506ea7ff4e80f17c36af9cad1a4
+    Parent ID      : f21b766f7056d609
+    ID             : 4cdad6fb126717f9
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:30.706827734 +0000 UTC
+    End time       : 2026-07-23 10:10:30.706950734 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 3b891506ea7ff4e80f17c36af9cad1a4
+    Parent ID      : 
+    ID             : f21b766f7056d609
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:30.706827734 +0000 UTC
+    End time       : 2026-07-23 10:10:30.706950734 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : a09666b38082dd24ea82e94743673336
+    Parent ID      : 909e169c68371f96
+    ID             : 45b2675a6a230e16
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:32.707420416 +0000 UTC
+    End time       : 2026-07-23 10:10:32.707543416 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : a09666b38082dd24ea82e94743673336
+    Parent ID      : 
+    ID             : 909e169c68371f96
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:32.707420416 +0000 UTC
+    End time       : 2026-07-23 10:10:32.707543416 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:39.721Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:39.721Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 1806a9c379ee9b516d1b19f5f49e753e
+    Parent ID      : 3b564c6753875129
+    ID             : 2b0c2fe961e20cea
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:34.706908763 +0000 UTC
+    End time       : 2026-07-23 10:10:34.707031763 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 1806a9c379ee9b516d1b19f5f49e753e
+    Parent ID      : 
+    ID             : 3b564c6753875129
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:34.706908763 +0000 UTC
+    End time       : 2026-07-23 10:10:34.707031763 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : d9827b0ddbba22e9e8723a99f23ae773
+    Parent ID      : aab4da3716379164
+    ID             : b8f0b4cfb639fc0a
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:36.706784105 +0000 UTC
+    End time       : 2026-07-23 10:10:36.706907105 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : d9827b0ddbba22e9e8723a99f23ae773
+    Parent ID      : 
+    ID             : aab4da3716379164
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:36.706784105 +0000 UTC
+    End time       : 2026-07-23 10:10:36.706907105 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:43.719Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:43.719Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : cbf094a2f7558f2fc305d15ff8d28214
+    Parent ID      : 3803a1bb5014e994
+    ID             : 8fa30e501cffe41f
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:38.706825931 +0000 UTC
+    End time       : 2026-07-23 10:10:38.706948931 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : cbf094a2f7558f2fc305d15ff8d28214
+    Parent ID      : 
+    ID             : 3803a1bb5014e994
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:38.706825931 +0000 UTC
+    End time       : 2026-07-23 10:10:38.706948931 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 099b252b069e0794ec4494886c5ab764
+    Parent ID      : ab7e731c467e5fc3
+    ID             : 4311cbf08503b911
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:40.70667808 +0000 UTC
+    End time       : 2026-07-23 10:10:40.70680108 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 099b252b069e0794ec4494886c5ab764
+    Parent ID      : 
+    ID             : ab7e731c467e5fc3
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:40.70667808 +0000 UTC
+    End time       : 2026-07-23 10:10:40.70680108 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:47.722Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:47.722Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 2ea5208432a31d4f560d5f144d4d7a46
+    Parent ID      : b13a560f77618233
+    ID             : 9715230a7f14b268
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:42.706642241 +0000 UTC
+    End time       : 2026-07-23 10:10:42.706765241 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 2ea5208432a31d4f560d5f144d4d7a46
+    Parent ID      : 
+    ID             : b13a560f77618233
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:42.706642241 +0000 UTC
+    End time       : 2026-07-23 10:10:42.706765241 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 3ce78a832f9a329b15472537af09b12a
+    Parent ID      : 093889c7a70e460c
+    ID             : dd9cd6d7b8449694
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:44.706605238 +0000 UTC
+    End time       : 2026-07-23 10:10:44.706728238 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 3ce78a832f9a329b15472537af09b12a
+    Parent ID      : 
+    ID             : 093889c7a70e460c
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:44.706605238 +0000 UTC
+    End time       : 2026-07-23 10:10:44.706728238 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:51.723Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:51.723Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 9b8f21ea9fb2e2ff4e22da32ebde60a0
+    Parent ID      : 5fda3a0546ff95c9
+    ID             : 6ca0bbdbd7135db1
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:46.706869793 +0000 UTC
+    End time       : 2026-07-23 10:10:46.706992793 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 9b8f21ea9fb2e2ff4e22da32ebde60a0
+    Parent ID      : 
+    ID             : 5fda3a0546ff95c9
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:46.706869793 +0000 UTC
+    End time       : 2026-07-23 10:10:46.706992793 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 3fc4b6cdc04b557f33439bd8220c6bc7
+    Parent ID      : a7f7c0d79df843b7
+    ID             : c326b280a9133684
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:48.706552363 +0000 UTC
+    End time       : 2026-07-23 10:10:48.706675363 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 3fc4b6cdc04b557f33439bd8220c6bc7
+    Parent ID      : 
+    ID             : a7f7c0d79df843b7
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:48.706552363 +0000 UTC
+    End time       : 2026-07-23 10:10:48.706675363 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:55.725Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:55.725Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 12617905a88c1e38c33f81a3b40950f6
+    Parent ID      : 02152ce0bc6440a0
+    ID             : 8edc83875d6cab88
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:50.706820895 +0000 UTC
+    End time       : 2026-07-23 10:10:50.706943895 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 12617905a88c1e38c33f81a3b40950f6
+    Parent ID      : 
+    ID             : 02152ce0bc6440a0
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:50.706820895 +0000 UTC
+    End time       : 2026-07-23 10:10:50.706943895 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 5e96c1b67cc2e81ed6dbca2e09c68790
+    Parent ID      : 50c0fb38e108a91d
+    ID             : d8aaae9978ceeb15
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:52.706780015 +0000 UTC
+    End time       : 2026-07-23 10:10:52.706903015 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 5e96c1b67cc2e81ed6dbca2e09c68790
+    Parent ID      : 
+    ID             : 50c0fb38e108a91d
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:52.706780015 +0000 UTC
+    End time       : 2026-07-23 10:10:52.706903015 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:10:59.728Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:10:59.728Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 9f07cbc3d36fba5f5d10f9163fa243a0
+    Parent ID      : 957b0700758583d7
+    ID             : 77e1e582c894e889
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:54.707431778 +0000 UTC
+    End time       : 2026-07-23 10:10:54.707554778 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 9f07cbc3d36fba5f5d10f9163fa243a0
+    Parent ID      : 
+    ID             : 957b0700758583d7
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:54.707431778 +0000 UTC
+    End time       : 2026-07-23 10:10:54.707554778 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : be946a97929674141539bcb53c5a2468
+    Parent ID      : 0443da32772f7195
+    ID             : 70bbfe54e3e8f084
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:56.706610462 +0000 UTC
+    End time       : 2026-07-23 10:10:56.706733462 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : be946a97929674141539bcb53c5a2468
+    Parent ID      : 
+    ID             : 0443da32772f7195
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:56.706610462 +0000 UTC
+    End time       : 2026-07-23 10:10:56.706733462 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:11:03.730Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:11:03.731Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 52397dcff7b4bbe30a76e67a4f01bb99
+    Parent ID      : a077236cf45ec95f
+    ID             : 9a4e51274f18e956
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:10:58.706591082 +0000 UTC
+    End time       : 2026-07-23 10:10:58.706714082 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 52397dcff7b4bbe30a76e67a4f01bb99
+    Parent ID      : 
+    ID             : a077236cf45ec95f
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:10:58.706591082 +0000 UTC
+    End time       : 2026-07-23 10:10:58.706714082 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 8e7203c4c593ce697489a2cefcb0d1c4
+    Parent ID      : 097f83da64d72f90
+    ID             : 4c65cab9f977e05f
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:00.706711466 +0000 UTC
+    End time       : 2026-07-23 10:11:00.706834466 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 8e7203c4c593ce697489a2cefcb0d1c4
+    Parent ID      : 
+    ID             : 097f83da64d72f90
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:00.706711466 +0000 UTC
+    End time       : 2026-07-23 10:11:00.706834466 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:11:07.731Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:11:07.731Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : ce376013e703a277524798f728f1c593
+    Parent ID      : f442fc610ac5778e
+    ID             : 281bd16461d44e35
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:02.707265294 +0000 UTC
+    End time       : 2026-07-23 10:11:02.707388294 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : ce376013e703a277524798f728f1c593
+    Parent ID      : 
+    ID             : f442fc610ac5778e
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:02.707265294 +0000 UTC
+    End time       : 2026-07-23 10:11:02.707388294 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 56d9d3334a244d60dad9a41e8136ba9e
+    Parent ID      : f754ea127b76956d
+    ID             : 1400bf3047d00ff7
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:04.706871872 +0000 UTC
+    End time       : 2026-07-23 10:11:04.706994872 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 56d9d3334a244d60dad9a41e8136ba9e
+    Parent ID      : 
+    ID             : f754ea127b76956d
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:04.706871872 +0000 UTC
+    End time       : 2026-07-23 10:11:04.706994872 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:11:11.733Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:11:11.733Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 296ff695a09eec0ad3ba7eeb24e1e879
+    Parent ID      : 3444ff2581eaaf36
+    ID             : e0a459afd795e502
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:06.706559743 +0000 UTC
+    End time       : 2026-07-23 10:11:06.706682743 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 296ff695a09eec0ad3ba7eeb24e1e879
+    Parent ID      : 
+    ID             : 3444ff2581eaaf36
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:06.706559743 +0000 UTC
+    End time       : 2026-07-23 10:11:06.706682743 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 483e0e83ef899010ad351029ed6a0b62
+    Parent ID      : a05afb4e3e87c18a
+    ID             : 0021a046a25f0fd6
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:08.707096049 +0000 UTC
+    End time       : 2026-07-23 10:11:08.707219049 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 483e0e83ef899010ad351029ed6a0b62
+    Parent ID      : 
+    ID             : a05afb4e3e87c18a
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:08.707096049 +0000 UTC
+    End time       : 2026-07-23 10:11:08.707219049 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:11:12.177Z	info	Metrics	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "metrics", "resource metrics": 1, "metrics": 50, "data points": 50}
+2026-07-23T10:11:12.178Z	info	ResourceMetrics #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-metrics)
+ScopeMetrics #0
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> benchmark.engine: Str(otel-arrow-native)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+NumberDataPoints #0
+Data point attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:20.164623299 +0000 UTC
+Value: 0
+ScopeMetrics #1
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> benchmark.engine: Str(otel-arrow-native)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:20.164648106 +0000 UTC
+Value: 1
+ScopeMetrics #2
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:21.165490334 +0000 UTC
+Value: 2
+ScopeMetrics #3
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+          -> benchmark.engine: Str(otel-arrow-native)
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:22.165014642 +0000 UTC
+Value: 3
+ScopeMetrics #4
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:23.165271378 +0000 UTC
+Value: 4
+ScopeMetrics #5
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:24.165294705 +0000 UTC
+Value: 5
+ScopeMetrics #6
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+          -> benchmark.engine: Str(otel-arrow-native)
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:25.165293445 +0000 UTC
+Value: 6
+ScopeMetrics #7
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:26.16496635 +0000 UTC
+Value: 7
+ScopeMetrics #8
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:27.164780055 +0000 UTC
+Value: 8
+ScopeMetrics #9
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:28.164875827 +0000 UTC
+Value: 9
+ScopeMetrics #10
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.engine: Str(otel-arrow-native)
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:29.165159633 +0000 UTC
+Value: 10
+ScopeMetrics #11
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:30.165431899 +0000 UTC
+Value: 11
+ScopeMetrics #12
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:31.165497667 +0000 UTC
+Value: 12
+ScopeMetrics #13
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:32.165064834 +0000 UTC
+Value: 13
+ScopeMetrics #14
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:33.165133407 +0000 UTC
+Value: 14
+ScopeMetrics #15
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.engine: Str(otel-arrow-native)
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:34.165197031 +0000 UTC
+Value: 15
+ScopeMetrics #16
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:35.165053293 +0000 UTC
+Value: 16
+ScopeMetrics #17
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:36.165150879 +0000 UTC
+Value: 17
+ScopeMetrics #18
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:37.165230724 +0000 UTC
+Value: 18
+ScopeMetrics #19
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:38.165714107 +0000 UTC
+Value: 19
+ScopeMetrics #20
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:39.164799429 +0000 UTC
+Value: 20
+ScopeMetrics #21
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.engine: Str(otel-arrow-native)
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:40.164880072 +0000 UTC
+Value: 21
+ScopeMetrics #22
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:41.164966638 +0000 UTC
+Value: 22
+ScopeMetrics #23
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:42.165622896 +0000 UTC
+Value: 23
+ScopeMetrics #24
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:43.164776787 +0000 UTC
+Value: 24
+ScopeMetrics #25
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:44.165714645 +0000 UTC
+Value: 25
+ScopeMetrics #26
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:45.165158822 +0000 UTC
+Value: 26
+ScopeMetrics #27
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:46.165036643 +0000 UTC
+Value: 27
+ScopeMetrics #28
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> k8s.cluster.name: Str(observable-otelarrow)
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> benchmark.engine: Str(otel-arrow-native)
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:47.164784905 +0000 UTC
+Value: 28
+ScopeMetrics #29
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:48.165319333 +0000 UTC
+Value: 29
+ScopeMetrics #30
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:49.165264162 +0000 UTC
+Value: 30
+ScopeMetrics #31
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:50.165344867 +0000 UTC
+Value: 31
+ScopeMetrics #32
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:51.164858866 +0000 UTC
+Value: 32
+ScopeMetrics #33
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:52.164732792 +0000 UTC
+Value: 33
+ScopeMetrics #34
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:53.164821212 +0000 UTC
+Value: 34
+ScopeMetrics #35
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:54.165305686 +0000 UTC
+Value: 35
+ScopeMetrics #36
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+          -> benchmark.engine: Str(otel-arrow-native)
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:55.165561752 +0000 UTC
+Value: 36
+ScopeMetrics #37
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:56.165030605 +0000 UTC
+Value: 37
+ScopeMetrics #38
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:57.165113303 +0000 UTC
+Value: 38
+ScopeMetrics #39
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:58.165738222 +0000 UTC
+Value: 39
+ScopeMetrics #40
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:59.165575709 +0000 UTC
+Value: 40
+ScopeMetrics #41
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:00.165651536 +0000 UTC
+Value: 41
+ScopeMetrics #42
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:01.164762217 +0000 UTC
+Value: 42
+ScopeMetrics #43
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:02.164753155 +0000 UTC
+Value: 43
+ScopeMetrics #44
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:03.165109197 +0000 UTC
+Value: 44
+ScopeMetrics #45
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+     -> Metadata:
+          -> benchmark.engine: Str(otel-arrow-native)
+          -> benchmark.run: Str(isi1779-b1v2)
+          -> k8s.cluster.name: Str(observable-otelarrow)
+NumberDataPoints #0
+Data point attributes:
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:04.164788307 +0000 UTC
+Value: 45
+ScopeMetrics #46
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(metrics)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:05.164876695 +0000 UTC
+Value: 46
+ScopeMetrics #47
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:06.16552564 +0000 UTC
+Value: 47
+ScopeMetrics #48
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:07.164823401 +0000 UTC
+Value: 48
+ScopeMetrics #49
+ScopeMetrics SchemaURL: 
+InstrumentationScope  
+Metric #0
+Descriptor:
+     -> Name: gen
+     -> Description: 
+     -> Unit: 
+     -> DataType: Gauge
+NumberDataPoints #0
+Data point attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(metrics)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:08.164692379 +0000 UTC
+Value: 49
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "metrics"}
+2026-07-23T10:11:13.306Z	info	Logs	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "logs", "resource logs": 1, "log records": 50}
+2026-07-23T10:11:13.306Z	info	ResourceLog #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-logs)
+ScopeLogs #0
+ScopeLogs SchemaURL: 
+InstrumentationScope  
+LogRecord #0
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:21.295575643 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #1
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:21.295591393 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> probe.signal: Str(logs)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #2
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:22.296418631 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #3
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:23.296509506 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #4
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:24.296605369 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #5
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:25.295725005 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #6
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:26.295716261 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #7
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:27.296153096 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #8
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:28.295728379 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #9
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:29.295937035 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #10
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:30.2957409 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #11
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:31.295826234 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #12
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:32.295915543 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #13
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:33.296411881 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> probe.signal: Str(logs)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #14
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:34.295735402 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #15
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:35.296027765 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #16
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:36.295713967 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #17
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:37.29588877 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #18
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:38.295710489 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.engine: Str(otel-arrow-native)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #19
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:39.295730638 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #20
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:40.295700585 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #21
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:41.29570196 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #22
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:42.295704317 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #23
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:43.295708709 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #24
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:44.295810382 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #25
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:45.295820906 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #26
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:46.29572612 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #27
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:47.295758044 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #28
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:48.295720144 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #29
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:49.295852828 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(logs)
+     -> app: Str(server)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #30
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:50.296228187 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #31
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:51.296160804 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> app: Str(server)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #32
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:52.29624228 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #33
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:53.296270897 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #34
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:54.296378233 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #35
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:55.296462946 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #36
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:56.295823646 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #37
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:57.2959367 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #38
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:58.296059115 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #39
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:10:59.296136303 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #40
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:00.296247014 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #41
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:01.296338311 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> k8s.cluster.name: Str(observable-otelarrow)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #42
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:02.2957404 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #43
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:03.295697351 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #44
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:04.295708335 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #45
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:05.295714309 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #46
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:06.295726455 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #47
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:07.295712832 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #48
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:08.295689332 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+LogRecord #49
+ObservedTimestamp: 1970-01-01 00:00:00 +0000 UTC
+Timestamp: 2026-07-23 10:11:09.29574538 +0000 UTC
+SeverityText: ERROR
+SeverityNumber: Info(9)
+Body: Str(the message)
+Attributes:
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> app: Str(server)
+     -> probe.signal: Str(logs)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Trace ID: 
+Span ID: 
+Flags: 0
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "logs"}
+2026-07-23T10:11:15.734Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:11:15.735Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 219b27f23c59b484122659f293cde16a
+    Parent ID      : 79ce665a5e74eb8a
+    ID             : ddf81612752c8b70
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:10.706551011 +0000 UTC
+    End time       : 2026-07-23 10:11:10.706674011 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 219b27f23c59b484122659f293cde16a
+    Parent ID      : 
+    ID             : 79ce665a5e74eb8a
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:10.706551011 +0000 UTC
+    End time       : 2026-07-23 10:11:10.706674011 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : aec4df77bf985ad42a1ca23b77d2543d
+    Parent ID      : 7c15a371fcf9b937
+    ID             : 55dc23a487db5113
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:12.706687656 +0000 UTC
+    End time       : 2026-07-23 10:11:12.706810656 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : aec4df77bf985ad42a1ca23b77d2543d
+    Parent ID      : 
+    ID             : 7c15a371fcf9b937
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:12.706687656 +0000 UTC
+    End time       : 2026-07-23 10:11:12.706810656 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:11:19.737Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:11:19.737Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 7c61f9d330b55b4faf63bb37a614ba67
+    Parent ID      : 78cc4a43bda5d24e
+    ID             : a794d38c383b3434
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:14.706593075 +0000 UTC
+    End time       : 2026-07-23 10:11:14.706716075 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 7c61f9d330b55b4faf63bb37a614ba67
+    Parent ID      : 
+    ID             : 78cc4a43bda5d24e
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:14.706593075 +0000 UTC
+    End time       : 2026-07-23 10:11:14.706716075 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 11b46e9e3229a570b2b8d79da23dc009
+    Parent ID      : 90c6f8bbf5b8b81a
+    ID             : c96815aa51e1c5b9
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:16.707173244 +0000 UTC
+    End time       : 2026-07-23 10:11:16.707296244 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 11b46e9e3229a570b2b8d79da23dc009
+    Parent ID      : 
+    ID             : 90c6f8bbf5b8b81a
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:16.707173244 +0000 UTC
+    End time       : 2026-07-23 10:11:16.707296244 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
+2026-07-23T10:11:23.740Z	info	Traces	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces", "resource spans": 2, "spans": 4}
+2026-07-23T10:11:23.740Z	info	ResourceSpans #0
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : 15e59c4a81911749db453b4488222f9b
+    Parent ID      : 49df32c4c3bb8797
+    ID             : 741f62d2f5df21d5
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:18.706944443 +0000 UTC
+    End time       : 2026-07-23 10:11:18.707067443 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : 15e59c4a81911749db453b4488222f9b
+    Parent ID      : 
+    ID             : 49df32c4c3bb8797
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:18.706944443 +0000 UTC
+    End time       : 2026-07-23 10:11:18.707067443 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+ResourceSpans #1
+Resource SchemaURL: https://opentelemetry.io/schemas/1.40.0
+Resource attributes:
+     -> service.name: Str(probe-traces)
+ScopeSpans #0
+ScopeSpans SchemaURL: 
+InstrumentationScope telemetrygen 
+Span #0
+    Trace ID       : fb0ee702dad776fb48f97ce00cb57ceb
+    Parent ID      : 84f6f8b2911e145b
+    ID             : 1358c931a463e80c
+    Name           : okey-dokey-0
+    Kind           : Server
+    Start time     : 2026-07-23 10:11:20.706612617 +0000 UTC
+    End time       : 2026-07-23 10:11:20.706735617 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-client)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+Span #1
+    Trace ID       : fb0ee702dad776fb48f97ce00cb57ceb
+    Parent ID      : 
+    ID             : 84f6f8b2911e145b
+    Name           : lets-go
+    Kind           : Client
+    Start time     : 2026-07-23 10:11:20.706612617 +0000 UTC
+    End time       : 2026-07-23 10:11:20.706735617 +0000 UTC
+    Status code    : Unset
+    Status message : 
+    DroppedAttributesCount: 0
+    DroppedEventsCount: 0
+    DroppedLinksCount: 0
+Attributes:
+     -> network.peer.address: Str(1.2.3.4)
+     -> service.peer.name: Str(telemetrygen-server)
+     -> probe.signal: Str(traces)
+     -> benchmark.engine: Str(otel-arrow-native)
+     -> benchmark.run: Str(isi1779-b1v2)
+     -> k8s.cluster.name: Str(observable-otelarrow)
+	{"resource": {"service.instance.id": "cce24ce8-ba82-47ca-a190-2025e370d6d3", "service.name": "otelcol-contrib", "service.version": "0.154.0"}, "otelcol.component.id": "debug", "otelcol.component.kind": "exporter", "otelcol.signal": "traces"}
