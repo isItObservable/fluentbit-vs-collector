@@ -180,11 +180,50 @@ while `dt.kubernetes.container.restarts` stays silent. Verdict = same pod name *
 
 | Run ID | Engine + image tag | Cluster | Expected replicas | Start (UTC) | End (UTC) | Validation gate | Census | Attr-landing (7b) | Load profile | Leak verdict (floor trend over 24 buckets) | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| `S1-collector` | otel-collector contrib `0.154.0` | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `leak24h` 50 VU per app, both apps | ⟨UNSET⟩ | Scheduled. Runs first. |
-| `S2-fluentbit` | fluent-bit `5.0.9` | `observable-otelarrow` | 1 | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | ⟨UNSET⟩ | `leak24h` 50 VU per app, both apps | ⟨UNSET⟩ | Scheduled. Do not start until S1 reports clean teardown. |
+| `S1-collector` | otel-collector contrib `0.154.0` | `observable-otelarrow` | 1 | `2026-07-29T19:04:16Z` | `2026-07-30T19:12:47Z` | `PASS 8/8 @ 2026-07-29T19:10:46Z` | `MATCH — pod bench-otel-collector-collector-cbd58d94c-8g4nt @2026-07-29T18:56:04Z, 0 restarts, pods=1 at all 24 pulses` | SAFE (spans/logs/metrics) | `leak24h` 50 VU per app, both apps | **NO LEAK** — flat plateau ~88.6 MiB | **🟢 VALID — NO LEAK.** Floor series (2h buckets) `[31.6, 83.4, 86.2, 87.9, 88.4, 88.5, 88.5, 88.5, 88.5, 88.6, 88.6, 88.6, 88.6]` MiB = ~8h warm-up ramp then dead-flat plateau ~88.6 MiB; final-16h floor creep ≤0.2%. The 1h-window +42.87% headline (62.4→89.1 MiB) is a **bucket-0 container-init artifact**, NOT a leak. ⭐⭐⭐ The mechanical rule (>10% ∧ monotonic ∧ sustained ≥75%) TRIPS on a warm-up-to-plateau curve — the leak oracle is the PLATEAU over the final quarters, not first-vs-last floor. Census clean 24/24 pulses (1am Proxmox-backup risk did not hit). Teardown CLEAN. |
+| `S2-fluentbit` | fluent-bit `5.0.9` | `observable-otelarrow` | 1 | `2026-08-04T11:49:55Z` | `2026-08-05T12:13:58Z` | `PASS 6/6 @ 2026-08-04T11:48:40Z` | `pod-identity MATCH (bench-fluentbit-v5-67978b69d8-qbqsk @2026-08-04T11:36:29Z, never rescheduled, 26/26 live_buckets) BUT container restartCount=24` | SAFE (spans/logs/metrics) | `leak24h` 50 VU per app, both apps | **INVALID as a leak measure — 24× SIGSEGV crash-loop** | **🔴 INVALID (leak) / 🟢 PUBLISHABLE (stability defect).** The `fluent-bit` container segfaulted **24×** over 24h (kubectl `restartCount=24`, exitCode 139 — GROUND TRUTH). Each SIGSEGV resets RSS to ~2 MiB newborn → **no leak plateau can form** (longest crash-free run ~1h). ⭐⭐⭐ Census pod-identity MATCH is NOT a stable run — a pod passes the replacement gate while its container crash-loops IN PLACE; you must ALSO read `restartCount`. The `min()`-per-bucket floor query catches the post-restart low, so §3 SHAPE quarter floors COLLAPSE `Q1=28.0→Q2=2.04→Q3=2.05→Q4=2.39 MiB` — that collapse-to-~2 MiB is the on-DT fingerprint of a crash-loop; §2 floor-creep/§4 avg are sawtooth artifacts, not leak signals. ⭐⭐ DT `dt.kubernetes.container.restarts` returned NO ROWS despite 24 real restarts — a DT-collection gap, NOT zero restarts; kubectl is authoritative. Root cause = upstream Fluent Bit HTTP/2-input bug (see notes below). Teardown CLEAN (istiod + DT dynakube kept). |
 | `S3-otel-arrow` | `ghcr.io/isitobservable/df_engine:0.51.0` @ `eaf8f4cca694` | `observable-otelarrow` | 1 | `2026-07-25T16:35:12Z` | `VOID — node failure at T+~8h` | `PASS 8/8 @ 2026-07-25T16:35Z` | `VOID — all soak pods on one failed node` | — | `leak24h` 50 VU per app, both apps | `VOID attempt 1 — node failure` | **🟡 VOID — attempt 1.** Started `2026-07-25T16:35:12Z`. Gate 8/8 GREEN. Worker node `observable-otelarrow-workers-k5hgq-9r662` lost kubelet at `2026-07-26T02:01:58Z` (~8–9.5h in); all soak pods (engine + both load jobs) were scheduled on that node — stranded `Terminating`/`Unknown`, kubelet unable to evict. Both Jobs hit `BackoffLimitExceeded`→`FailureTarget` at `2026-07-26T04:02:33Z`. The partial soak is not usable: a mid-run node failure perturbs the very memory metrics a leak trend measures. ⭐⭐⭐ Lesson: all soak-critical pods on ONE worker = SPOF; a 24h soak needs pod anti-affinity or manual node placement across healthy workers. **Attempt 2 in progress** — fresh deploy 2026-07-26, gate + S3 re-run. |
 
 **Owning issue per soak row:** S1 = ISI-1811 · S2 = ISI-1823 · S3 = ISI-1824.
+
+#### S2-fluentbit root-cause — Fluent Bit 5.0.9 SIGSEGV crash-loop (ISI-1823 / finalizer ISI-2091)
+
+The S2 soak is **invalid as a leak measurement but a genuinely publishable stability result** — arguably
+more interesting than a clean leak plateau. Fluent Bit `5.0.9` crash-looped throughout the 24h window and
+never held a stable RSS long enough for a leak trend to form.
+
+**The crash.** The single `fluent-bit` container took **24 SIGSEGVs** in 24h (~1 crash/hour under
+50 VU/app), each `exitCode 139`. The pod itself was never rescheduled — same name and `creationTimestamp`
+Start→End, 26/26 live census buckets — so the **pod-census gate PASSED**. The container-level
+`restartCount=24` (kubectl, ground truth) is what disqualifies the run. Because each restart resets RSS to
+a ~2 MiB newborn, the longest crash-free interval (~1h) is far shorter than the multi-hour warm-up a leak
+plateau needs.
+
+**Stack trace (upstream HTTP/2-input bug):**
+
+```
+SIGSEGV in flb_http_response_init()      @ src/flb_http_common.c:903
+  ← flb_http2_response_begin()
+  ← flb_http_server_client_activity_event_handler()
+```
+
+Correlated with `[downstream] … IO timeout` on the OTLP-input HTTP server. The OTLP **output** path to
+Dynatrace was healthy (HTTP 200s) the whole time — so this is an **input-server defect in the build, not a
+config or export problem.** It would disqualify Fluent Bit 5.0.9 from a production 24h logging role;
+**the actionable finding is a stability defect, not a leak.**
+
+**How to read it on Dynatrace (for anyone re-deriving from Grail):**
+
+- `dt.kubernetes.container.restarts` returned **NO ROWS** despite 24 real restarts — a DT-collection gap
+  for this workload. Never read metric-absence as "clean"; cross-check `kubectl get pod -o
+  jsonpath='{...restartCount}'`.
+- The `min()`-per-2h-bucket floor query catches each post-restart ~2 MiB low, so the SHAPE quarter floors
+  **collapse** `Q1=28.0 → Q2=2.04 → Q3=2.05 → Q4=2.39 MiB` (`quarters_monotonic=no`). That
+  collapse-to-~2 MiB is the on-DT **fingerprint of a crash-loop**; the floor-creep (§2) and avg (§4)
+  readouts are sawtooth artifacts, not leak signals.
+
+**Contrast with S1-collector:** flat ~88.6 MiB, 0 restarts, NO LEAK. Two engines, two very different
+24h stability profiles — the OTel Collector held a plateau; Fluent Bit 5.0.9 could not stay up.
 
 > ⚠️ **`hipster-shop/loadgenerator` — a second load source exists. LEAVE IT RUNNING.**
 > Found during R1-P1 teardown (2026-07-22T18:1xZ). The hipster-shop overlay deliberately
