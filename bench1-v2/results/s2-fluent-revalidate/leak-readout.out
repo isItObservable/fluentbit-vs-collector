@@ -1,0 +1,114 @@
+=== ISI-1811 leak readout: bench-fluentbit-v5 (cluster observable-otelarrow) ===
+=== window 2026-08-06T01:34:39Z -> 2026-08-07T01:52:10Z ===
+
+--- [1/5] POD CENSUS — VALIDITY GATE (read this first) ---
+    every pod must be alive for ALL buckets; a short-lived pod = RUN INVALID
+K8S POD NAME                          LIVE BUCKETS   VERDICT   WINDOW BUCKETS 
+bench-fluentbit-v5-67978b69d8-bhk49   25             ok        25               
+
+--- Query Metadata ---
+Execution time:     116ms
+Scanned records:    0
+Scanned bytes:      0 B
+Scanned data pts:   986
+Analysis window:    2026-08-06T01:00:00.000000000Z → 2026-08-07T02:00:00.000000000Z
+Query ID:           019fd9eb-de11-7deb-86fc-a4779af52c25
+DQL version:        V1_0
+Canonical query:    timeseries from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", by:{k8s.pod.name}, filter:matchesValue(k8s.workload.name, "bench-fluentbit-v5") AND matchesValue(k8s.cluster.name, "observable-otelarrow"), interval:1h, m = avg(dt.kubernetes.container.memory_working_set) | fieldsAdd live_buckets = arraySize(arrayRemoveNulls(m)), window_buckets = arraySize(m) | fieldsAdd verdict = if(arraySize(arrayRemoveNulls(m)) == arraySize(m), "ok", else:"PARTIAL LIFETIME -> RUN INVALID") | fields k8s.pod.name, live_buckets, window_buckets, verdict | sort live_buckets
+Query:              timeseries m = avg(dt.kubernetes.container.memory_working_set), by:{k8s.pod.name}, from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", interval:1h, filter: matchesValue(k8s.workload.name, "bench-fluentbit-v5") and matchesValue(k8s.cluster.name, "observable-otelarrow") | fieldsAdd live_buckets = arraySize(arrayRemoveNulls(m)), window_buckets = arraySize(m) | fieldsAdd verdict = if(arraySize(arrayRemoveNulls(m)) == arraySize(m), "ok", else:"PARTIAL LIFETIME -> RUN INVALID") | fields k8s.pod.name, live_buckets, window_buckets, verdict | sort live_buckets asc
+Timezone:           Z
+Locale:             und
+Sampled:            no
+
+--- [2/5] FLOOR CREEP per pod (primary leak metric) ---
+FLOOR CREEP MIB   FLOOR CREEP MIB PER H   FLOOR CREEP PCT     FLOOR END MIB   FLOOR START MIB   K8S POD NAME                          WINDOW H 
+33.3515625        1.3896484375            762.3214285714286   37.7265625      4.375             bench-fluentbit-v5-67978b69d8-bhk49   24         
+
+--- Query Metadata ---
+Execution time:     37ms
+Scanned records:    0
+Scanned bytes:      0 B
+Scanned data pts:   986
+Analysis window:    2026-08-06T01:00:00.000000000Z → 2026-08-07T02:00:00.000000000Z
+Query ID:           019fd9eb-e01f-73fb-8f00-17cb160d15d1
+DQL version:        V1_0
+Canonical query:    timeseries from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", by:{k8s.pod.name}, filter:matchesValue(k8s.workload.name, "bench-fluentbit-v5") AND matchesValue(k8s.cluster.name, "observable-otelarrow"), interval:1h, floor = min(dt.kubernetes.container.memory_working_set) | fieldsAdd f = arrayRemoveNulls(floor) | fieldsAdd floor_start_MiB = arrayFirst(f) / 1048576, floor_end_MiB = arrayLast(f) / 1048576 | fieldsAdd floor_creep_MiB = arrayLast(f) / 1048576 - arrayFirst(f) / 1048576 | fieldsAdd floor_creep_pct = 100 * (arrayLast(f) - arrayFirst(f)) / arrayFirst(f) | fieldsAdd window_h = arraySize(f) - 1 | fieldsAdd floor_creep_MiB_per_h = (arrayLast(f) / 1048576 - arrayFirst(f) / 1048576) / (arraySize(f) - 1) | fields k8s.pod.name, window_h, floor_start_MiB, floor_end_MiB, floor_creep_MiB, floor_creep_pct, floor_creep_MiB_per_h | sort floor_creep_pct desc
+Query:              timeseries floor = min(dt.kubernetes.container.memory_working_set), by:{k8s.pod.name}, from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", interval:1h, filter: matchesValue(k8s.workload.name, "bench-fluentbit-v5") and matchesValue(k8s.cluster.name, "observable-otelarrow") | fieldsAdd f = arrayRemoveNulls(floor) | fieldsAdd floor_start_MiB = arrayFirst(f)/1048576, floor_end_MiB = arrayLast(f)/1048576 | fieldsAdd floor_creep_MiB = arrayLast(f)/1048576 - arrayFirst(f)/1048576 | fieldsAdd floor_creep_pct = 100*(arrayLast(f) - arrayFirst(f))/arrayFirst(f) | fieldsAdd window_h = arraySize(f)-1 | fieldsAdd floor_creep_MiB_per_h = (arrayLast(f)/1048576 - arrayFirst(f)/1048576)/(arraySize(f)-1) | fields k8s.pod.name, window_h, floor_start_MiB, floor_end_MiB, floor_creep_MiB, floor_creep_pct, floor_creep_MiB_per_h | sort floor_creep_pct desc
+Timezone:           Z
+Locale:             und
+Sampled:            no
+
+--- [3/5] SHAPE: quarter monotonicity + sustained elevation ---
+K8S POD NAME                          Q1 MIB      Q2 MIB        Q3 MIB       Q4 MIB     QUARTERS MONOTONIC 
+bench-fluentbit-v5-67978b69d8-bhk49   2.3203125   28.66796875   2.04296875   2.046875   no                   
+
+--- Query Metadata ---
+Execution time:     33ms
+Scanned records:    0
+Scanned bytes:      0 B
+Scanned data pts:   998
+Analysis window:    2026-08-06T00:00:00.000000000Z → 2026-08-07T06:00:00.000000000Z
+Query ID:           019fd9eb-e1e9-770e-b24b-7c39b1d69075
+DQL version:        V1_0
+Canonical query:    timeseries from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", by:{k8s.pod.name}, filter:matchesValue(k8s.workload.name, "bench-fluentbit-v5") AND matchesValue(k8s.cluster.name, "observable-otelarrow"), interval:6h, floor = min(dt.kubernetes.container.memory_working_set) | fieldsAdd q1_MiB = floor[0] / 1048576, q2_MiB = floor[1] / 1048576, q3_MiB = floor[2] / 1048576, q4_MiB = floor[3] / 1048576 | fieldsAdd quarters_monotonic = if(floor[1] >= floor[0] AND floor[2] >= floor[1] AND floor[3] >= floor[2], "YES", else:"no") | fields k8s.pod.name, q1_MiB, q2_MiB, q3_MiB, q4_MiB, quarters_monotonic
+Query:              timeseries floor = min(dt.kubernetes.container.memory_working_set), by:{k8s.pod.name}, from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", interval:6h, filter: matchesValue(k8s.workload.name, "bench-fluentbit-v5") and matchesValue(k8s.cluster.name, "observable-otelarrow") | fieldsAdd q1_MiB = floor[0]/1048576, q2_MiB = floor[1]/1048576, q3_MiB = floor[2]/1048576, q4_MiB = floor[3]/1048576 | fieldsAdd quarters_monotonic = if(floor[1]>=floor[0] and floor[2]>=floor[1] and floor[3]>=floor[2], "YES", else:"no") | fields k8s.pod.name, q1_MiB, q2_MiB, q3_MiB, q4_MiB, quarters_monotonic
+Timezone:           Z
+Locale:             und
+Sampled:            no
+BUCKETS   K8S POD NAME                          SUSTAINED ABOVE START   SUSTAINED PCT 
+25        bench-fluentbit-v5-67978b69d8-bhk49   22                      88              
+
+--- Query Metadata ---
+Execution time:     23ms
+Scanned records:    0
+Scanned bytes:      0 B
+Scanned data pts:   218
+Analysis window:    2026-08-06T01:00:00.000000000Z → 2026-08-07T02:00:00.000000000Z
+Query ID:           019fd9eb-e382-72f1-858d-e89a54aece48
+DQL version:        V1_0
+Canonical query:    timeseries from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", by:{k8s.pod.name}, filter:matchesValue(k8s.workload.name, "bench-fluentbit-v5") AND matchesValue(k8s.cluster.name, "observable-otelarrow"), interval:1h, floor = min(dt.kubernetes.container.memory_working_set) | fieldsAdd base = arrayFirst(arrayRemoveNulls(floor)) | expand floor | filter isNotNull(floor) | summarize by:{k8s.pod.name}, {buckets = count(), sustained_above_start = countIf(floor >= base)} | fieldsAdd sustained_pct = 100.0 * sustained_above_start / buckets | fields k8s.pod.name, buckets, sustained_above_start, sustained_pct
+Query:              timeseries floor = min(dt.kubernetes.container.memory_working_set), by:{k8s.pod.name}, from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", interval:1h, filter: matchesValue(k8s.workload.name, "bench-fluentbit-v5") and matchesValue(k8s.cluster.name, "observable-otelarrow") | fieldsAdd base = arrayFirst(arrayRemoveNulls(floor)) | expand floor | filter isNotNull(floor) | summarize buckets = count(), sustained_above_start = countIf(floor >= base), by:{k8s.pod.name} | fieldsAdd sustained_pct = 100.0*sustained_above_start/buckets | fields k8s.pod.name, buckets, sustained_above_start, sustained_pct
+Timezone:           Z
+Locale:             und
+Sampled:            no
+
+--- [4/5] AVG + PEAK TREND (context, never the headline) ---
+END MIB             GROWTH MIB           GROWTH PCT         K8S POD NAME                          MIN MIB              PEAK MIB         START MIB          
+59.03921568627451   22.713515255240026   62.5273979186234   bench-fluentbit-v5-67978b69d8-bhk49   36.325700431034484   160.0408203125   36.325700431034484   
+
+--- Query Metadata ---
+Execution time:     23ms
+Scanned records:    0
+Scanned bytes:      0 B
+Scanned data pts:   986
+Analysis window:    2026-08-06T01:00:00.000000000Z → 2026-08-07T02:00:00.000000000Z
+Query ID:           019fd9eb-e51d-7ff4-9a22-b28cf757ab28
+DQL version:        V1_0
+Canonical query:    timeseries from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", by:{k8s.pod.name}, filter:matchesValue(k8s.workload.name, "bench-fluentbit-v5") AND matchesValue(k8s.cluster.name, "observable-otelarrow"), interval:1h, mem = avg(dt.kubernetes.container.memory_working_set) | fieldsAdd m = arrayRemoveNulls(mem) | fieldsAdd start_MiB = arrayFirst(m) / 1048576, end_MiB = arrayLast(m) / 1048576 | fieldsAdd peak_MiB = arrayMax(m) / 1048576, min_MiB = arrayMin(m) / 1048576 | fieldsAdd growth_MiB = arrayLast(m) / 1048576 - arrayFirst(m) / 1048576 | fieldsAdd growth_pct = 100 * (arrayLast(m) - arrayFirst(m)) / arrayFirst(m) | fields k8s.pod.name, start_MiB, end_MiB, peak_MiB, min_MiB, growth_MiB, growth_pct
+Query:              timeseries mem = avg(dt.kubernetes.container.memory_working_set), by:{k8s.pod.name}, from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", interval:1h, filter: matchesValue(k8s.workload.name, "bench-fluentbit-v5") and matchesValue(k8s.cluster.name, "observable-otelarrow") | fieldsAdd m = arrayRemoveNulls(mem) | fieldsAdd start_MiB = arrayFirst(m)/1048576, end_MiB = arrayLast(m)/1048576 | fieldsAdd peak_MiB = arrayMax(m)/1048576, min_MiB = arrayMin(m)/1048576 | fieldsAdd growth_MiB = arrayLast(m)/1048576 - arrayFirst(m)/1048576 | fieldsAdd growth_pct = 100*(arrayLast(m) - arrayFirst(m))/arrayFirst(m) | fields k8s.pod.name, start_MiB, end_MiB, peak_MiB, min_MiB, growth_MiB, growth_pct
+Timezone:           Z
+Locale:             und
+Sampled:            no
+
+--- [5/5] INVALIDATORS: restarts / OOM kills ---
+    (no rows = zero IN-PLACE restarts, ONLY IF [1] and [2] returned rows;
+     pod REPLACEMENT does not appear here at all — that is section [1]'s job)
+
+--- Query Metadata ---
+Execution time:     18ms
+Scanned records:    0
+Scanned bytes:      0 B
+Scanned data pts:   998
+Analysis window:    2026-08-06T00:00:00.000000000Z → 2026-08-08T00:00:00.000000000Z
+Query ID:           019fd9eb-e6b0-74ec-83cd-a86f74956eae
+DQL version:        V1_0
+Canonical query:    timeseries from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", by:{k8s.pod.name}, filter:matchesValue(k8s.workload.name, "bench-fluentbit-v5") AND matchesValue(k8s.cluster.name, "observable-otelarrow"), interval:24h, {r = max(dt.kubernetes.container.restarts), o = max(dt.kubernetes.container.oom_kills)} | fieldsAdd restarts = arrayMax(r), oom_kills = arrayMax(o) | fields k8s.pod.name, restarts, oom_kills
+Query:              timeseries r = max(dt.kubernetes.container.restarts), o = max(dt.kubernetes.container.oom_kills), by:{k8s.pod.name}, from:"2026-08-06T01:34:39Z", to:"2026-08-07T01:52:10Z", interval:24h, filter: matchesValue(k8s.workload.name, "bench-fluentbit-v5") and matchesValue(k8s.cluster.name, "observable-otelarrow") | fieldsAdd restarts = arrayMax(r), oom_kills = arrayMax(o) | fields k8s.pod.name, restarts, oom_kills
+Timezone:           Z
+Locale:             und
+Sampled:            no
+
+=== cross-check against the cluster before teardown (unambiguous) ===
+kubectl get pods -l app.kubernetes.io/part-of=isi1779-benchmark \
+  -o custom-columns=POD:.metadata.name,RESTARTS:.status.containerStatuses[*].restartCount,AGE:.metadata.creationTimestamp
+  # AGE older than the soak start proves no replacement; RESTARTS proves no in-place restart.
