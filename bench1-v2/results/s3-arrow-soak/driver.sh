@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# ISI-1881 — S3-otel-arrow 24h SOAK driver (df_engine 0.51.0, ATTEMPT 2).
+# ISI-3301 — S3-otel-arrow 24h SOAK driver (df_engine 0.51.0, ATTEMPT 3).
+# Attempt 3 context: §1 cycle re-staged 2026-08-26 (fresh engine deploy, otel-demo
+# + hipster-shop arrow variants, appprotocol, ns labels, Istio telemetry + istiod
+# restart). Cluster has 3 Ready workers again (9r662 recovered).
 #
 # Run DETACHED from the bench1-v2 clone root:
 #   setsid nohup ./results/s3-arrow-soak/driver.sh >/dev/null 2>&1 &
@@ -31,8 +34,8 @@ set -uo pipefail
 export KUBECONFIG=~/.config/capmox/observable-otelarrow.kubeconfig
 export ENGINE=otel-arrow-native
 RUN_ID=S3-otel-arrow
-CLONE=/tmp/fvc1821/bench1-v2
-OUT="$CLONE/results/s3-arrow-soak"
+CLONE=/tmp/fvc-s3/bench1-v2
+OUT=/mnt/nas/projects/isitobservable/_artifacts/isi1779/soak/S3-arrow
 mkdir -p "$OUT"
 STATE="$OUT/STATE"; LOG="$OUT/driver.log"
 cd "$CLONE" || { echo "no clone at $CLONE"; exit 1; }
@@ -42,11 +45,11 @@ setstate(){ echo "$1" > "$STATE"; say "STATE=$1"; }
 
 ENGPOD(){ kubectl -n default get pod -l app=bench-otel-arrow-native -o jsonpath='{.items[0].metadata.name}' 2>/dev/null; }
 
-say "=== S3-otel-arrow soak driver START (attempt 2)"
+say "=== S3-otel-arrow soak driver START (attempt 3)"
 
 # ─── DEPLOY_ENGINE ──────────────────────────────────────────────────────────
 setstate DEPLOY_ENGINE
-say "Deleting existing engine pod (attempt-1 had 2 restarts → memory baseline invalid)"
+say "Deleting existing engine pod for a clean memory baseline (pod must be born inside this run)"
 kubectl -n default delete pod -l app=bench-otel-arrow-native --wait=true --timeout=120s >>"$LOG" 2>&1 || true
 say "Re-applying engine manifest (engine stays alive via Deployment controller)"
 kubectl apply -f engines/otel-arrow-native.yaml >>"$LOG" 2>&1
@@ -86,13 +89,32 @@ say "Pre-gate engine liveness check: $p"
 
 # ─── GATE ───────────────────────────────────────────────────────────────────
 setstate GATE
-say "Running validate-phase.sh $ENGINE --window 15m (8 checks, must be GREEN)"
-if ./validate-phase.sh "$ENGINE" --window 15m > "$OUT/gate.out" 2>&1; then
-  cp "$OUT/gate.out" "$OUT/gate-GREEN.out"
-  say "GATE GREEN — opening soak window"
-else
+# ISI-3301 attempt-3 fix: first attempt-3 gate run went RED on 2026-08-26 with
+# ZERO spans/logs in-window, while a post-hoc re-query of the SAME window showed
+# 24.5k app spans / 13.8k logs / 8.4k istio spans — Dynatrace ingestion lag
+# (~2-3 min) raced the fresh engine pod (born 14 min before gate). Retry the
+# gate with a settle wait before halting; a genuinely broken pipeline stays RED
+# across all attempts and still halts with no load applied.
+GATE_PASSES=0
+for attempt in 1 2 3; do
+  say "Running validate-phase.sh $ENGINE --window 15m (8 checks, must be GREEN) — attempt $attempt"
+  if ./validate-phase.sh "$ENGINE" --window 15m > "$OUT/gate.out" 2>&1; then
+    cp "$OUT/gate.out" "$OUT/gate-GREEN.out"
+    say "GATE GREEN (attempt $attempt) — opening soak window"
+    GATE_PASSES=1
+    break
+  fi
+  if [ "$attempt" -lt 3 ]; then
+    setstate GATE_RETRY_WAIT
+    say "GATE RED (attempt $attempt) — waiting 300s for DT ingestion to settle, then re-running"
+    tail -6 "$OUT/gate.out" | tee -a "$LOG"
+    sleep 300
+    setstate GATE
+  fi
+done
+if [ "$GATE_PASSES" -ne 1 ]; then
   setstate GATE_RED
-  say "GATE RED — NOT starting soak. Engine + apps left idling for diagnosis."
+  say "GATE RED after 3 attempts — NOT starting soak. Engine + apps left idling for diagnosis."
   tail -12 "$OUT/gate.out" | tee -a "$LOG"
   exit 1
 fi
@@ -101,7 +123,7 @@ fi
 setstate SOAK_START
 # run-lock
 kubectl create configmap isi1779-run-lock -n default \
-  --from-literal=claimed="$(date -u +%FT%TZ)" --from-literal=owner=ISI-1881 --from-literal=run="$RUN_ID" \
+  --from-literal=claimed="$(date -u +%FT%TZ)" --from-literal=owner=ISI-3301 --from-literal=run="$RUN_ID" \
   --dry-run=client -o yaml | kubectl apply -f - >>"$LOG" 2>&1
 
 # START census (D12) and engine identity — BEFORE load
