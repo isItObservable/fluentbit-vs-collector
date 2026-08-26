@@ -1,0 +1,26 @@
+=== S2-fluent RE-VALIDATION pulse driver started 2026-08-06T01:34:55Z pid=574879 ===
+PULSE 1 2026-08-06T01:34:55Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=0 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 2 2026-08-06T02:34:56Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=1 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 3 2026-08-06T03:34:56Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=1 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 4 2026-08-06T04:34:57Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=2 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 5 2026-08-06T05:34:57Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=3 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 6 2026-08-06T06:34:58Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=3 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 7 2026-08-06T07:34:58Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=3 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 8 2026-08-06T08:34:59Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=3 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 9 2026-08-06T09:34:59Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=3 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 10 2026-08-06T10:35:00Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=3 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 11 2026-08-06T11:35:00Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=4 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 12 2026-08-06T12:35:01Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=4 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 13 2026-08-06T13:35:01Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=5 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 14 2026-08-06T14:35:02Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=7 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 15 2026-08-06T15:35:03Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=7 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 16 2026-08-06T16:35:03Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=8 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 17 2026-08-06T17:35:04Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=9 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 18 2026-08-06T18:35:04Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=9 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 19 2026-08-06T19:35:05Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=9 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 20 2026-08-06T20:35:05Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=10 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 21 2026-08-06T21:35:06Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=11 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 22 2026-08-06T22:35:08Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=11 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 23 2026-08-06T23:35:09Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=11 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 24 2026-08-07T00:35:09Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=11 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12
+PULSE 25 2026-08-07T01:35:09Z | engine=bench-fluentbit-v5-67978b69d8-bhk49 created=2026-08-06T01:30:15Z restarts=13 phase=Running pods=1 census=OK | soak od=1 hs=1 | ready od=23 hs=12

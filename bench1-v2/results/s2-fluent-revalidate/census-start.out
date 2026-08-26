@@ -1,0 +1,9 @@
+# pod census — S2-fluent RE-VALIDATION @ Start — captured 2026-08-06T01:34:55Z
+# cluster: observable-otelarrow
+
+| `S2-fluent-revalidate` | Start | `bench-fluentbit-v5-67978b69d8-bhk49` | `2026-08-06T01:30:15Z` | observable-otelarrow-workers-k5hgq-9r662 | 0 | <fill: MATCH or REPLACED -> RUN INVALID> |
+
+CENSUS OK — 1 engine pod, matching expected replicas (1).
+At End: verify pod name AND creationTimestamp byte-identical to Start.
+CRITICAL (ISI-1823 lesson): ALSO read restartCount — a crash-loop passes the pod-identity
+gate while the container SIGSEGVs in place. restartCount>0 = crash-loop finding.

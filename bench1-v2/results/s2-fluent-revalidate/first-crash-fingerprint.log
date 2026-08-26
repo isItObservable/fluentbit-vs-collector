@@ -1,0 +1,60 @@
+[2026/08/06 01:48:30.244] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:30.250] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:31.260] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:31.266] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:32.252] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:32.255] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:33.258] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:33.277] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:34.132] [error] [downstream] connection #94 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:34.259] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:34.277] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:35.248] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:35.281] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:35.632] [error] [downstream] connection #96 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:35.632] [error] [downstream] connection #36 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:36.248] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:36.256] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:37.132] [error] [downstream] connection #52 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:37.255] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:37.258] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:38.259] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:38.270] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:39.259] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:39.283] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:40.132] [error] [downstream] connection #80 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:40.132] [error] [downstream] connection #53 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:40.258] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:40.262] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:41.265] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:41.271] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:41.632] [error] [downstream] connection #66 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:41.632] [error] [downstream] connection #87 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:42.236] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:42.256] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:43.132] [error] [downstream] connection #48 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:43.132] [error] [downstream] connection #39 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:43.132] [error] [downstream] connection #37 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:43.237] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:43.262] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:44.279] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:44.280] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:45.256] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:45.273] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:46.132] [error] [downstream] connection #60 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:46.132] [error] [downstream] connection #85 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:46.132] [error] [downstream] connection #94 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:46.132] [error] [downstream] connection #106 from  timed out after 10 seconds (IO timeout)
+[2026/08/06 01:48:46.270] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:46.277] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:47.244] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:47.250] [ info] [output:opentelemetry:opentelemetry.0] oat05854.dev.dynatracelabs.com:443, HTTP status=200
+[2026/08/06 01:48:47] [engine] caught signal (SIGSEGV)
+#0  0x58c9d4c3d578      in  flb_http_response_init() at src/flb_http_common.c:903
+#1  0x58c9d4c4d4a7      in  flb_http2_response_begin() at src/http_server/flb_http_server_http2.c:123
+#2  0x58c9d4c4bdd8      in  flb_http_server_client_activity_event_handler() at src/http_server/flb_http_server.c:431
+#3  0x58c9d4bec042      in  flb_engine_start() at src/flb_engine.c:1280
+#4  0x58c9d4bb9f43      in  flb_lib_worker() at src/flb_lib.c:909
+#5  0x710686187b7a      in  ???() at ???:0
+#6  0x7106862057f7      in  ???() at ???:0
+#7  0xffffffffffffffff  in  ???() at ???:0

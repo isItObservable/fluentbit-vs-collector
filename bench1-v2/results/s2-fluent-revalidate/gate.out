@@ -1,0 +1,43 @@
+ISI-1779 B1-v2 phase validation gate
+engine=fluentbit-v5  engine-ns=default  window=15m  2026-08-06T01:52:09Z
+
+=== CHECK 1: apps healthy ===
+  otel-demo: notready=[none] crashloop=[none] restarts<5m=[none]
+  hipster-shop: notready=[none] crashloop=[none] restarts<5m=[none]
+CHECK 1 PASS apps-healthy all deployments Ready in otel-demo hipster-shop
+
+=== CHECK 2: app spans in Dynatrace (both apps, window 15m) ===
+  [{"service.namespace": "hipster-shop", "spans": "217667"}, {"service.namespace": "otel-demo", "spans": "123292"}]
+  otel-demo spans=123292
+  hipster-shop spans=217667
+CHECK 2 PASS app-spans non-zero spans from both namespaces
+
+=== CHECK 3: istio-proxy sidecars (exclusions: load-generator, frontend-proxy, ramp jobs) ===
+  otel-demo: expected=20 with-sidecar=20 missing=[-]
+  hipster-shop: expected=11 with-sidecar=11 missing=[-]
+CHECK 3 PASS sidecars expected == actual in both namespaces
+
+=== CHECK 4: Istio/Envoy-generated spans (window 15m) ===
+  4a meshConfig provider present: fluentbit-v5-otel
+  4a meshConfig provider present: fluentbit-v5-otel-als
+  4b istiod started=2026-08-04T11:48:04Z   helm revision deployed=2026-08-04T13:37:19.265170173+02:00
+  4c dataplane config_dump (adservice-899b66fc8-fx469): benchmark.telemetry_source x150
+  [{"benchmark.engine": "fluentbit-v5", "mesh_spans": "315012"}]
+  Istio-generated spans: 315012
+CHECK 4 PASS istio-spans 315012 mesh spans in 15m, config preflight 4a/4b/4c green
+
+=== CHECK 5: engine healthy with non-zero accepted + exported ===
+  pod=bench-fluentbit-v5-67978b69d8-bhk49 ready=true restarts=1
+  accepted=91766 exported=91240
+  error-ish log lines in last 10m: 0
+CHECK 5 PASS engine-healthy pod ready, accepted>0, exported>0, no export errors
+
+=== CHECK 6: pod census baseline (record these in RUN-REGISTER.md) ===
+  bench-fluentbit-v5-67978b69d8-bhk49   2026-08-06T01:30:15Z   observable-otelarrow-workers-k5hgq-9r662   Running
+  pods=1 expected-replicas=1 cluster=observable-otelarrow
+CHECK 6 PASS pod-census bench-fluentbit-v5-67978b69d8-bhk49@2026-08-06T01:30:15Z pods=1 — copy into RUN-REGISTER.md and re-capture at End
+
+=== GATE RESULT ===
+passed=6 failed=0 engine=fluentbit-v5 at 2026-08-06T01:52:16Z
+GATE GREEN — phase fluentbit-v5 is comparable; start the timed run.
+GATE_EXIT=0
