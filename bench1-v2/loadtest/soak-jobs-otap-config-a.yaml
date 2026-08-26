@@ -1,0 +1,104 @@
+# ============================================================================
+# ISI-3302 / ISI-1779 B1-v2 — 24h SOAK load, ENGINE = otap-config-a (OTAP hop arm)
+# ----------------------------------------------------------------------------
+#   kubectl apply -f loadtest/soak-jobs-otap-config-a.yaml
+#
+# Two Jobs: one for otel-demo, one for hipster-shop. Both run LOAD_PHASE=leak24h
+# (50 VU/app constant, 86400s = 24h). Same loadshape.py as the ramp jobs.
+#
+# Modeled byte-for-byte on loadtest/soak-jobs-otel-arrow-native.yaml (ISI-1881)
+# with exactly two deltas: the loadgen's OTLP export endpoint points at the
+# Config A EDGE collector Service, and the engine label is otap-config-a.
+# Everything else (image, LOAD_PHASE, users, exit-code-on-error, no TTL,
+# backoffLimit 0, 25h active deadline) is frozen — comparability with S1/S2/S3
+# soaks depends on the loadshape being identical.
+#
+# IMAGE: ghcr.io/open-telemetry/demo:2.2.0-load-generator
+# (confirmed pullable; see soak-jobs-otel-arrow-native.yaml header — ISI-1881)
+#
+# LOAD-BEARING properties (same discipline as soak-jobs-*.yaml):
+#  1. `soak: isi1779` on the POD TEMPLATE (for capture-window.sh + census)
+#  2. NO `ttlSecondsAfterFinished` — pods must survive for END timestamp recovery
+#  3. `backoffLimit: 0` — no automatic retry on failure; failure is explicit
+#  4. `activeDeadlineSeconds: 90000` — ~25h hard cap (24h + 1h buffer)
+#  5. `LOCUST_EXIT_CODE_ON_ERROR: 0` — ~0.02% app-side 500s must not fail the Job
+# ============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: soakjob-oteldemo
+  namespace: otel-demo
+  labels:
+    soak: isi1779
+    engine: otap-config-a
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 90000
+  template:
+    metadata:
+      labels:
+        soak: isi1779
+        engine: otap-config-a
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: loadgen
+          image: ghcr.io/open-telemetry/demo:2.2.0-load-generator
+          env:
+            - name: LOCUST_HOST
+              value: "http://frontend-proxy.otel-demo:8080"
+            - name: LOAD_PHASE
+              value: "leak24h"
+            - name: LOCUST_USERS
+              value: "50"
+            - name: LOCUST_EXIT_CODE_ON_ERROR
+              value: "0"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://bench-otap-config-a.default.svc.cluster.local:4317"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: soakjob-hipster
+  namespace: hipster-shop
+  labels:
+    soak: isi1779
+    engine: otap-config-a
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 90000
+  template:
+    metadata:
+      labels:
+        soak: isi1779
+        engine: otap-config-a
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: loadgen
+          image: ghcr.io/open-telemetry/demo:2.2.0-load-generator
+          env:
+            - name: LOCUST_HOST
+              value: "http://frontend.hipster-shop:80"
+            - name: LOAD_PHASE
+              value: "leak24h"
+            - name: LOCUST_USERS
+              value: "50"
+            - name: LOCUST_EXIT_CODE_ON_ERROR
+              value: "0"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://bench-otap-config-a.default.svc.cluster.local:4317"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

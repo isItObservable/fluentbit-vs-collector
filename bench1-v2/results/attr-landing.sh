@@ -130,6 +130,16 @@ expected_for() {
     # gate instead of being accepted as "never measured". Note the contrast with
     # fluentbit-v5 above: same attribute, same cluster, 0% on logs there.
     otel-collector)    echo "spans=SAFE logs=SAFE metrics=SAFE" ;;
+    # ISI-3302 (S4 soak). Derived, not measured: the edge collector's parity
+    # processor set is BYTE-IDENTICAL to the frozen standalone-collector arm
+    # (engines/README in ISI-1949 artifacts) — resource/static upserts
+    # k8s.cluster.name on all three pipelines, and that arm measured
+    # SAFE/SAFE/SAFE at R2P1. The relay is a pure pass-through (no attribute
+    # processor), so landing equals what the edge stamped. spans/logs were also
+    # confirmed empirically in the ISI-1949 window (13.4M spans + 7.6M logs
+    # landed). metrics: never measured for THIS arm — declared UNKNOWN so the
+    # first gate reading gets recorded loudly instead of gating on a guess.
+    otap-config-a)     echo "spans=SAFE logs=SAFE metrics=UNKNOWN" ;;
     *)                 echo "" ;;
   esac
 }
@@ -163,7 +173,7 @@ if [[ "${1:-}" == "--selftest" ]]; then
     --to   "${SELFTEST_TO:-2026-07-23T10:35:12Z}" --selftest-assert
 fi
 
-ENGINE="${1:?engine required: otel-collector | fluentbit-v5 | otel-arrow-native}"
+ENGINE="${1:?engine required: otel-collector | fluentbit-v5 | otel-arrow-native | otap-config-a}"
 shift || true
 WINDOW="15m"; FROM=""; TO=""; ASSERT=0; GATE=0
 while [[ $# -gt 0 ]]; do

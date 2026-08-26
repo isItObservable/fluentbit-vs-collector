@@ -29,7 +29,11 @@ case "$WHEN" in
   *) echo "second argument must be 'start' or 'end', got '$2'" >&2; exit 2 ;;
 esac
 
-EXPECTED_REPLICAS=1   # all three engines run replicas: 1 (plan §3)
+# ISI-3302: otap-config-a is the campaign's only 2-replica topology (edge
+# collector + df_engine relay, both bench-* in ns default). Allow an env
+# override instead of hard-failing a legitimate Config A census — the exact
+# trap ISI-1949 hit (kpi.txt: "census-end.sh printed FAIL expected 1").
+EXPECTED_REPLICAS="${EXPECTED_REPLICAS:-1}"
 
 echo "# pod census — ${RUN_ID} @ ${WHEN} — captured $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "# cluster: $(kubectl config view --minify -o jsonpath='{.clusters[0].name}' 2>/dev/null || echo '?')"

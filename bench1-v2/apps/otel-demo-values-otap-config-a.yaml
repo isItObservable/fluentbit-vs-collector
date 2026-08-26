@@ -1,0 +1,103 @@
+# ============================================================================
+# ISI-1814 / ISI-1779 B1-v2 — otel-demo Helm values, ENGINE = otap-config-a
+# ----------------------------------------------------------------------------
+# GENERATED FROM _templates/otel-demo-values.tmpl.yaml by render.sh — DO NOT EDIT.
+# Chart: open-telemetry/opentelemetry-demo 0.40.10 (appVersion 2.2.0) — the
+# version already installed on observable-otelarrow.
+#
+#   helm upgrade --install otel-demo open-telemetry/opentelemetry-demo \
+#     --version 0.40.10 -n otel-demo --create-namespace \
+#     -f apps/otel-demo-values-otap-config-a.yaml --wait
+#
+# ---------------------------------------------------------------------------
+# HOW THE OTLP ENDPOINT IS REPOINTED
+# ---------------------------------------------------------------------------
+# The chart wires every component with
+#     OTEL_EXPORTER_OTLP_ENDPOINT = http://$(OTEL_COLLECTOR_NAME):4317
+# so overriding the single variable OTEL_COLLECTOR_NAME in default.envOverrides
+# repoints all ~20 services at once. That is the chart's own indirection, not
+# a hack — and it is why the endpoint diff between the three phases is one line.
+#
+# ---------------------------------------------------------------------------
+# SIDECAR EXCLUSIONS (validation gate check 3)
+# ---------------------------------------------------------------------------
+# Exactly two components are excluded from injection:
+#   load-generator  — Locust; the sidecar intercepts and re-times the very
+#                     traffic we are using as the independent variable, and it
+#                     would attribute load-driver latency to the mesh.
+#   frontend-proxy  — is itself an Envoy; sidecar-in-front-of-Envoy double-
+#                     proxies every request into the demo and breaks the
+#                     browser-facing 8080 listener.
+# podAnnotations is deep-merged by Helm, so the chart's own annotations on
+# these two components (resource.opentelemetry.io/service.namespace, the
+# io.opentelemetry.discovery.metrics/* set on frontend-proxy) are preserved.
+# EVERYTHING ELSE gets a sidecar — that is what the gate asserts.
+# ============================================================================
+
+default:
+  envOverrides:
+    # single lever: repoints OTEL_EXPORTER_OTLP_ENDPOINT for every component
+    - name: OTEL_COLLECTOR_NAME
+      value: bench-otap-config-a.default.svc.cluster.local
+    # tag every record so DT can attribute volume to the phase without
+    # relying on wall-clock windows alone
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: benchmark.engine=otap-config-a,benchmark.run=isi1779-b1v2,service.namespace=otel-demo
+
+components:
+  load-generator:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+  frontend-proxy:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+  # ---------------------------------------------------------------------------
+  # email — metrics exporter disabled. ISI-1815, R1P1 smoke, 2026-07-22.
+  # ---------------------------------------------------------------------------
+  # The Ruby service emits exactly one metric, `app.confirmation.counter`, once
+  # per minute as a single data point in its own OTLP request. Dynatrace rejects
+  # that request outright:
+  #
+  #   HTTP 400, Message=The message is malformed.
+  #   -> "not retryable error: Permanent error: ... code = InvalidArgument"
+  #
+  # Isolated live by attaching a debug exporter to the metrics pipeline and
+  # matching the failing batch to its ResourceMetrics: service.name=email,
+  # telemetry.sdk.language=ruby, telemetry.sdk.version=1.10.0, one metric, one
+  # data point, `app.confirmation.counter{} 46`. Every other service on both
+  # apps exports metrics that Dynatrace accepts.
+  #
+  # This is an APP-SOURCE defect in the alpha Ruby metrics SDK, not an engine
+  # property. It is therefore a constant, not a variable: all three engines
+  # would forward the same malformed payload and take the same 400. But it
+  # makes validate-phase.sh CHECK 5 ("no export errors") red on every phase of
+  # the campaign, and a red gate must be fixed rather than waived — an
+  # unvalidated phase is worse than a missing one.
+  #
+  # Fixing it HERE, in the shared template, is what keeps the campaign fair:
+  # render.sh regenerates all three apps/otel-demo-values-<engine>.yaml from
+  # this file, so P1, P2 and P3 all drive the identical application. Fixing it
+  # in the engine (an OTTL rule dropping the metric) would have added a sixth
+  # processing step to one engine's parity set and measured a config
+  # difference as an engine difference.
+  #
+  # Nothing measurable is lost: the data point was rejected 100% of the time,
+  # so it never reached Dynatrace in any phase, and it is 1 data point/minute
+  # against ~1,900/minute of accepted metric volume.
+  email:
+    envOverrides:
+      - name: OTEL_METRICS_EXPORTER
+        value: none
+
+# The demo's bundled observability backends are all off — the engine under
+# test is the only telemetry path, and a second consumer would distort load.
+grafana:
+  enabled: false
+jaeger:
+  enabled: false
+opensearch:
+  enabled: false
+prometheus:
+  enabled: false
+opentelemetry-collector:
+  enabled: false

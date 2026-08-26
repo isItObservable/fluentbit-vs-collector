@@ -1,0 +1,79 @@
+# ============================================================================
+# ISI-1949 B1-v2 OTAP arm — Config A, HOP 2 workload: df_engine PURE OTAP RELAY
+# ----------------------------------------------------------------------------
+#   ./engines/render-df-engine-otap-relay.sh    # creates the ConfigMap in-cluster
+#   kubectl apply -f engines/df-engine-otap-relay.yaml
+#
+# Image ghcr.io/isitobservable/df_engine:0.51.0 (ISI-1879 rebuild,
+# git-eaf8f4cca694). 0.50.0 panics in the metrics record under real load; 0.51.0
+# survives (ISI-1937). Pinned by digest so the relay measured is the same binary
+# proven in the ISI-1884 smoke.
+#
+# NO istio sidecar: the engine under test must not sit inside the mesh it is
+# measuring. receiver:otap listens on 4317 (plaintext, matches the edge
+# collector's `tls.insecure: true` otelarrow exporter).
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-df-engine-otap
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otap-config-a
+    benchmark.arm: otap-config-a
+    benchmark.component: relay
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: bench-df-engine-otap }
+  template:
+    metadata:
+      labels:
+        app: bench-df-engine-otap
+        benchmark: isi1779
+        benchmark.engine: otap-config-a
+        benchmark.arm: otap-config-a
+        benchmark.component: relay
+      annotations:
+        sidecar.istio.io/inject: "false"
+        # OneAgent must NOT wrap the engine under test (biases CPU/mem and breaks
+        # df_engine boot with EnvVarNotFound). Matches ISI-1927/1937 clean engines.
+        dynatrace.com/inject: "false"
+    spec:
+      containers:
+        - name: df-engine
+          image: ghcr.io/isitobservable/df_engine:0.51.0@sha256:0f85174d9ddc024f4aa1205dd0edd90d21712e0744e2fe3d35e35c6e31b43db1
+          args:
+            - "--config"
+            - "file:/etc/df-engine/config.yaml"
+            - "--http-admin-bind"
+            - "0.0.0.0:8080"
+          ports:
+            - { name: otap-grpc, containerPort: 4317 }
+            - { name: admin,     containerPort: 8080 }
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "4",    memory: "2Gi" }
+          volumeMounts:
+            - { name: cfg, mountPath: /etc/df-engine, readOnly: true }
+      volumes:
+        - name: cfg
+          configMap:
+            # created by engines/render-df-engine-otap-relay.sh — NOT in this file
+            name: bench-df-engine-otap-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-df-engine-otap
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otap-config-a
+    benchmark.component: relay
+spec:
+  selector: { app: bench-df-engine-otap }
+  ports:
+    - { name: grpc-otap, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: admin,     port: 8080, targetPort: 8080 }

@@ -1,0 +1,58 @@
+# ============================================================================
+# ISI-1949 B1-v2 OTAP arm — Config A, HOP 2: df_engine 0.51.0 PURE OTAP RELAY
+# ----------------------------------------------------------------------------
+# receiver:otap  ->  exporter:otlp_http (Dynatrace).  NO router, NO parity, NO
+# batch — parity already happened on the edge collector (hop 1). This is exactly
+# ISI-1884 RESULT 3: the pure relay delivers all 3 signals with 0 panic. The
+# type_router that dropped logs on the OTAP path (RESULT 4) is deliberately
+# ABSENT.
+#
+# The DT-API-TOKEN placeholder below is substituted by
+# engines/render-df-engine-otap-relay.sh, which creates the ConfigMap
+# `bench-df-engine-otap-config` directly in-cluster; the rendered file is NEVER
+# written to _artifacts/.
+#
+# *** df_engine env-expands the WHOLE config file TEXT (comments included) for
+# the dollar-brace pattern and CRASHES on an undefined name (EnvVarNotFound).
+# So this file must not contain that pattern anywhere — not even in prose. ***
+#
+# receiver:otap field shape (ISI-1884 RESULT 1, confirmed live): FLAT, not under
+# `protocols`. `response_stream_channel_size` is REQUIRED (no default).
+#
+# exporter:otlp_http: endpoint stops at /api/v2/otlp — the engine APPENDS
+# /v1/{logs,metrics,traces}. headers go UNDER http.
+# ============================================================================
+version: otel_dataflow/v1
+engine: {}
+groups:
+  default:
+    pipelines:
+      main:
+        policies:
+          channel_capacity:
+            control: { node: 100, pipeline: 100 }
+            pdata: 128
+        nodes:
+          otap_in:
+            type: receiver:otap
+            config:
+              listening_addr: 0.0.0.0:4317
+              compression_method: zstd
+              response_stream_channel_size: 100     # REQUIRED — no default (RESULT 1)
+              max_concurrent_requests: 100
+              max_concurrent_requests_per_stream: 100
+              wait_for_result: false
+              timeout: 5s
+
+          dt_out:
+            type: exporter:otlp_http
+            config:
+              endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp
+              client_pool_size: 4
+              http:
+                headers:
+                  Authorization: "Api-Token __DT_API_TOKEN__"
+
+        connections:
+          # pure relay — receiver straight to exporter, all 3 signals (RESULT 3)
+          - { from: otap_in, to: dt_out }

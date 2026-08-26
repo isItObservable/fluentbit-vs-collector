@@ -1,0 +1,151 @@
+# ============================================================================
+# ISI-1949 B1-v2 OTAP arm — Config A, HOP 1: EDGE collector (parity + OTAP out)
+# ----------------------------------------------------------------------------
+# Topology:  apps →OTLP→ [THIS edge collector] →OTAP→ df_engine 0.51.0 (pure
+#            relay) →OTLP/HTTP→ Dynatrace.
+#
+#   kubectl apply -f engines/otap-config-a-edge-collector.yaml
+#
+# WHY THE PARITY LIVES HERE (not in df_engine)
+# --------------------------------------------------------------------------
+# ISI-1884 RESULT 4: df_engine's processor:type_router DROPS all logs on the
+# OTAP path at 0.51.0. So the parity set (attribute add / severity / PII /
+# key-drop / batch) stays on the edge collector — BYTE-IDENTICAL to the frozen
+# standalone-collector arm (engines/otel-collector.yaml) — and df_engine is a
+# pure OTAP relay (RESULT 3: receiver:otap → out delivers all 3 signals, 0
+# panic). Net: parity work happens exactly once, on hop 1, identical to every
+# other arm. The ONLY difference vs the standalone collector arm is the
+# exporter: `otelarrow` (OTAP) to df_engine instead of `otlphttp/dynatrace`.
+#
+# NO DT TOKEN HERE. The edge collector no longer talks to Dynatrace — the OTAP
+# leg is plaintext in-cluster to df_engine, and df_engine holds the token
+# (rendered into its ConfigMap off-disk). One fewer secret surface on hop 1.
+#
+# PIPELINE ORDER: memory_limiter FIRST, batch LAST (unchanged from the arm).
+# The `otelarrow` exporter is contrib 0.154.0 — ISI-1884 RESULT 2 proved it
+# negotiates Arrow to df_engine's receiver:otap with zero send_failed.
+#
+# STAMPS: benchmark.engine=otap-config-a (matches what render.sh stamps on the
+# apps + the istio Telemetry CR, so mesh spans and app spans agree after the
+# resource/static upsert). benchmark.arm/​benchmark.component let the combined
+# census tile sum edge+relay without undercounting (ISI-1884 lesson).
+# ============================================================================
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: bench-otap-config-a
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otap-config-a
+    benchmark.arm: otap-config-a
+    benchmark.component: edge
+spec:
+  mode: deployment
+  replicas: 1
+  image: otel/opentelemetry-collector-contrib:0.154.0
+  podAnnotations:
+    sidecar.istio.io/inject: "false"
+    # OneAgent must NOT wrap the engine under test — it adds CPU/mem we would
+    # wrongly attribute to the engine (and it breaks df_engine boot). ISI-1927/
+    # 1937 measured clean engines; Config A matches. The DynaKube injects the
+    # `default` ns; app namespaces predate it and stay clean.
+    dynatrace.com/inject: "false"
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "4",    memory: "2Gi" }
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+
+    processors:
+      # --- MUST be first ---
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+
+      # 1. static attribute add  (parity step 1)
+      resource/static:
+        attributes:
+          - { key: k8s.cluster.name, value: observable-otelarrow, action: upsert }
+          - { key: benchmark.engine, value: otap-config-a,        action: upsert }
+          - { key: benchmark.arm,    value: otap-config-a,        action: upsert }
+          - { key: benchmark.run,    value: isi1779-b1v2,         action: upsert }
+
+      # 2-4. severity normalise / PII redact / drop a key  (parity steps 2-4)
+      # Regexes use [.] instead of \. so nothing depends on OTTL string escaping.
+      transform/parity:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(severity_text, "ERROR") where IsMatch(body, "(?i)error")
+              - replace_pattern(body, "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}", "***REDACTED***")
+              - delete_key(attributes, "log.file.path")
+        trace_statements:
+          - context: span
+            statements:
+              - delete_key(attributes, "log.file.path")
+
+      # --- MUST be last ---
+      batch:
+        send_batch_size: 8192
+        send_batch_max_size: 16384
+        timeout: 1s
+
+    exporters:
+      # HOP 1 → HOP 2 over OTAP (OpenTelemetry-Arrow). contrib 0.154.0
+      # otelarrow exporter → df_engine receiver:otap (ISI-1884 RESULT 2).
+      otelarrow:
+        endpoint: bench-df-engine-otap.default.svc.cluster.local:4317
+        tls:
+          insecure: true
+        # df_engine receiver:otap speaks ONLY the Arrow (OTAP) stream, never
+        # plain OTLP. The exporter's default downgrade-on-Unimplemented would
+        # silently fall back to plain OTLP and every batch is dropped
+        # (Unimplemented). Force Arrow, no downgrade — the whole point of the arm.
+        arrow:
+          num_streams: 4
+          disable_downgrade: true
+
+    service:
+      pipelines:
+        traces:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource/static, transform/parity, batch]
+          exporters:  [otelarrow]
+        metrics:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource/static, batch]
+          exporters:  [otelarrow]
+        logs:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource/static, transform/parity, batch]
+          exporters:  [otelarrow]
+      telemetry:
+        metrics:
+          readers:
+            - pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } }
+---
+# Stable, engine-neutral Service name so istio/values-*.yaml and the app
+# manifests reference `bench-otap-config-a.default.svc.cluster.local`.
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-otap-config-a
+  namespace: default
+  labels:
+    benchmark: isi1779
+    benchmark.engine: otap-config-a
+    benchmark.component: edge
+spec:
+  selector:
+    app.kubernetes.io/component: opentelemetry-collector
+    app.kubernetes.io/instance: default.bench-otap-config-a
+  ports:
+    - { name: grpc-otlp, appProtocol: grpc, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, port: 4318, targetPort: 4318 }

@@ -2,7 +2,7 @@
 # ============================================================================
 # ISI-1821 / ISI-1779 B1-v2 — the phase validation gate (plan §4, +§5b check 6)
 # ----------------------------------------------------------------------------
-#   ./validate-phase.sh <engine>            # otel-collector | fluentbit-v5 | otel-arrow-native
+#   ./validate-phase.sh <engine>            # otel-collector | fluentbit-v5 | otel-arrow-native | otap-config-a
 #   ./validate-phase.sh <engine> --window 15m
 #
 # Run this after the smoke traffic and BEFORE the 120-minute timed run. Exit 0
@@ -36,7 +36,11 @@ done
 
 case "$ENGINE" in
   otel-collector|fluentbit-v5|otel-arrow-native) ;;
-  *) echo "usage: $0 <otel-collector|fluentbit-v5|otel-arrow-native> [--window 15m]" >&2; exit 2 ;;
+  # ISI-3302 (S4 soak): OTAP hop arm, Config A. TWO workloads in ns default —
+  # edge collector (OTLP-in/OTAP-out) + df_engine relay (OTAP-in/DT-out) — so
+  # the census expectation and CHECK 5 both need the two-pod treatment.
+  otap-config-a) ;;
+  *) echo "usage: $0 <otel-collector|fluentbit-v5|otel-arrow-native|otap-config-a> [--window 15m]" >&2; exit 2 ;;
 esac
 
 # Paths are resolved against the SCRIPT's directory, not the caller's cwd — the
@@ -52,7 +56,13 @@ APP_NS=(otel-demo hipster-shop)
 # the same keys — so an unscoped query silently mixes in another cluster's series
 # and can turn a dead phase green.
 CLUSTER="${CLUSTER:-observable-otelarrow}"
-EXPECTED_REPLICAS="${EXPECTED_REPLICAS:-1}"
+# otap-config-a is the only two-replica topology in the campaign (edge + relay;
+# both live in ns default and both match the bench-* census filter in CHECK 6).
+if [[ "$ENGINE" == "otap-config-a" ]]; then
+  EXPECTED_REPLICAS="${EXPECTED_REPLICAS:-2}"
+else
+  EXPECTED_REPLICAS="${EXPECTED_REPLICAS:-1}"
+fi
 FAILED=0
 PASSED=0
 
@@ -466,6 +476,10 @@ case "$ENGINE" in
   otel-collector)     SEL="app.kubernetes.io/instance=${ENGINE_NS}.bench-otel-collector" ;;
   fluentbit-v5)       SEL="app=bench-fluentbit-v5" ;;
   otel-arrow-native)  SEL="app=bench-otel-arrow-native" ;;
+  # The THROUGHPUT counters live on the edge collector (receiver + otelarrow
+  # exporter). The relay is asserted separately right below — a relay-side
+  # death with a healthy collector is the R1P3 failure mode wearing a new pod.
+  otap-config-a)      SEL="app.kubernetes.io/instance=${ENGINE_NS}.bench-otap-config-a" ;;
 esac
 POD=$(kubectl -n "$ENGINE_NS" get pods -l "$SEL" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 c5_fail=0
@@ -478,6 +492,31 @@ else
   say "  pod=$POD ready=$ready restarts=${restarts:-?}"
   [[ "$ready" == *"true"* ]] || c5_fail=1
 
+  # otap-config-a only — HOP 2 assertion. $POD is the edge collector; the arm
+  # is only healthy if the df_engine RELAY is alive too. The edge collector's
+  # otelarrow exporter has disable_downgrade: true, so a dead relay means every
+  # batch fails to send while the collector's accepted counters keep climbing —
+  # exactly the "healthy-looking black hole" this check exists to catch. Two
+  # probes: pod Ready state, and the R1P3 panic signature in its recent logs.
+  if [[ "$ENGINE" == "otap-config-a" ]]; then
+    RPOD=$(kubectl -n "$ENGINE_NS" get pods -l app=bench-df-engine-otap -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    if [[ -z "$RPOD" ]]; then
+      say "  relay: NO pod found for app=bench-df-engine-otap"
+      c5_fail=1
+    else
+      rready=$(kubectl -n "$ENGINE_NS" get pod "$RPOD" -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null)
+      rrestarts=$(kubectl -n "$ENGINE_NS" get pod "$RPOD" -o jsonpath='{.status.containerStatuses[0].restartCount}' 2>/dev/null)
+      say "  relay pod=$RPOD ready=$rready restarts=${rrestarts:-?}"
+      [[ "$rready" == "true" ]] || c5_fail=1
+      rdead=$(kubectl -n "$ENGINE_NS" logs "$RPOD" --since=30m 2>/dev/null | grep -ciE 'pipeline_runtime_failed|panicked at' || true)
+      say "  relay dead pipeline cores / panics in last 30m: ${rdead:-0}"
+      if [[ "${rdead:-0}" -gt 0 ]]; then
+        say "     -> relay has panicked (R1P3 failure mode: pod Ready, pipeline cores gone)"
+        c5_fail=1
+      fi
+    fi
+  fi
+
   # Counters. All three images are distroless — no shell, no curl inside the
   # pod — so scrape via port-forward from here rather than `kubectl exec`.
   accepted=0; exported=0
@@ -489,6 +528,20 @@ else
       kill $PF 2>/dev/null; wait $PF 2>/dev/null
       accepted=$(awk '/^otelcol_receiver_accepted_(spans|log_records|metric_points)/{s+=$2} END{printf "%.0f", s+0}' <<< "$M")
       exported=$(awk '/^otelcol_exporter_sent_(spans|log_records|metric_points)/{s+=$2} END{printf "%.0f", s+0}' <<< "$M")
+      ;;
+    otap-config-a)
+      # Edge collector is contrib 0.154.0, same metric family as the
+      # standalone collector arm: accepted at the receiver, sent at the
+      # otelarrow exporter. exported>0 therefore proves the OTAP leg to the
+      # relay is LIVE, not just that the receiver is accepting.
+      kubectl -n "$ENGINE_NS" port-forward "pod/$POD" 18889:8888 >/dev/null 2>&1 &
+      PF=$!; sleep 3
+      M=$(curl -s --max-time 10 http://127.0.0.1:18889/metrics || true)
+      kill $PF 2>/dev/null; wait $PF 2>/dev/null
+      accepted=$(awk '/^otelcol_receiver_accepted_(spans|log_records|metric_points)/{s+=$2} END{printf "%.0f", s+0}' <<< "$M")
+      exported=$(awk '/^otelcol_exporter_sent_(spans|log_records|metric_points)/{s+=$2} END{printf "%.0f", s+0}' <<< "$M")
+      sends=$(awk '/^otelcol_exporter_send_failed_(spans|log_records|metric_points)/{s+=$2} END{printf "%.0f", s+0}' <<< "$M")
+      say "  otelarrow exporter send_failed (cumulative): ${sends:-0}"
       ;;
     fluentbit-v5)
       kubectl -n "$ENGINE_NS" port-forward "pod/$POD" 12020:2020 >/dev/null 2>&1 &
@@ -594,6 +647,29 @@ print(("FAIL|" + "; ".join(bad)) if bad else "PASS|no signal at 100% processor f
         c5_fail=1
       else
         say "  5b per-signal: all three signals accepted (non-zero)"
+      fi
+      ;;
+    otap-config-a)
+      # Same receiver counters, same assertion, same rationale as the
+      # otel-collector branch — the edge collector IS a stock collector with a
+      # different exporter. One addition: per-signal EXPORT side too. The
+      # otelarrow exporter could accept a signal at the receiver and still fail
+      # it on the OTAP leg (send_failed), which the relay then silently drops.
+      c5b_bad=""
+      for sig in spans log_records metric_points; do
+        na=$(awk -v s="otelcol_receiver_accepted_${sig}" '$0 ~ "^"s{v+=$2} END{printf "%.0f", v+0}' <<< "$M")
+        nx=$(awk -v s="otelcol_exporter_sent_${sig}" '$0 ~ "^"s{v+=$2} END{printf "%.0f", v+0}' <<< "$M")
+        say "  5b ${sig}: accepted=${na:-0} otap-sent=${nx:-0}"
+        [[ "${na:-0}" -gt 0 ]] || c5b_bad="$c5b_bad ${sig}:accepted=0"
+        [[ "${nx:-0}" -gt 0 ]] || c5b_bad="$c5b_bad ${sig}:otap-sent=0"
+      done
+      if [[ -n "$c5b_bad" ]]; then
+        say "  5b FAIL —${c5b_bad}. A signal is dead on one side of the OTAP hop."
+        say "     One dead signal does not move the accepted/exported totals, so it"
+        say "     is invisible to CHECK 5. This is the R1P2 failure mode."
+        c5_fail=1
+      else
+        say "  5b per-signal: all three signals accepted AND sent over OTAP"
       fi
       ;;
     otel-arrow-native)
