@@ -290,6 +290,33 @@ bump that carries it); recommend tracking upstream rather than a config workarou
 **Net:** Fluent Bit v5.0.9 fails a 24h production logging role on stability grounds, independent of leak behaviour.
 The ISI-1823 finding stands, now doubly confirmed.
 
+#### ISI-3264 — crash isolation by signal type (diagnostic, 2026-08-26)
+
+Answered Henrik's question "is the crash caused by metrics, traces, or logs?" — **no**. Four
+sequential ~45-min arms against a fresh fluent-bit `5.0.9` engine
+(`bench-fluentbit-v5-67978b69d8-p55xd`, pod `restartCount` polled every 30 s), driven by
+`telemetrygen` OTLP/gRPC with no Istio sidecar on the load pods:
+
+| Arm | Load | Window | Crashes | Fingerprint 903 |
+|---|---|---|---|---|
+| A — metrics-only | telemetrygen metrics, 50 workers @ 10/s | 2716s | **0** | n/a |
+| B — traces-only | telemetrygen traces, 50 workers @ 10/s | 2712s | **0** | n/a |
+| C — logs-only | telemetrygen logs, 50 workers @ 10/s | 2714s | **0** | n/a |
+| D — conn-lifecycle control | telemetrygen traces, 80 workers @ 1/s (min payload) | 2711s | **0** | n/a |
+
+Final engine `restartCount=0` across the full ~3h run (window `2026-08-26T08:57:31Z → 11:59:05Z`).
+Raw evidence + driver committed under `results/isi3264-crash-isolation/`.
+
+**Verdict: the crash is NOT signal-specific — and synthetic load did not reproduce it at all.**
+This mirrors the rampup-vs-soak asymmetry (2h synthetic @ up to 200 VU = 0 crashes; 24h live-mesh
+= 24× and 13× crashes, byte-identical fingerprint). The crash needs the **live-mesh client
+population and/or multi-hour duration**: real crashes are preceded by
+`[downstream] connection … timed out after 10s (IO timeout)`, and telemetrygen never idles a
+connection >10 s (even arm D at rate=1/worker), so the actual trigger condition — an idle
+connection crossing the 10 s downstream IO timeout — was never exercised. The two 24h live-mesh
+soaks remain the authoritative reproduction. Publishable framing: **connection-lifecycle defect
+in the HTTP/2 server path under live-mesh conditions, not a payload/signal defect.**
+
 > ⚠️ **`hipster-shop/loadgenerator` — a second load source exists. LEAVE IT RUNNING.**
 > Found during R1-P1 teardown (2026-07-22T18:1xZ). The hipster-shop overlay deliberately
 > **deletes** the bundled loadgenerator — its own comment says *"a second, uncontrolled load

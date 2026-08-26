@@ -1,0 +1,40 @@
+[08:57:31Z] ########## ISI-3264 signal-isolation run START ##########
+[08:57:32Z] engine baseline: pod=bench-fluentbit-v5-67978b69d8-p55xd restartCount=0 image=fluent/fluent-bit:5.0.9 endpoint=bench-fluentbit-v5.default.svc.cluster.local:4317
+[08:57:32Z] === ARM A (metrics-only) — signal=metrics workers=50 rate=10 window=2700s ===
+[08:57:32Z]   engine pod=bench-fluentbit-v5-67978b69d8-p55xd baseline restartCount=0
+deployment.apps/isi3264-load-a created
+Waiting for deployment "isi3264-load-a" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "isi3264-load-a" rollout to finish: 0 of 1 updated replicas are available...
+deployment "isi3264-load-a" successfully rolled out
+[08:57:40Z]   load running
+[09:42:48Z] === ARM A done — elapsed=2716s crashes=0 rate=0.00/hr fp903=n/a ===
+deployment.apps "isi3264-load-a" deleted from default namespace
+[09:42:58Z] === ARM B (traces-only) — signal=traces workers=50 rate=10 window=2700s ===
+[09:42:58Z]   engine pod=bench-fluentbit-v5-67978b69d8-p55xd baseline restartCount=0
+deployment.apps/isi3264-load-b created
+Waiting for deployment "isi3264-load-b" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "isi3264-load-b" rollout to finish: 0 of 1 updated replicas are available...
+deployment "isi3264-load-b" successfully rolled out
+[09:43:02Z]   load running
+[10:28:10Z] === ARM B done — elapsed=2712s crashes=0 rate=0.00/hr fp903=n/a ===
+deployment.apps "isi3264-load-b" deleted from default namespace
+[10:28:20Z] === ARM C (logs-only) — signal=logs workers=50 rate=10 window=2700s ===
+[10:28:20Z]   engine pod=bench-fluentbit-v5-67978b69d8-p55xd baseline restartCount=0
+deployment.apps/isi3264-load-c created
+Waiting for deployment "isi3264-load-c" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "isi3264-load-c" rollout to finish: 0 of 1 updated replicas are available...
+deployment "isi3264-load-c" successfully rolled out
+[10:28:27Z]   load running
+[11:13:34Z] === ARM C done — elapsed=2714s crashes=0 rate=0.00/hr fp903=n/a ===
+deployment.apps "isi3264-load-c" deleted from default namespace
+[11:13:44Z] === ARM D (conn-lifecycle (min payload)) — signal=traces workers=80 rate=1 window=2700s ===
+[11:13:44Z]   engine pod=bench-fluentbit-v5-67978b69d8-p55xd baseline restartCount=0
+deployment.apps/isi3264-load-d created
+Waiting for deployment "isi3264-load-d" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "isi3264-load-d" rollout to finish: 0 of 1 updated replicas are available...
+deployment "isi3264-load-d" successfully rolled out
+[11:13:47Z]   load running
+[11:58:55Z] === ARM D done — elapsed=2711s crashes=0 rate=0.00/hr fp903=n/a ===
+deployment.apps "isi3264-load-d" deleted from default namespace
+[11:59:05Z] ########## ALL ARMS COMPLETE ##########
+[11:59:05Z] results -> /mnt/nas/projects/isitobservable/_artifacts/isi1779/bench1-v2/isi3264/results/RESULTS-TABLE.md

@@ -1,0 +1,4 @@
+arm=A crashed=no crashes=0 rate_per_hr=0.00 fp903=n/a elapsed_s=2716 final_restartCount=0
+arm=B crashed=no crashes=0 rate_per_hr=0.00 fp903=n/a elapsed_s=2712 final_restartCount=0
+arm=C crashed=no crashes=0 rate_per_hr=0.00 fp903=n/a elapsed_s=2714 final_restartCount=0
+arm=D crashed=no crashes=0 rate_per_hr=0.00 fp903=n/a elapsed_s=2711 final_restartCount=0
