@@ -2,8 +2,8 @@
 
 **Purpose:** the per-test numbers that feed the actual tool comparison (Fluent Bit v5 vs OTel
 Collector vs OTel-Arrow). One row/card per executed test, newest verdicts first within each
-block. Pending soaks are marked and will be filled as they land (S3 ends 2026-08-27 ~16:42Z,
-then S4, then S2m).
+block. Pending soaks are marked and will be filled as they land (S3 landed 2026-08-27 —
+🟢 no leak; S4 running now; S2m queued after it).
 
 Cluster: `observable-otelarrow` · apps: otel-demo + hipster-shop behind Istio · gate 8/8 before
 every run · census discipline on every window · full provenance in `RUN-REGISTER.md` +
@@ -56,8 +56,8 @@ Signal-fidelity notes that MUST travel with these numbers:
 | S1 (ISI-1811) | OTel Collector | 07-29 19:04 → 07-30 19:12 | 0 | 🟢 **NO LEAK** — warm-up ~8h then flat plateau ~88.6 MiB, final-16h creep ≤0.2%, census 24/24 |
 | S2 (ISI-1823) | Fluent Bit 5.0.9 | 08-04 11:49 → 08-05 12:13 | **24** | 🔴 **SIGSEGV crash-loop** (exit 139, `flb_http_common.c:903`) — leak readout INVALID (each crash resets RSS) |
 | S2-revalidate (ISI-2093) | Fluent Bit 5.0.9 | 08-06 01:34 → 08-07 01:52 | **13** | 🔴 crash **REPRODUCES** — byte-identical fingerprint, sustained across full 24h (gaps 26 min…6h22m, stochastic) |
-| S3 attempt 3 (ISI-3301) | OTel-Arrow df_engine 0.51.0 | 08-26 16:42 → **running** | 0 @ T+20h | 🔄 pending — pod `…psb7t` never restarted, census clean, telemetry flowing (~48k spans/30m) |
-| S4 (ISI-3302) | OTAP hop (Config A, 2 pods) | after S3 | — | ⏳ artifacts staged in-branch, gate support added |
+| S3 attempt 3 (ISI-3301) | OTel-Arrow df_engine 0.51.0 | 08-26 16:42:37 → 08-27 16:43:07 | **0** | 🟢 **NO LEAK** — census MATCH (pod `…psb7t` born pre-window, 25/25 live buckets); floor 27.14→30.51 MiB (+12.4% first-vs-last) is **all Q1→Q2 warm-up**, plateau ~29.4 MiB, final-18h creep ~1%, quarters NOT monotonic (29.37<29.46); avg 42.57→31.53 MiB (−25.9%). Driver died T+21h → recovery finisher closed the window; DT window unaffected. Teardown CLEAN, apps handed over in-place to S4 |
+| S4 (ISI-3302) | OTAP hop (Config A, 2 pods) | started 08-27 ~17:00Z | — | 🔄 running — in-place handover from S3; attempt-1 gate RED (attr-landing deviation + DT ingestion lag), driver re-smoking + gate retry in progress |
 | S2m (ISI-3303) | Fluent Bit `http2:off` (diagnostic) | after S4 | — | ⏳ purpose: prove HTTP/2 is the crash cause + first valid fluentbit leak number |
 
 Invalid attempts kept for the record: S3 attempt 1 (07-25, VOID — node kubelet loss at T+8h, all
@@ -83,7 +83,7 @@ reproduction = the two live-mesh 24h soaks above.
 | CPU efficiency (ramp, normalised) | 🥇 **5.87 mc/1M spans** | 10.40 | 11.27 |
 | Memory (ramp avg) | 123.71 MiB | 🥇 **95.57 MiB** | 157.89 MiB |
 | Signal fidelity | spans ✅ · logs ⚠️ read-defect · metrics 🛑 **lost** | 🥇 spans+logs+metrics ✅ | spans+logs ✅ · metrics NO-DATA (by design) |
-| 24h stability | 🔴 **crash-loop (24× + 13× SIGSEGV)** | 🥇 **no leak, no restarts** | 🔄 soak finishing |
+| 24h stability | 🔴 **crash-loop (24× + 13× SIGSEGV)** | 🥇 **no leak, no restarts** | 🟢 **no leak** — warm-up→plateau ~29.4 MiB, 0 restarts, census 25/25 |
 | Crash root cause | HTTP/2 input server race (`flb_http_common.c:903`), live-mesh connection lifecycle, not payload | — | — |
 | OTAP hop impact | — | — | **negative**: +26% CPU (1 hop), +32% (2 hops) — protocol hop does not pay off in this topology |
 

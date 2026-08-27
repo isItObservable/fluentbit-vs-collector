@@ -4,7 +4,8 @@ Episode benchmark, cluster `observable-otelarrow` (k8s v1.35.3, Istio 1.29.2, hi
 Protocol: one engine at a time, identical apps/Istio/load, 8-check validation gate before every run,
 pod-census discipline (D12), no in-run snapshots (D8). All numbers normalised per 1M records.
 
-**Report generated 2026-08-26. Three soak tests were finalizing when it was written — see §2 (pending).**
+**Report generated 2026-08-26, updated 2026-08-27. S3 arrow soak landed (🟢 no leak). Two soaks
+remain: S4 OTAP-hop (running) and S2m fluentbit `http2:off` (queued) — see §2.**
 
 ---
 
@@ -27,7 +28,7 @@ data lost, not just unlabelled), and logs landed without `k8s.cluster.name` (rea
 | Engine | 24h soak verdict |
 |---|---|
 | OTel Collector | 🟢 **NO LEAK** — flat plateau ~88.6 MiB after ~8h warm-up |
-| OTel-Arrow native | 🔄 **run in progress** (attempt 3, started 2026-08-26T16:01Z) |
+| OTel-Arrow native | 🟢 **NO LEAK** (attempt 3) — ~6h warm-up then flat plateau ~29.4 MiB, final-18h creep ~1%, 0 restarts, census 25/25 |
 | Fluent Bit v5.0.9 | 🔴 **SIGSEGV crash-loop** — 24 crashes (run 1) / 13 crashes (re-validation), byte-identical fingerprint `flb_http_response_init @ flb_http_common.c:903` (HTTP/2 input server path). Leak readout INVALID (crash resets confound it). |
 
 ### The OTAP question (OTel-Arrow Protocol hop arms, 120-min)
@@ -72,8 +73,8 @@ data lost, not just unlabelled), and logs landed without `k8s.cluster.name` (rea
 | 12 | 2026-08-04 11:49→08-05 12:13 | **S2 fluentbit 24h soak** | 🔴 24× SIGSEGV crash-loop; leak readout INVALID | `RUN-REGISTER.md`, ISI-1823 |
 | 13 | 2026-08-06 01:34→08-07 01:52 | **S2 fluentbit re-validation soak** | 🔴 crash REPRODUCES — 13× SIGSEGV, byte-identical fingerprint | `results/s2-fluent-revalidate/`, ISI-2093 |
 | 14 | 2026-08-26 08:57→11:59 | **Crash isolation by signal type** (4 arms) | 0 crashes all arms — NOT signal-specific | `results/isi3264-crash-isolation/`, ISI-3264 |
-| 15 | **2026-08-26 16:01 → (24h)** | **S3 arrow native 24h soak — RUNNING** | pending | `soak/S3-arrow` (NAS), ISI-3301 |
-| 16 | pending (after #15) | **S4 OTAP-hop 24h soak** | scheduled | ISI-3302 |
+| 15 | 2026-08-26 16:42:37 → 08-27 16:43:07 | **S3 arrow native 24h soak (attempt 3)** | 🟢 **NO LEAK** — census MATCH (pod `…psb7t` born pre-window, 25/25 buckets, 0 restarts); floor 27.14→30.51 MiB is all Q1→Q2 warm-up, plateau ~29.4 MiB, final-18h creep ~1%; quarters not monotonic; avg −25.9% | `soak/S3-arrow` (NAS), ISI-3301, register `S3-otel-arrow-a3` |
+| 16 | started 2026-08-27 ~17:00Z (in-place handover from S3) | **S4 OTAP-hop 24h soak** | 🔄 running — attempt-1 gate RED (attr-landing deviation + DT ingestion lag); driver re-smoke + gate retry in progress | ISI-3302, `soak/S4-otap` (NAS) |
 | 17 | pending (after #16) | **S2m fluentbit `http2:off` diagnostic soak** | scheduled | ISI-3303 |
 
 Invalid/void runs kept for the record: S3 attempt 1 (2026-07-25 16:35, VOID — node failure at T+8h,
@@ -100,7 +101,10 @@ cancelled — engine `DictionaryKeyOverflowError` crash; superseded by the 0.51.
 - Metrics routed to noop exporter for fairness (df_engine lacks cumulativetodelta) — declared
   NO-DATA, not a failure.
 - OTAP hops add cost, don't reduce it (Config A +26%, Config B +32%).
-- 24h soak: attempt 3 in progress (this report updates when it lands).
+- 24h soak: 🟢 **NO LEAK** (attempt 3, 2026-08-26→27) — warm-up ~6h then plateau ~29.4 MiB,
+  0 restarts, census clean 25/25. Attempt 3 incidents: detached driver died at T+21h (recovery
+  finisher closed the window at the 24h mark; missed pulses were local-only — DT recorded
+  continuously). Teardown CLEAN; apps handed over in-place to S4.
 
 ---
 
