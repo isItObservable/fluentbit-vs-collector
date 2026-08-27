@@ -36,6 +36,10 @@
 set -uo pipefail
 
 export KUBECONFIG="${KUBECONFIG:-$HOME/.config/capmox/observable-otelarrow.kubeconfig}"
+# Helm must use the PERSISTENT repository config — agent sessions export a
+# transient HELM_REPOSITORY_CONFIG (e.g. /tmp/paperclip-opencode-config-*/)
+# that has no repos, which killed attempt 1 at REPOINT_APPS.
+export HELM_REPOSITORY_CONFIG="$HOME/.config/helm/repositories.yaml"
 export EXPECTED_REPLICAS=2
 ENGINE=otap-config-a
 RUN_ID=S4-OTAP-CONFIG-A
