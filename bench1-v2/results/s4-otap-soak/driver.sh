@@ -145,6 +145,33 @@ if ! grep -q "oat05854.dev.dynatracelabs.com" <<< "$EP_NOW" || grep -q "dt-captu
 fi
 say "Endpoint guard OK: relay exports to real DT host"
 
+# CR fidelity guard: collector CR MUST keep cumulativetodelta.include.metric_types=[sum].
+# That restriction IS archived Config A (ISI-1949's documented fix): without it C2D
+# converts cumulative histograms to DELTA and otel-arrow-adapter 0.154.0 panics on
+# encode, permanently dropping ~10% of metric points (TIERS.md Tier-B; ISI-3302
+# 2026-08-27 GATE_RED incident — live CR was found drifted to {} between applies).
+# Foreign edits have twice raced our applies; self-heal once, abort if it sticks.
+cr_guard() {
+  local c2d
+  c2d=$(kubectl -n default get otelcol bench-otap-config-a \
+    -o jsonpath='{.spec.config.processors.cumulativetodelta.include.metric_types}' 2>/dev/null)
+  if ! grep -q "sum" <<< "$c2d"; then
+    say "WARN: collector CR lost c2d include=[sum] (drifted from Config A) — re-applying"
+    kubectl apply -f engines/otap-config-a-edge-collector.yaml >>"$LOG" 2>&1
+    sleep 15
+    c2d=$(kubectl -n default get otelcol bench-otap-config-a \
+      -o jsonpath='{.spec.config.processors.cumulativetodelta.include.metric_types}' 2>/dev/null)
+    if ! grep -q "sum" <<< "$c2d"; then
+      setstate CR_DRIFTED
+      say "FATAL: collector CR STILL drifted after re-apply — foreign writer active"
+      post "**CR_DRIFTED — S4 abort (ISI-3302).** bench-otap-config-a lost \`cumulativetodelta.include.metric_types=[sum]\` (archived Config A's documented fix) and re-apply did not stick. A concurrent writer is editing the CR; coordinate before relaunch."
+      exit 1
+    fi
+  fi
+  say "CR fidelity guard OK: c2d include=[sum]"
+}
+cr_guard
+
 # ─── REPOINT_APPS — full §1 cycle for ENGINE=otap-config-a ──────────────────
 setstate REPOINT_APPS
 say "helm upgrade otel-demo (Config A values, version 0.40.10)"
@@ -212,6 +239,7 @@ setstate GATE
 # halts with no load applied.
 GATE_PASSES=0
 for attempt in 1 2 3; do
+  cr_guard   # re-assert CR fidelity before each attempt (foreign-writer defense)
   say "Running validate-phase.sh $ENGINE --window 15m (8 checks, must be GREEN) — attempt $attempt"
   if ./validate-phase.sh "$ENGINE" --window 15m > "$OUT/gate.out" 2>&1; then
     cp "$OUT/gate.out" "$OUT/gate-GREEN.out"
