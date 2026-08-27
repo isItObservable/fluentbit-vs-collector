@@ -89,7 +89,12 @@ bad()  { FAILED=$((FAILED+1)); printf 'CHECK %s FAIL %s %s\n' "$1" "$2" "$3"; }
 # D8) depends on replaying a RUN-REGISTER window hours or days later, which a
 # relative window cannot express.
 dql() {
-  dtctl query -f - -o json 2>/dev/null <<< "$1" \
+  # ISI-3302: pin the config path. dtctl resolves its config via XDG_CONFIG_HOME
+  # first; harness/agent shells may point that at a scratch dir with no dtctl
+  # config, and with stderr suppressed below the failure looks like "[]" —
+  # every DT-side check (2/4/5c/7) then reads zero with a perfectly healthy
+  # pipeline. Pinning --config makes resolution deterministic for any launcher.
+  dtctl query -f - -o json --config "${DTCTL_CONFIG:-$HOME/.config/dtctl/config}" 2>/dev/null <<< "$1" \
     | python3 -c 'import json,sys
 try:
     d = json.load(sys.stdin)

@@ -40,7 +40,7 @@ B_ID="${4:?runB id}"; B_FROM="${5:?B start}"; B_TO="${6:?B end}"
 engine_of(){ case "$1" in *collector*) echo otel-collector;; *fluentbit*) echo fluentbit-v5;;
                           *arrow*) echo otel-arrow-native;; *) echo UNKNOWN;; esac; }
 
-dql(){ dtctl query "$1" -o json 2>/dev/null | python3 -c "
+dql(){ dtctl query "$1" --config "${DTCTL_CONFIG:-$HOME/.config/dtctl/config}" -o json 2>/dev/null | python3 -c "
 import sys,json
 try: d=json.load(sys.stdin)
 except Exception: print('ERR'); raise SystemExit

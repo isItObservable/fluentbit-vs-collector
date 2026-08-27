@@ -27,7 +27,10 @@
 #   SOAK_COMPLETE
 #
 # SAFETY properties (inherited from S3 driver + ISI-1949 run-driver.sh):
+#   - WAIT_FOR_CLUSTER_FREE: never touch cluster while foreign isi3368-diag
+#     capture (dt-capture pod/svc) holds the relay (≤90m polite wait, then abort)
 #   - GATE is blocking: red gate halts BEFORE load opens (nothing measured)
+#   - Relay DT-endpoint guard at deploy + hourly hijack watch during soak
 #   - Driver NEVER tears down apps/engines (only soak JOBS deleted at end)
 #   - Census captured BEFORE job deletion (D12 discipline)
 #   - KUBECONFIG is the PERSISTENT path (survives reboots)
@@ -63,6 +66,29 @@ EDGEPOD(){ kubectl -n default get pod -l app.kubernetes.io/instance=default.benc
 RELAYPOD(){ kubectl -n default get pod -l app=bench-df-engine-otap -o jsonpath='{.items[0].metadata.name}' 2>/dev/null; }
 
 say "=== S4-OTAP soak driver START (Config A, attempt 1)"
+
+# ─── WAIT_FOR_CLUSTER_FREE ───────────────────────────────────────────────────
+# ISI-3302 attempt-3 discovery: a foreign diagnostic (label benchmark=isi3368-diag,
+# pod+svc dt-capture, default ns) repointed THIS relay's ConfigMap exporter at
+# itself to capture OTLP bodies (responding 400 by design), silently dropping all
+# traces/logs from DT while active. Do NOT touch the cluster while it runs —
+# re-applying our manifests mid-capture sabotages the sibling diagnostic. Wait
+# politely for it to disappear; abort loudly if it never does.
+setstate WAIT_FOR_CLUSTER_FREE
+WT_DEADLINE=$(( $(date +%s) + 5400 ))
+while :; do
+  cap_svc=$(kubectl -n default get svc dt-capture --no-headers 2>/dev/null)
+  cap_pod=$(kubectl -n default get pod dt-capture --no-headers 2>/dev/null)
+  [ -z "$cap_svc" ] && [ -z "$cap_pod" ] && { say "Cluster free of dt-capture diag — proceeding"; break; }
+  if [ "$(date +%s)" -ge "$WT_DEADLINE" ]; then
+    setstate CLUSTER_BUSY
+    say "FATAL: dt-capture diag still present after 90m wait — not sabotaging it. Aborting."
+    post "**CLUSTER_BUSY — S4 launch aborted (ISI-3302).** Foreign \`isi3368-diag\` capture pod/svc (dt-capture, default ns) has held the relay for >90m. Board: coordinate with its owner or re-run this driver when free."
+    exit 1
+  fi
+  say "dt-capture diag active (svc=${cap_svc:+yes}/pod=${cap_pod:+yes}) — waiting 60s (up to 90m)"
+  sleep 60
+done
 
 # ─── TEARDOWN_OTHERS — exclusive cluster use (plan §1) ──────────────────────
 setstate TEARDOWN_OTHERS
@@ -107,6 +133,17 @@ e="$(EDGEPOD)"; r="$(RELAYPOD)"
 if [ -z "$e" ] || [ -z "$r" ]; then
   setstate ENGINE_NOT_ALIVE; say "FATAL: engine pods never appeared (edge=${e:-none} relay=${r:-none})"; exit 1
 fi
+
+# Endpoint guard: relay ConfigMap MUST point at the real DT OTLP endpoint.
+# A foreign diag (isi3368) rewrites this to dt-capture.*; anything but the real
+# host here means our apply lost a race — fail fast rather than soak into a void.
+EP_NOW=$(kubectl -n default get cm bench-df-engine-otap-config -o jsonpath='{.data.config\.yaml}' 2>/dev/null)
+if ! grep -q "oat05854.dev.dynatracelabs.com" <<< "$EP_NOW" || grep -q "dt-capture" <<< "$EP_NOW"; then
+  setstate ENDPOINT_HIJACKED; say "FATAL: relay exporter endpoint is not the real DT host (hijacked?). CM head:"; head -5 <<< "$EP_NOW"
+  post "**ENDPOINT_HIJACKED — S4 abort (ISI-3302).** relay CM exporter endpoint does not point at oat05854.dev.dynatracelabs.com right after deploy. Foreign diag race suspected; investigate before relaunch."
+  exit 1
+fi
+say "Endpoint guard OK: relay exports to real DT host"
 
 # ─── REPOINT_APPS — full §1 cycle for ENGINE=otap-config-a ──────────────────
 setstate REPOINT_APPS
@@ -258,6 +295,17 @@ while [ "$(date +%s)" -lt "$SOAK_END_EPOCH" ]; do
   if ! ./results/s4-otap-soak/engine-alive-051-otap.sh --live -n default -p "$r" \
       > "$OUT/pulse-relay-$(date -u +%H%M%S).out" 2>&1; then
     alive="DEAD"; say "WARN: relay pipeline DEAD at $ts (restarts=$rrst)"
+  fi
+
+  # DT-endpoint hijack watch: if a foreign diag repoints the relay mid-soak,
+  # everything after that instant drops from DT — record it so the readout can
+  # bound the contamination window instead of silently reporting a gap.
+  EP_PULSE=$(kubectl -n default get cm bench-df-engine-otap-config -o jsonpath='{.data.config\.yaml}' 2>/dev/null)
+  if ! grep -q "oat05854.dev.dynatracelabs.com" <<< "$EP_PULSE" || grep -q "dt-capture" <<< "$EP_PULSE"; then
+    say "WARN: relay exporter endpoint CHANGED mid-soak at $ts — DT data from here on is dropped. CM head:"
+    head -3 <<< "$EP_PULSE"
+    echo "${ts},ENDPOINT_HIJACKED" >> "$OUT/soak-anomalies.log"
+    alive="${alive}+HIJACKED"
   fi
 
   # edge collector counters (accepted / otap-sent / send_failed)

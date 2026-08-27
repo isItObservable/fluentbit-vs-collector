@@ -76,7 +76,7 @@ TF="from:\"$START\", to:\"$END\", interval:$INTERVAL"       # timeseries only
 TF_FETCH="from:\"$START\", to:\"$END\""                      # fetch only
 
 dql() {
-  dtctl query -f - -o json 2>/dev/null <<< "$1" \
+  dtctl query -f - -o json --config "${DTCTL_CONFIG:-$HOME/.config/dtctl/config}" 2>/dev/null <<< "$1" \
     | python3 -c 'import json,sys
 try: d = json.load(sys.stdin)
 except Exception: print("[]"); raise SystemExit
