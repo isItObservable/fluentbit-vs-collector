@@ -18,7 +18,8 @@
 #                     values), appprotocol.sh, ns labels, istiod values +
 #                     restart + Telemetry CR, app rollout restarts, converge
 #   SMOKE           → 720s settle + OneAgent-absent proof
-#   GATE            → validate-phase.sh otap-config-a (8 checks, blocking)
+#   GATE            → validate-phase.sh otap-config-a (8 checks, blocking;
+#                     3 attempts with 300s DT-ingestion settle between)
 #   SOAK_START      → run-lock + census + START_TS + soak jobs (50 VU/app 24h)
 #   SOAK_RUNNING    → hourly pulse: both pods' restarts, relay pipeline-alive,
 #                     edge accepted/otap-sent/send_failed → pulse-hourly.csv
@@ -165,15 +166,35 @@ sleep 720
 
 # ─── GATE ───────────────────────────────────────────────────────────────────
 setstate GATE
-say "Running validate-phase.sh $ENGINE --window 15m (8 checks, must be GREEN)"
-if ./validate-phase.sh "$ENGINE" --window 15m > "$OUT/gate.out" 2>&1; then
-  cp "$OUT/gate.out" "$OUT/gate-GREEN.out"
-  say "GATE GREEN — opening soak window"
-else
+# ISI-3302 attempt-1 diagnosis: first gate run went RED on 2026-08-27 with ZERO
+# spans/logs/istio spans in-window while a post-hoc re-query of the SAME window
+# showed 50k+ spans flowing with attributes intact — Dynatrace Grail ingest lag
+# raced the fresh engine pods (born 18 min before gate). Same failure mode S3
+# attempt-3 hit (see s3-arrow-soak/driver.sh); retry with a settle wait before
+# halting. A genuinely broken pipeline stays RED across all attempts and still
+# halts with no load applied.
+GATE_PASSES=0
+for attempt in 1 2 3; do
+  say "Running validate-phase.sh $ENGINE --window 15m (8 checks, must be GREEN) — attempt $attempt"
+  if ./validate-phase.sh "$ENGINE" --window 15m > "$OUT/gate.out" 2>&1; then
+    cp "$OUT/gate.out" "$OUT/gate-GREEN.out"
+    say "GATE GREEN (attempt $attempt) — opening soak window"
+    GATE_PASSES=1
+    break
+  fi
+  if [ "$attempt" -lt 3 ]; then
+    setstate GATE_RETRY_WAIT
+    say "GATE RED (attempt $attempt) — waiting 300s for DT ingestion to settle, then re-running"
+    tail -6 "$OUT/gate.out" | tee -a "$LOG"
+    sleep 300
+    setstate GATE
+  fi
+done
+if [ "$GATE_PASSES" -ne 1 ]; then
   setstate GATE_RED
-  say "GATE RED — NOT starting soak. Engines + apps left idling for diagnosis."
+  say "GATE RED after 3 attempts — NOT starting soak. Engines + apps left idling for diagnosis."
   tail -20 "$OUT/gate.out" | tee -a "$LOG"
-  post "**GATE RED — S4 OTAP soak NOT started (ISI-3302).** validate-phase.sh otap-config-a failed. Full report: \`_artifacts/isi1779/soak/S4-otap/gate.out\`. Engines+apps left idling for diagnosis; nothing was measured."
+  post "**GATE RED — S4 OTAP soak NOT started (ISI-3302).** validate-phase.sh otap-config-a failed 3 attempts (with ingestion-lag settle waits). Full report: \`_artifacts/isi1779/soak/S4-otap/gate.out\`. Engines+apps left idling for diagnosis; nothing was measured."
   exit 1
 fi
 
