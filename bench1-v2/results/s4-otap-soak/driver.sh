@@ -180,6 +180,12 @@ helm upgrade --install otel-demo open-telemetry/opentelemetry-demo \
   -f apps/otel-demo-values-otap-config-a.yaml --wait >>"$LOG" 2>&1 \
   || { setstate APP_HELM_FAIL; say "FATAL: otel-demo helm upgrade failed"; exit 1; }
 say "kubectl apply hipster-shop (Config A manifest)"
+# Fresh-cluster guard (attempt-4/6 bug): the hipster-shop namespace does not
+# survive teardowns and nothing else creates it. Create + label BEFORE the
+# apply so sidecars inject at first pod creation, matching the S3 bring-up.
+kubectl create namespace hipster-shop --dry-run=client -o yaml | kubectl apply -f - >>"$LOG" 2>&1
+kubectl label ns hipster-shop istio-injection=enabled --overwrite >>"$LOG" 2>&1
+kubectl label ns hipster-shop oneagent=false --overwrite >>"$LOG" 2>&1
 kubectl apply -f apps/hipster-shop-otap-config-a.yaml >>"$LOG" 2>&1 \
   || { setstate APP_APPLY_FAIL; say "FATAL: hipster-shop apply failed"; exit 1; }
 say "appprotocol.sh (MANDATORY after every helm upgrade)"
