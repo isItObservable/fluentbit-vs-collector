@@ -1,0 +1,396 @@
+[arm2] START 2026-09-17T11:20:00Z pid=694575 — tearing down collector arm (serial single-engine)
+namespace "bench-collector" deleted
+namespace/bench-fluentbit created
+serviceaccount/bench-fluentbit created
+clusterrole.rbac.authorization.k8s.io/bench-fluentbit unchanged
+clusterrolebinding.rbac.authorization.k8s.io/bench-fluentbit unchanged
+configmap/bench-fluentbit-logs-config created
+configmap/bench-fluentbit-metrics-config created
+configmap/bench-fluentbit-traces-config created
+daemonset.apps/bench-fluentbit-logs created
+statefulset.apps/bench-fluentbit-metrics created
+deployment.apps/bench-fluentbit-traces created
+service/bench-fluentbit-otlp created
+[arm2] waiting for FB pods Ready
+timed out waiting for the condition on pods/bench-fluentbit-logs-k5xfk
+timed out waiting for the condition on pods/bench-fluentbit-metrics-0
+[arm2] applying load (locust+k6+telemetrygen traces/metrics --otlp-http)
+namespace/bench-load created
+namespace/bench-load labeled
+configmap/locust-oteldemo created
+deployment.apps/locust-oteldemo created
+configmap/k6-hipstershop created
+deployment.apps/k6-hipstershop created
+Warning: resource namespaces/bench-load is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by kubectl apply. kubectl apply should only be used on resources created declaratively by either kubectl create --save-config or kubectl apply. The missing annotation will be patched automatically.
+namespace/bench-load configured
+deployment.apps/tgen-traces created
+deployment.apps/tgen-metrics created
+[post] HTTP 201
+[arm2] ABORT — no span ingest
+[arm2] START 2026-09-17T13:56:03Z pid=5589 — tearing down collector arm (serial single-engine)
+./tier4-arm2-driver.sh: line 30: kubectl: command not found
+./tier4-arm2-driver.sh: line 33: kubectl: command not found
+[arm2] waiting for FB pods Ready
+./tier4-arm2-driver.sh: line 34: kubectl: command not found
+[arm2] applying load (locust+k6+telemetrygen traces/metrics --otlp-http)
+./tier4-arm2-driver.sh: line 37: kubectl: command not found
+./tier4-arm2-driver.sh: line 38: kubectl: command not found
+./tier4-arm2-driver.sh: line 39: kubectl: command not found
+./tier4-arm2-driver.sh: line 40: kubectl: command not found
+./tier4-arm2-driver.sh: line 41: kubectl: command not found
+./tier4-arm2-driver.sh: line 46: kubectl: command not found
+[arm2] START 2026-09-17T13:56:36Z pid=5765 — tearing down collector arm (serial single-engine)
+./tier4-arm2-driver.sh: line 30: kubectl: command not found
+./tier4-arm2-driver.sh: line 33: kubectl: command not found
+[arm2] waiting for FB pods Ready
+./tier4-arm2-driver.sh: line 34: kubectl: command not found
+[arm2] applying load (locust+k6+telemetrygen traces/metrics --otlp-http)
+./tier4-arm2-driver.sh: line 37: kubectl: command not found
+./tier4-arm2-driver.sh: line 38: kubectl: command not found
+./tier4-arm2-driver.sh: line 39: kubectl: command not found
+./tier4-arm2-driver.sh: line 40: kubectl: command not found
+./tier4-arm2-driver.sh: line 41: kubectl: command not found
+./tier4-arm2-driver.sh: line 46: kubectl: command not found
+[arm2] START 2026-09-17T13:57:09Z pid=6069 — tearing down collector arm (serial single-engine)
+./tier4-arm2-driver.sh: line 30: kubectl: command not found
+./tier4-arm2-driver.sh: line 33: kubectl: command not found
+[arm2] waiting for FB pods Ready
+./tier4-arm2-driver.sh: line 34: kubectl: command not found
+[arm2] applying load (locust+k6+telemetrygen traces/metrics --otlp-http)
+./tier4-arm2-driver.sh: line 37: kubectl: command not found
+./tier4-arm2-driver.sh: line 38: kubectl: command not found
+./tier4-arm2-driver.sh: line 39: kubectl: command not found
+./tier4-arm2-driver.sh: line 40: kubectl: command not found
+./tier4-arm2-driver.sh: line 41: kubectl: command not found
+./tier4-arm2-driver.sh: line 46: kubectl: command not found
+[arm2] START 2026-09-17T17:05:40Z pid=65678 — tearing down collector arm (serial single-engine)
+Error from server (NotFound): namespaces "bench-collector" not found
+namespace/bench-fluentbit unchanged
+serviceaccount/bench-fluentbit unchanged
+clusterrole.rbac.authorization.k8s.io/bench-fluentbit unchanged
+clusterrolebinding.rbac.authorization.k8s.io/bench-fluentbit unchanged
+configmap/bench-fluentbit-logs-config unchanged
+configmap/bench-fluentbit-metrics-config unchanged
+configmap/bench-fluentbit-traces-config unchanged
+daemonset.apps/bench-fluentbit-logs unchanged
+statefulset.apps/bench-fluentbit-metrics unchanged
+deployment.apps/bench-fluentbit-traces unchanged
+service/bench-fluentbit-otlp unchanged
+[arm2] waiting for FB pods Ready
+pod/bench-fluentbit-logs-5zt8r condition met
+pod/bench-fluentbit-logs-6jzc5 condition met
+pod/bench-fluentbit-logs-drdrd condition met
+pod/bench-fluentbit-metrics-0 condition met
+pod/bench-fluentbit-traces-744898b4b5-qt6p4 condition met
+[arm2] applying load (locust+k6+telemetrygen traces/metrics --otlp-http)
+namespace/bench-load not labeled
+deployment.apps "locust-oteldemo" deleted from bench-load namespace
+deployment.apps "k6-hipstershop" deleted from bench-load namespace
+configmap/locust-oteldemo unchanged
+deployment.apps/locust-oteldemo created
+configmap/k6-hipstershop unchanged
+deployment.apps/k6-hipstershop created
+namespace/bench-load unchanged
+deployment.apps/tgen-traces configured
+deployment.apps/tgen-metrics configured
+[arm2] span-ingest check 1: pod=bench-fluentbit-traces-744898b4b5-qt6p4 input_records=0
+[arm2] span-ingest check 2: pod=bench-fluentbit-traces-744898b4b5-qt6p4 input_records=2400
+[arm2] Tier4 ARM2(FB control)+LOAD T0=2026-09-17T17:06:11Z
+# Tier 4 CONTROL ARM (FB v5.1.1 full stack, NO tail sampling) — 2h validity gate readout
+generated: 2026-09-17T19:06:11Z · engine=fluentbit-v5.1.1 (single, collector offline) · load=locust+k6+telemetrygen(traces@200 --otlp-http :4318)
+control framing: FB has NO tail sampling -> this arm = T3-shaped trace load; the T3->T4 tail-sampling cost is read on the COLLECTOR arm
+
+## Census gate (validity FIRST — engine+infra STRICT, apps liveness-only)
+NAMESPACE          POD                                PHASE      RESTARTS  ROLE   
+bench-fluentbit    bench-fluentbit-logs-5zt8r         Running    1         STRICT 
+bench-fluentbit    bench-fluentbit-logs-6jzc5         Running    1         STRICT 
+bench-fluentbit    bench-fluentbit-logs-drdrd         Running    1         STRICT 
+bench-fluentbit    bench-fluentbit-metrics-0          Running    1         STRICT 
+bench-fluentbit    bench-fluentbit-traces-744898b4b5-qt6p4 Running    1         STRICT 
+kepler             kepler-2xgll                       Running    1         STRICT 
+kepler             kepler-5jsm7                       Running    1         STRICT 
+kepler             kepler-c4ldd                       Running    1         STRICT 
+kepler             kepler-qhtc5                       Running    1         STRICT 
+otel-demo          accounting-799d56d5f5-wkz2c        Running    1         source 
+otel-demo          ad-9c69f9686-5tcrw                 Running    1         source 
+otel-demo          cart-7789dc7575-ptmwp              Running    1         source 
+otel-demo          checkout-86468654d7-g2htm          Running    1         source 
+otel-demo          currency-65d9467895-qfptq          Running    1         source 
+otel-demo          email-8c8564f57-sg5zm              Running    1         source 
+otel-demo          flagd-6946bb88cd-g9qgh             Running    1         source 
+otel-demo          fraud-detection-b87fffcdf-4fcvg    Running    1         source 
+otel-demo          frontend-5b7fb8844f-5f8v2          Running    1         source 
+otel-demo          frontend-proxy-6bb789597d-dj9wh    Running    1         source 
+otel-demo          image-provider-76c46f5d69-4hm6c    Running    1         source 
+otel-demo          kafka-5bd9dc6bb9-g429x             Running    1         source 
+otel-demo          llm-6c9779b558-tb9fp               Running    1         source 
+otel-demo          load-generator-57fd5dddff-b9qhv    Running    6         source 
+otel-demo          payment-745df48ddf-wsrv7           Running    1         source 
+otel-demo          postgresql-775ccb994b-xx8tb        Running    30        source 
+otel-demo          product-catalog-7875bcb8dd-ccxq5   Running    15        source 
+otel-demo          product-reviews-b78b54859-f4464    Running    1         source 
+otel-demo          quote-5c4fcdc84d-qr7rq             Running    1         source 
+otel-demo          recommendation-758765697d-jmgqh    Running    1         source 
+otel-demo          shipping-84f8b5dfd7-rzk6g          Running    1         source 
+otel-demo          valkey-cart-6c74b8cc4c-hw69k       Running    1         source 
+hipster-shop       adservice-64db44f966-9nrl5         Running    16        source 
+hipster-shop       cartservice-78c74fbbcf-vp5tm       Running    9         source 
+hipster-shop       checkoutservice-f4677b8c4-cl4z5    Running    6         source 
+hipster-shop       currencyservice-59bd4fd785-b9qk2   Running    2338      source 
+hipster-shop       emailservice-6567d46c9d-s7rl2      Running    9         source 
+hipster-shop       frontend-79cb8766c8-9lsdm          Running    9         source 
+hipster-shop       paymentservice-75f5c95477-6mlq5    Running    36        source 
+hipster-shop       productcatalogservice-59dc6bb7d-hpzdj Running    6         source 
+hipster-shop       recommendationservice-84c69dbdfd-xm64p Running    12        source 
+hipster-shop       redis-cart-6b7c8c4556-bfbpg        Running    1516      source 
+hipster-shop       shippingservice-669789cc48-sv5zx   Running    1         source 
+CENSUS GATE: FAIL — STRICT-ns pod not Running or restarted, or a source pod not Running. Soak/KPIs INVALID.
+
+## Load reaching app gate (#6c)
+[load] locust(otel-demo) pod=Running reqs=442210 | k6(hipster-shop) pod=Running | tgen-traces pod=Running (@200 span/s --otlp-http)
+[load] LOAD REACHING APP: PASS (app load + telemetrygen traces into FB OTLP input)
+
+## Dynatrace receipt gate (pt9 — FB output proc_records / dropped)
+[dt-receipt] bench-fluentbit-logs-5zt8r proc=1123187 dropped=0
+[dt-receipt] bench-fluentbit-logs-6jzc5 proc=7081789 dropped=0
+[dt-receipt] bench-fluentbit-logs-drdrd proc=4121616 dropped=0
+[dt-receipt] bench-fluentbit-metrics-0 proc=2582 dropped=0
+[dt-receipt] bench-fluentbit-traces-744898b4b5-qt6p4 proc=720099 dropped=0
+[dt-receipt] TOTAL proc_records=13049273 dropped=0 (logs+metrics+traces)
+[dt-receipt] VERDICT: RECEIVED IN DYNATRACE (all signals processed, 0 dropped)
+
+## Leak readout — fluentbit (all components, tail-flat)
+[leak] bench-fluentbit — 12 samples @ 15s (needs metrics-server)
+  2026-09-17T19:06:32Z  213MiB
+  2026-09-17T19:06:47Z  214MiB
+  2026-09-17T19:07:02Z  214MiB
+  2026-09-17T19:07:17Z  227MiB
+  2026-09-17T19:07:32Z  241MiB
+  2026-09-17T19:07:47Z  237MiB
+  2026-09-17T19:08:02Z  239MiB
+  2026-09-17T19:08:17Z  214MiB
+  2026-09-17T19:08:32Z  223MiB
+  2026-09-17T19:08:47Z  227MiB
+  2026-09-17T19:09:02Z  220MiB
+  2026-09-17T19:09:17Z  214MiB
+[leak] mid-third mean=232.8MiB  tail-third mean=221.0MiB  tail-drift=-5.05%
+[leak] VERDICT: TAIL-FLAT (ok)
+
+## Resource snapshot (working-set, per component)
+bench-fluentbit-logs-5zt8r                16m   19Mi    
+bench-fluentbit-logs-6jzc5                85m   42Mi    
+bench-fluentbit-logs-drdrd                23m   44Mi    
+bench-fluentbit-metrics-0                 3m    6Mi     
+bench-fluentbit-traces-744898b4b5-qt6p4   34m   103Mi   
+[post] HTTP 201
+[arm2] gate RED — halt (keeping bench-load for triage)
+[arm2] START 2026-09-17T19:50:32Z pid=95114 — tearing down collector arm (serial single-engine)
+Error from server (NotFound): namespaces "bench-collector" not found
+namespace/bench-fluentbit unchanged
+serviceaccount/bench-fluentbit unchanged
+clusterrole.rbac.authorization.k8s.io/bench-fluentbit unchanged
+clusterrolebinding.rbac.authorization.k8s.io/bench-fluentbit unchanged
+configmap/bench-fluentbit-logs-config unchanged
+configmap/bench-fluentbit-metrics-config unchanged
+configmap/bench-fluentbit-traces-config unchanged
+daemonset.apps/bench-fluentbit-logs unchanged
+statefulset.apps/bench-fluentbit-metrics unchanged
+deployment.apps/bench-fluentbit-traces unchanged
+service/bench-fluentbit-otlp unchanged
+[arm2] waiting for FB pods Ready
+pod/bench-fluentbit-logs-cbm52 condition met
+pod/bench-fluentbit-logs-q59f2 condition met
+pod/bench-fluentbit-logs-wdqqq condition met
+pod/bench-fluentbit-metrics-0 condition met
+pod/bench-fluentbit-traces-744898b4b5-98g9h condition met
+[arm2] applying load (locust+k6+telemetrygen traces/metrics --otlp-http)
+namespace/bench-load not labeled
+deployment.apps "locust-oteldemo" deleted from bench-load namespace
+deployment.apps "k6-hipstershop" deleted from bench-load namespace
+configmap/locust-oteldemo unchanged
+deployment.apps/locust-oteldemo created
+configmap/k6-hipstershop unchanged
+deployment.apps/k6-hipstershop created
+namespace/bench-load unchanged
+deployment.apps/tgen-traces unchanged
+deployment.apps/tgen-metrics unchanged
+[arm2] span-ingest check 1: pod=bench-fluentbit-traces-744898b4b5-98g9h input_records=4500
+[arm2] Tier4 ARM2(FB control)+LOAD T0=2026-09-17T19:50:39Z
+# Tier 4 CONTROL ARM (FB v5.1.1 full stack, NO tail sampling) — 2h validity gate readout
+generated: 2026-09-17T21:50:39Z · engine=fluentbit-v5.1.1 (single, collector offline) · load=locust+k6+telemetrygen(traces@200 --otlp-http :4318)
+control framing: FB has NO tail sampling -> this arm = T3-shaped trace load; the T3->T4 tail-sampling cost is read on the COLLECTOR arm
+
+## Census gate (validity FIRST — engine+infra STRICT, apps liveness-only)
+NAMESPACE          POD                                PHASE      RESTARTS  ROLE   
+bench-fluentbit    bench-fluentbit-logs-cbm52         Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-logs-q59f2         Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-logs-wdqqq         Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-metrics-0          Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-traces-744898b4b5-98g9h Running    0         STRICT 
+kepler             kepler-4qvls                       Running    0         STRICT 
+kepler             kepler-g727v                       Running    0         STRICT 
+kepler             kepler-s2sdm                       Running    0         STRICT 
+kepler             kepler-s55md                       Running    0         STRICT 
+otel-demo          accounting-799d56d5f5-wkz2c        Running    1         source 
+otel-demo          ad-9c69f9686-5tcrw                 Running    1         source 
+otel-demo          cart-7789dc7575-ptmwp              Running    1         source 
+otel-demo          checkout-86468654d7-g2htm          Running    1         source 
+otel-demo          currency-65d9467895-qfptq          Running    1         source 
+otel-demo          email-8c8564f57-sg5zm              Running    1         source 
+otel-demo          flagd-6946bb88cd-g9qgh             Running    1         source 
+otel-demo          fraud-detection-b87fffcdf-4fcvg    Running    1         source 
+otel-demo          frontend-5b7fb8844f-5f8v2          Running    1         source 
+otel-demo          frontend-proxy-6bb789597d-dj9wh    Running    1         source 
+otel-demo          image-provider-76c46f5d69-4hm6c    Running    1         source 
+otel-demo          kafka-5bd9dc6bb9-g429x             Running    1         source 
+otel-demo          llm-6c9779b558-tb9fp               Running    1         source 
+otel-demo          load-generator-57fd5dddff-b9qhv    Running    6         source 
+otel-demo          payment-745df48ddf-wsrv7           Running    1         source 
+otel-demo          postgresql-775ccb994b-xx8tb        Running    30        source 
+otel-demo          product-catalog-7875bcb8dd-ccxq5   Running    15        source 
+otel-demo          product-reviews-b78b54859-f4464    Running    1         source 
+otel-demo          quote-5c4fcdc84d-qr7rq             Running    1         source 
+otel-demo          recommendation-758765697d-jmgqh    Running    1         source 
+otel-demo          shipping-84f8b5dfd7-rzk6g          Running    1         source 
+otel-demo          valkey-cart-6c74b8cc4c-hw69k       Running    1         source 
+hipster-shop       adservice-64db44f966-9nrl5         Running    16        source 
+hipster-shop       cartservice-78c74fbbcf-vp5tm       Running    9         source 
+hipster-shop       checkoutservice-f4677b8c4-cl4z5    Running    6         source 
+hipster-shop       currencyservice-59bd4fd785-b9qk2   Running    2372      source 
+hipster-shop       emailservice-6567d46c9d-s7rl2      Running    9         source 
+hipster-shop       frontend-79cb8766c8-9lsdm          Running    9         source 
+hipster-shop       paymentservice-75f5c95477-6mlq5    Running    36        source 
+hipster-shop       productcatalogservice-59dc6bb7d-hpzdj Running    6         source 
+hipster-shop       recommendationservice-84c69dbdfd-xm64p Running    12        source 
+hipster-shop       redis-cart-6b7c8c4556-bfbpg        Running    1537      source 
+hipster-shop       shippingservice-669789cc48-sv5zx   Running    1         source 
+CENSUS GATE: PASS — engine+infra (STRICT) Running & 0-restart; all log-source apps Running.
+
+## Load reaching app gate (#6c)
+[load] locust(otel-demo) pod=Running reqs=440460 | k6(hipster-shop) pod=Running | tgen-traces pod=Running (@200 span/s --otlp-http)
+[load] LOAD REACHING APP: PASS (app load + telemetrygen traces into FB OTLP input)
+
+## Dynatrace receipt gate (pt9 — FB output proc_records / dropped)
+[dt-receipt] bench-fluentbit-logs-cbm52 proc=2075473 dropped=0
+[dt-receipt] bench-fluentbit-logs-q59f2 proc=1346067 dropped=0
+[dt-receipt] bench-fluentbit-logs-wdqqq proc=452583 dropped=0
+[dt-receipt] bench-fluentbit-metrics-0 proc=966 dropped=0
+[dt-receipt] bench-fluentbit-traces-744898b4b5-98g9h proc=715197 dropped=0
+[dt-receipt] TOTAL proc_records=4590286 dropped=0 (logs+metrics+traces)
+[dt-receipt] VERDICT: RECEIVED IN DYNATRACE (all signals processed, 0 dropped)
+
+## Leak readout — fluentbit (all components, tail-flat)
+[leak] bench-fluentbit — 12 samples @ 15s (needs metrics-server)
+  2026-09-17T21:51:04Z  206MiB
+  2026-09-17T21:51:19Z  199MiB
+  2026-09-17T21:51:34Z  204MiB
+  2026-09-17T21:51:49Z  201MiB
+  2026-09-17T21:52:04Z  194MiB
+  2026-09-17T21:52:19Z  202MiB
+  2026-09-17T21:52:34Z  201MiB
+  2026-09-17T21:52:49Z  202MiB
+  2026-09-17T21:53:04Z  202MiB
+  2026-09-17T21:53:19Z  178MiB
+  2026-09-17T21:53:34Z  209MiB
+  2026-09-17T21:53:49Z  187MiB
+[leak] mid-third mean=199.8MiB  tail-third mean=194.0MiB  tail-drift=-2.88%
+[leak] VERDICT: TAIL-FLAT (ok)
+
+## Resource snapshot (working-set, per component)
+bench-fluentbit-logs-cbm52                31m   13Mi    
+bench-fluentbit-logs-q59f2                11m   12Mi    
+bench-fluentbit-logs-wdqqq                16m   8Mi     
+bench-fluentbit-metrics-0                 3m    7Mi     
+bench-fluentbit-traces-744898b4b5-98g9h   35m   147Mi   
+[post] HTTP 201
+# Tier 4 CONTROL ARM (FB v5.1.1 full stack, NO tail sampling) — 24h soak readout
+generated: 2026-09-18T21:53:52Z · engine=fluentbit-v5.1.1 (single, collector offline) · load=locust+k6+telemetrygen(traces@200 --otlp-http :4318)
+control framing: FB has NO tail sampling -> this arm = T3-shaped trace load; the T3->T4 tail-sampling cost is read on the COLLECTOR arm
+
+## Census gate (validity FIRST — engine+infra STRICT, apps liveness-only)
+NAMESPACE          POD                                PHASE      RESTARTS  ROLE   
+bench-fluentbit    bench-fluentbit-logs-cbm52         Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-logs-q59f2         Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-logs-wdqqq         Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-metrics-0          Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-traces-744898b4b5-98g9h Running    0         STRICT 
+kepler             kepler-4qvls                       Running    0         STRICT 
+kepler             kepler-g727v                       Running    0         STRICT 
+kepler             kepler-s2sdm                       Running    0         STRICT 
+kepler             kepler-s55md                       Running    0         STRICT 
+otel-demo          accounting-799d56d5f5-wkz2c        Running    1         source 
+otel-demo          ad-9c69f9686-5tcrw                 Running    1         source 
+otel-demo          cart-7789dc7575-ptmwp              Running    1         source 
+otel-demo          checkout-86468654d7-g2htm          Running    1         source 
+otel-demo          currency-65d9467895-qfptq          Running    1         source 
+otel-demo          email-8c8564f57-sg5zm              Running    1         source 
+otel-demo          flagd-6946bb88cd-g9qgh             Running    1         source 
+otel-demo          fraud-detection-b87fffcdf-4fcvg    Running    1         source 
+otel-demo          frontend-5b7fb8844f-5f8v2          Running    1         source 
+otel-demo          frontend-proxy-6bb789597d-dj9wh    Running    1         source 
+otel-demo          image-provider-76c46f5d69-4hm6c    Running    1         source 
+otel-demo          kafka-5bd9dc6bb9-g429x             Running    1         source 
+otel-demo          llm-6c9779b558-tb9fp               Running    1         source 
+otel-demo          load-generator-57fd5dddff-b9qhv    Running    6         source 
+otel-demo          payment-745df48ddf-wsrv7           Running    1         source 
+otel-demo          postgresql-775ccb994b-xx8tb        Running    30        source 
+otel-demo          product-catalog-7875bcb8dd-ccxq5   Running    15        source 
+otel-demo          product-reviews-b78b54859-f4464    Running    1         source 
+otel-demo          quote-5c4fcdc84d-qr7rq             Running    1         source 
+otel-demo          recommendation-758765697d-jmgqh    Running    1         source 
+otel-demo          shipping-84f8b5dfd7-rzk6g          Running    1         source 
+otel-demo          valkey-cart-6c74b8cc4c-hw69k       Running    1         source 
+hipster-shop       adservice-64db44f966-9nrl5         Running    16        source 
+hipster-shop       cartservice-78c74fbbcf-vp5tm       Running    9         source 
+hipster-shop       checkoutservice-f4677b8c4-cl4z5    Running    6         source 
+hipster-shop       currencyservice-59bd4fd785-b9qk2   Running    2711      source 
+hipster-shop       emailservice-6567d46c9d-s7rl2      Running    9         source 
+hipster-shop       frontend-79cb8766c8-9lsdm          Running    9         source 
+hipster-shop       paymentservice-75f5c95477-6mlq5    Running    38        source 
+hipster-shop       productcatalogservice-59dc6bb7d-hpzdj Running    6         source 
+hipster-shop       recommendationservice-84c69dbdfd-xm64p Running    12        source 
+hipster-shop       redis-cart-6b7c8c4556-bfbpg        Running    1740      source 
+hipster-shop       shippingservice-669789cc48-sv5zx   Running    1         source 
+CENSUS GATE: PASS — engine+infra (STRICT) Running & 0-restart; all log-source apps Running.
+
+## Load reaching app gate (#6c)
+[load] locust(otel-demo) pod=Running reqs=4617 | k6(hipster-shop) pod=Running | tgen-traces pod=Running (@200 span/s --otlp-http)
+[load] LOAD REACHING APP: PASS (app load + telemetrygen traces into FB OTLP input)
+
+## Dynatrace receipt gate (pt9 — FB output proc_records / dropped)
+[dt-receipt] bench-fluentbit-logs-cbm52 proc=36735215 dropped=0
+[dt-receipt] bench-fluentbit-logs-q59f2 proc=21644027 dropped=0
+[dt-receipt] bench-fluentbit-logs-wdqqq proc=3479222 dropped=0
+[dt-receipt] bench-fluentbit-metrics-0 proc=12511 dropped=0
+[dt-receipt] bench-fluentbit-traces-744898b4b5-98g9h proc=9187120 dropped=0
+[dt-receipt] TOTAL proc_records=71058095 dropped=0 (logs+metrics+traces)
+[dt-receipt] VERDICT: RECEIVED IN DYNATRACE (all signals processed, 0 dropped)
+
+## Leak readout — fluentbit (all components, tail-flat)
+[leak] bench-fluentbit — 12 samples @ 15s (needs metrics-server)
+  2026-09-18T21:54:13Z  185MiB
+  2026-09-18T21:54:28Z  193MiB
+  2026-09-18T21:54:43Z  194MiB
+  2026-09-18T21:54:58Z  186MiB
+  2026-09-18T21:55:13Z  186MiB
+  2026-09-18T21:55:28Z  198MiB
+  2026-09-18T21:55:43Z  194MiB
+  2026-09-18T21:55:58Z  197MiB
+  2026-09-18T21:56:13Z  199MiB
+  2026-09-18T21:56:28Z  200MiB
+  2026-09-18T21:56:44Z  192MiB
+  2026-09-18T21:56:59Z  198MiB
+[leak] mid-third mean=193.8MiB  tail-third mean=197.2MiB  tail-drift=+1.81%
+[leak] VERDICT: TAIL-FLAT (ok)
+
+## Resource snapshot (working-set, per component)
+bench-fluentbit-logs-cbm52                66m   17Mi    
+bench-fluentbit-logs-q59f2                19m   14Mi    
+bench-fluentbit-logs-wdqqq                16m   8Mi     
+bench-fluentbit-metrics-0                 3m    9Mi     
+bench-fluentbit-traces-744898b4b5-98g9h   39m   150Mi   
+[post] HTTP 201
+[arm2] tearing down bench-load + bench-fluentbit (E4 arms done)
+namespace "bench-load" deleted
+namespace "bench-fluentbit" deleted
+[arm2] Tier4 ARM2 DONE — remaining manual step: tier4-comparison.md -> E5
