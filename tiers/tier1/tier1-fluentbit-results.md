@@ -1,0 +1,97 @@
+# Tier 1 (logs only) — ARM 2 fluent-bit — 24h soak readout
+generated: 2026-09-05T20:43:36Z  ·  engine=fluent-bit 5.1.1 (single, collector torn down)  ·  load=locust(otel-demo)+k6(hipster-shop)
+
+## Census gate (validity FIRST — engine+infra STRICT, apps liveness-only)
+NAMESPACE          POD                                PHASE      RESTARTS  ROLE   
+bench-fluentbit    bench-fluentbit-f4vpr              Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-jsct8              Running    0         STRICT 
+bench-fluentbit    bench-fluentbit-qq2vj              Running    0         STRICT 
+kepler             kepler-2xgll                       Running    0         STRICT 
+kepler             kepler-5jsm7                       Running    0         STRICT 
+kepler             kepler-c4ldd                       Running    0         STRICT 
+kepler             kepler-qhtc5                       Running    0         STRICT 
+otel-demo          accounting-65b5fb67bb-nswdk        Running    0         source 
+otel-demo          ad-6b645785b4-rzjl5                Running    0         source 
+otel-demo          cart-5896c58756-5l68j              Running    0         source 
+otel-demo          checkout-79448f79f8-4z87w          Running    0         source 
+otel-demo          currency-675b4cd4d7-4sglp          Running    0         source 
+otel-demo          email-6b9cfc85d5-ww5fw             Running    0         source 
+otel-demo          flagd-dd694f745-tqqvv              Running    0         source 
+otel-demo          fraud-detection-7f644f7ffd-s9rs9   Running    0         source 
+otel-demo          frontend-7b6d8b7bdf-fpvlx          Running    0         source 
+otel-demo          frontend-proxy-7f7cf96f6b-fjfqz    Running    0         source 
+otel-demo          image-provider-7b6bc86c5c-h8xxr    Running    0         source 
+otel-demo          kafka-56c88fdbcc-wzv22             Running    0         source 
+otel-demo          llm-75f57cc658-nn89c               Running    0         source 
+otel-demo          load-generator-695bcd96dc-gb9g5    Running    0         source 
+otel-demo          payment-6cd49fc797-d9vrh           Running    0         source 
+otel-demo          postgresql-6869b5c65-w6j9v         Running    5         source 
+otel-demo          product-catalog-788cc66c6b-z5pf6   Running    0         source 
+otel-demo          product-reviews-7d9fd96d4c-szmdq   Running    0         source 
+otel-demo          quote-6689979fdb-t5sqb             Running    0         source 
+otel-demo          recommendation-84696bc4b6-mgrtz    Running    0         source 
+otel-demo          shipping-86b9954bc5-sqj9k          Running    0         source 
+otel-demo          valkey-cart-747697db59-9f96x       Running    3         source 
+hipster-shop       adservice-64db44f966-9nrl5         Running    0         source 
+hipster-shop       cartservice-78c74fbbcf-vp5tm       Running    0         source 
+hipster-shop       checkoutservice-f4677b8c4-cl4z5    Running    0         source 
+hipster-shop       currencyservice-59bd4fd785-b9qk2   Running    397       source 
+hipster-shop       emailservice-6567d46c9d-s7rl2      Running    0         source 
+hipster-shop       frontend-79cb8766c8-9lsdm          Running    0         source 
+hipster-shop       paymentservice-75f5c95477-6mlq5    Running    2         source 
+hipster-shop       productcatalogservice-59dc6bb7d-hpzdj Running    0         source 
+hipster-shop       recommendationservice-84c69dbdfd-xm64p Running    0         source 
+hipster-shop       redis-cart-6b7c8c4556-bfbpg        Running    375       source 
+hipster-shop       shippingservice-669789cc48-sv5zx   Running    0         source 
+CENSUS GATE: PASS — engine+infra (STRICT) Running & 0-restart; all log-source apps Running.
+
+## App churn during run (WARNING-only)
+[app-churn] log-source pods restarted DURING run (WARNING, non-fatal — logs kept flowing): 4
+    otel-demo/postgresql-6869b5c65-w6j9v rc=5 OOMKilled @2026-09-04T20:19:00Z
+    hipster-shop/currencyservice-59bd4fd785-b9qk2 rc=397 OOMKilled @2026-09-05T20:40:02Z
+    hipster-shop/paymentservice-75f5c95477-6mlq5 rc=2 OOMKilled @2026-09-05T15:47:41Z
+    hipster-shop/redis-cart-6b7c8c4556-bfbpg rc=375 OOMKilled @2026-09-05T20:40:37Z
+
+## Load reaching app gate (#6c)
+[load] locust(otel-demo) pod=Running aggregated_reqs=5933  |  k6(hipster-shop) pod=Running iterations=727730
+[load] LOAD REACHING APP: PASS
+
+## Dynatrace receipt gate (pt9 — signal RECEIVED IN DYNATRACE)
+[dt-receipt] FB otel-output proc=43354830 dropped=0 errors=0
+[dt-receipt] VERDICT: RECEIVED IN DYNATRACE (otel output, 0 dropped/errors)
+
+## Leak readout — fluent-bit (tail-flat)
+[leak] bench-fluentbit — 12 samples @ 15s (needs metrics-server)
+  2026-09-05T20:43:42Z  39MiB
+  2026-09-05T20:43:57Z  41MiB
+  2026-09-05T20:44:12Z  40MiB
+  2026-09-05T20:44:27Z  40MiB
+  2026-09-05T20:44:43Z  39MiB
+  2026-09-05T20:44:58Z  41MiB
+  2026-09-05T20:45:13Z  37MiB
+  2026-09-05T20:45:28Z  40MiB
+  2026-09-05T20:45:43Z  40MiB
+  2026-09-05T20:45:58Z  38MiB
+  2026-09-05T20:46:13Z  40MiB
+  2026-09-05T20:46:28Z  35MiB
+[leak] mid-third mean=39.2MiB  tail-third mean=38.2MiB  tail-drift=-2.55%
+[leak] VERDICT: TAIL-FLAT (ok)
+
+## Loss accounting — fluent-bit
+
+## Live cost spot-sample (mc/1M; sustained = computed from gate->final records delta at processing)
+[cost] t0 records=43423415 ; sampling CPU over 60s...
+[cost] delta_records=20129  avg_millicores=73.5  window=60s
+[cost] COST-PER-1M = 3651.45 millicores/1M records
+
+## Resource snapshot (working-set)
+bench-fluentbit-f4vpr   57m   15Mi   
+bench-fluentbit-jsct8   16m   8Mi    
+bench-fluentbit-qq2vj   21m   14Mi   
+
+## Loss accounting — fluent-bit (RECOVERED post-readout, 20:54Z)
+(final-readout section was empty — port-forward race in loss-accounting.sh at readout time;
+ recovered by immediate per-pod re-measure, engine untouched, counters monotonic since T0)
+[fluentbit] input=43476861 output=43476440 dropped=0 errors=0   (pod f4vpr, items[0] basis)
+[fluentbit] CLUSTER (3 pods): input=70542166 output=70541631 dropped=0 errors=0
+loss%=0.0000 — LOSS VERDICT: NO LOSS (cluster-wide, full 26h run)
