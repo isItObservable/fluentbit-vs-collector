@@ -1,6 +1,6 @@
 # Tier 4 CONTROL ARM (ARM 2) = Fluent Bit v5.1.1 — logs+metrics+traces, NO tail sampling.
-# SERIAL SINGLE-ENGINE (serial single-engine): deployed AFTER the collector arm is fully torn down (the Fluent Bit control run). Fluent Bit has NO tail-sampling processor, so the FB arm runs the
-# T3-shaped full-stack trace load and serves as the no-TS CONTROL that isolates the collector's
+# SERIAL SINGLE-ENGINE (serial single-engine): deployed AFTER the collector arm is fully torn down (the Fluent Bit control run). NOTE: Fluent Bit v5 DOES support tail sampling (`sampling` `type: tail`); in this first pass the FB arm ran the
+# T3-shaped full-stack trace load WITHOUT a sampling stage (a like-for-like re-run with both engines sampling is in progress). This provisional arm isolated the collector's
 # T3->T4 tail-sampling delta (CPU/mem/decision-buffer cost lives on the collector arm only).
 # Config is byte-identical to the Tier 3 FB arm except the tier tag bump (tier4-*): frozen pins
 # FB v5.1.1 / Kepler 0.8.0 / collector v0.159.0 (no-drift rule).

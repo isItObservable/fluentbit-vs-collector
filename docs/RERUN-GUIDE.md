@@ -66,7 +66,7 @@ shared base (namespaces + DaemonSet skeletons) is under `manifests/`.
 | **T1** | logs | `tiers/tier1/collector-tier1-logs-only.yaml` | `tiers/tier1/fluentbit-tier1-logs-only.conf` |
 | **T2** | logs + metrics | T1 + the metrics pipeline in `manifests/20-collector-daemonset.yaml` (StatefulSet: `prometheus` receiver → `cumulativetodelta` → drop-summary → OTLP) | T1 + the metrics pipeline in `manifests/30-fluentbit-daemonset.yaml` (`prometheus_scrape` input + native **metric conversion** path) |
 | **T3** | + traces | `tiers/tier3/collector-tier3.yaml` | `tiers/tier3/fluentbit-tier3.yaml` |
-| **T4** | + tail-sampling | `tiers/tier4/collector-tier4.yaml` (T3 + `tail_sampling` processor) | `tiers/tier4/fluentbit-tier4.yaml` (= T3 shape; Fluent Bit has no tail-sampling stage, so it is the no-TS control) |
+| **T4** | + tail-sampling | `tiers/tier4/collector-tier4.yaml` (T3 + `tail_sampling` processor) | `tiers/tier4/fluentbit-tier4.yaml` — **note:** in the first pass this arm ran *without* a sampling stage; Fluent Bit v5 does support tail sampling (`sampling` `type: tail`) and a like-for-like re-run with both engines sampling is in progress (see `RESULTS.md` erratum) |
 
 ### 2.1 What each pipeline does
 
@@ -82,7 +82,7 @@ shared base (namespaces + DaemonSet skeletons) is under `manifests/`.
   The collector accepts **gRPC `:4317` and HTTP `:4318`**; **Fluent Bit accepts OTLP/HTTP
   `:4318` only** (no gRPC trace ingress), so on the Fluent Bit arm the apps must export
   OTLP/HTTP.
-- **Tail sampling (collector only, T4)** — a `tail_sampling` processor with policy
+- **Tail sampling (T4)** — the collector uses a `tail_sampling` processor with policy
   `keep-errors OR (NOT healthcheck AND 30% probabilistic)`, `decision_wait=10s`,
   `num_traces=100000`. It is **stateful** — it buffers trace windows in memory before
   deciding — which is why it is the single most expensive add of the ladder.

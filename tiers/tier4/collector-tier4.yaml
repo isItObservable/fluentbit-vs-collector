@@ -4,8 +4,9 @@
 # pipelines are held IDENTICAL to Tier-2/Tier-3 (cardinal rule: NO version/config drift across
 # tiers; frozen pins collector v0.159.0 / FB v5.1.1 / Kepler 0.8.0).
 #
-# Tail-sampling policy (per RUN-PLAN / maintainer scope, collector-ONLY — FB has no tail sampling, so its
-# T4 = T3-shaped trace load = the no-TS control that isolates the collector's T3->T4 tail-sampling delta):
+# Tail-sampling policy for the collector arm (Fluent Bit v5 also supports tail sampling via its
+# `sampling` `type: tail` processor; in the first pass the FB arm ran without it — a like-for-like
+# re-run with both engines sampling is in progress):
 # - keep-errors : always sample traces whose status_code == ERROR
 # - drop-healthchecks : health-probe traffic (http.target ~ /health|/ready|/live) is excluded
 # - probabilistic 30% : 30% of everything else is sampled

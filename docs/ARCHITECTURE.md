@@ -20,7 +20,7 @@ comparable:
 ```
 DaemonSet   (logs)     — one pod per node, tails node logs
 StatefulSet (metrics)  — scrapes istiod + Kepler, converts, exports
-Deployment  (traces)   — OTLP receiver -> [tail_sampling, Tier 4 collector only] -> export
+Deployment  (traces)   — OTLP receiver -> [tail sampling, Tier 4 — both engines] -> export
 ```
 
 Manifests to deploy this are in [`../manifests/`](../manifests/); the per-tier pipeline

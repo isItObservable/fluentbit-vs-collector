@@ -53,7 +53,7 @@ with no loss, and load reached the apps. No arm was allowed into a soak without 
 | T3 | +traces | Collector v0.159.0 | GREEN | 200 VU/app + 200 span/s | none |
 | T3 | +traces | Fluent Bit v5.1.1 | GREEN | 200 VU/app + 200 span/s | none |
 | T4 | +tail-sampling | Collector v0.159.0 | GREEN | 200 VU/app + 200 span/s | none |
-| T4 | +tail-sampling | Fluent Bit v5.1.1 (no-TS control) | GREEN | 200 VU/app + 200 span/s | none |
+| T4 | +tail-sampling | Fluent Bit v5.1.1 (ran without sampling — provisional, see erratum) | GREEN | 200 VU/app + 200 span/s | none |
 
 Each tier's consolidated per-engine ramp-up + soak KPIs are in `tiers/tierN/tierN-comparison.md`.
 
@@ -77,7 +77,7 @@ Fluent Bit v5's `sampling` processor supports tail sampling too, so Tier 4 is be
 | **T3** | +traces | Collector v0.159.0 | PASS 0-restart (26h) | logs+metrics+traces @200 span/s (gRPC :4317) | **~180 m** (5-pod) | ~337 MiB (5-pod, tail-flat) | 0.011% backend-failed | see note |
 | **T3** | +traces | Fluent Bit v5.1.1 | PASS 0-restart (26h) | logs+metrics+traces @200 span/s (HTTP :4318) | **~100 m** (5-pod) | **~200 MiB** (5-pod, tail-flat) | **NONE (0 dropped)** | see note |
 | **T4** | +tail-sampling | Collector v0.159.0 | PASS 0-restart | logs+metrics+traces @200 span/s (gRPC :4317) + tail_sampling | **~165 m** (5-pod) | **~413 MiB** (5-pod, tail-flat +0.00%) | <=0.005% refused+failed | see note |
-| **T4** | +tail-sampling | Fluent Bit v5.1.1 (no-TS control) | PASS 0-restart | logs+metrics+traces @200 span/s (HTTP :4318), no TS stage | **~143 m** (5-pod) | **~198 MiB** (5-pod, tail-flat +1.81%) | **NONE (0 dropped)** | see note |
+| **T4** | +tail-sampling | Fluent Bit v5.1.1 (ran without sampling — provisional, see erratum) | PASS 0-restart | logs+metrics+traces @200 span/s (HTTP :4318), no sampling stage — provisional | **~143 m** (5-pod) | **~198 MiB** (5-pod, tail-flat +1.81%) | **NONE (0 dropped)** | see note |
 
 **Note (T2 CPU):** both arms captured a memory plateau (the leak readout) but a symmetric
 per-pod CPU snapshot was only taken on the Fluent Bit arm, so the T2 cost/1M line is not
@@ -115,18 +115,18 @@ verdict purely on the fan-out artifact — so the trace-tier cost finding is car
   Bit's trace input is **HTTP :4318 only** (no gRPC), vs the collector's native gRPC :4317;
   (2) the collector's trace pod ran heaviest of its components — the one place its richer
   pipeline is competitive on the trace arm specifically.
-- **+tail-sampling (T3 -> T4):** **collector-only stage, and the most expensive single add of
-  the ladder.** The tail-sampling processor (keep-errors OR 30% probabilistic non-health,
-  `decision_wait=10s`, `num_traces=100000`) is a **stateful** stage that buffers trace
-  windows before deciding. Cost on the collector: the trace pod goes **53 MiB -> 152 MiB
-  (~2.9x)** vs its T3 no-TS shape, pushing the 5-pod aggregate to **~413 MiB** (+76 MiB ~= the
-  tail-sampling add) while total CPU stays roughly flat (~165 m). The decision buffer rode its
-  `num_traces=100000` cap the whole soak — sized at the limit, not beyond it, and still
-  tail-flat (+0.00%, the flattest run of the whole benchmark). Fluent Bit has no equivalent;
-  its T4 control arm is its T3 shape plus soak drift (~198 MiB, +1.81%, still tail-flat, 0
-  dropped). **Verdict: tail sampling costs the collector ~2.9x trace-pod memory (~76 MiB per
-  pipeline, ~+23% of the 5-pod aggregate); Fluent Bit cannot do it at all** — if you need
-  in-pipeline tail sampling, that capability premium is what you pay.
+- **+tail-sampling (T3 -> T4):** ⚠️ *superseded — see the erratum at the top; a like-for-like
+  re-run with both engines sampling is in progress.* **Both engines support in-pipeline tail
+  sampling** (collector `tail_sampling`; Fluent Bit v5 `sampling` `type: tail`). In this first
+  pass only the collector arm was configured with a sampling stage, so the cross-engine T4
+  numbers below are **not** like-for-like and are being re-run. The one figure that is valid
+  as a collector self-measurement: turning on the collector's `tail_sampling` (keep-errors OR
+  30% probabilistic non-health, `decision_wait=10s`, `num_traces=100000` — a **stateful** stage
+  that buffers trace windows) moved its trace pod **53 MiB -> 152 MiB (~2.9x)**, pushing the
+  5-pod aggregate to **~413 MiB** (+76 MiB) at roughly flat CPU (~165 m), still tail-flat
+  (+0.00%). The Fluent Bit arm here ran **without** its sampling processor, so its ~198 MiB is a
+  no-sampling figure, not the tail-sampling comparison. **The tail-sampling verdict is deferred
+  to the re-run.**
 
 ---
 
@@ -151,20 +151,20 @@ drop-summary). Full table: `tiers/tier2/tier2-comparison.md`.
   (~41% mem, ~44% CPU) **with zero loss**; collector had small non-zero loss (0.011%
   backend-failed). Trace ingress differs by design (Fluent Bit HTTP :4318-only vs collector
   gRPC :4317) — a deployment choice, not a perf gap.
-- **T4 (+tail-sampling):** both arms PASS, 26 h+ census-clean, both tail-flat (collector
-  +0.00% — flattest of the benchmark; Fluent Bit control +1.81%). **Fluent Bit lighter
-  overall** (~198 MiB vs ~413 MiB 5-pod; CPU ~143 m vs ~165 m) with **zero loss**. **But T4
-  is the capability tier:** only the collector can tail-sample in-pipeline, and that
-  capability costs ~2.9x trace-pod memory with the decision buffer pinned at its 100k-trace cap.
-- **Cross-tier final ranking (T1–T4):** Fluent Bit v5 is consistently the lighter engine —
-  logs (~5x mem), logs+metrics (~11x mem on the metrics arm), logs+metrics+traces (~41% mem /
-  ~44% CPU), and the T4 control (~2.1x mem). **The ranking is stable across the whole ladder:
-  Fluent Bit stays lighter at every tier.** No memory leak in either engine at any tier
-  (tail-flat everywhere, <=1.81% drift). Fluent Bit hit the backend with **zero loss at every
-  tier**; the collector was loss-free through T2 and had a small non-zero loss at T3/T4
-  (<=0.011% backend-failed / <=0.005% refused+failed). **Capability differentiator:** native
-  gRPC trace ingress, per-datapoint metrics, and in-pipeline tail sampling are collector-only
-  — the tail-sampling premium (~+76 MiB/pipeline) is the price of that stage.
+- **T4 (+tail-sampling):** ⚠️ *superseded — see the erratum at the top.* Both engines support
+  in-pipeline tail sampling, but in this first pass the Fluent Bit arm was run without its
+  sampling processor, so the T4 cross-engine numbers are **not** a like-for-like comparison and
+  are being re-run with both engines sampling. What is valid here: both arms soaked
+  census-clean and tail-flat, and the collector's own `tail_sampling` stage cost it ~2.9x its
+  trace-pod memory (53 -> 152 MiB). **The Tier-4 verdict is deferred to the re-run.**
+- **Cross-tier ranking (T1–T3, final):** Fluent Bit v5 is consistently the lighter engine —
+  logs (~5x mem), logs+metrics (~11x mem on the metrics arm), and logs+metrics+traces (~41% mem
+  / ~44% CPU). **The ranking is stable across Tiers 1–3: Fluent Bit stays lighter at every
+  tier**, with no memory leak in either engine (tail-flat everywhere, <=1.81% drift) and zero
+  loss on the Fluent Bit side; the collector was loss-free through T2 with small non-zero loss
+  at T3 (<=0.011% backend-failed). **Remaining collector-leaning capabilities:** native gRPC
+  trace ingress and per-datapoint metrics. *(Tier 4's tail-sampling comparison is pending the
+  like-for-like re-run — see the erratum.)*
 
 ---
 
