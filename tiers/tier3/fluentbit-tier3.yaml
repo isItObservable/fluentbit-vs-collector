@@ -1,0 +1,310 @@
+# Tier 3 (LOGS + METRICS + TRACES, NO tail sampling) — ARM 2 = Fluent Bit v5.1.1.
+# SERIAL SINGLE-ENGINE (serial single-engine): deployed AFTER the collector arm is fully torn down.
+# Tier delta vs Tier 2 = ADD a TRACES pipeline (opentelemetry INPUT receiver -> DT traces
+# OUTPUT). Logs DaemonSet + metrics StatefulSet held IDENTICAL to Tier-2 (only the tier tag
+# is bumped to tier3). Frozen pins held: FB v5.1.1 / Kepler 0.8.0 (no-drift rule).
+#
+# ⚠️ FB-ARM LAUNCH VALIDATION ITEM (resolve at ARM-2 deploy, ~T+26h): the shared harness
+# run-profile.sh points telemetrygen at bench-fluentbit-otlp:4317 over gRPC (--otlp-insecure).
+# Fluent Bit's `opentelemetry` INPUT is OTLP/HTTP-first. If gRPC ingest does not bind on
+# v5.1.1, launch the FB traces load with telemetrygen `--otlp-http` against port 4318
+# (Service also exposes 4318). Confirm span ingest via fluentbit_input_records_total on the
+# traces pod BEFORE starting the FB 2h gate. This is the clean NO-tail-sampling control vs
+# Tier 4's collector tailsampling arm.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-fluentbit
+  labels:
+    oneagent: "false"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bench-fluentbit
+  namespace: bench-fluentbit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bench-fluentbit
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes", "nodes/proxy"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bench-fluentbit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bench-fluentbit
+subjects:
+  - kind: ServiceAccount
+    name: bench-fluentbit
+    namespace: bench-fluentbit
+---
+# --- LOGS pipeline config (DaemonSet) — identical to Tier-2, tier tag -> tier3 ------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-fluentbit-logs-config
+  namespace: bench-fluentbit
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush 5
+        Log_Level info
+        Daemon off
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        storage.metrics On
+
+    [INPUT]
+        Name tail
+        Tag kube.*
+        Path /var/log/containers/*.log
+        Exclude_Path /var/log/containers/*bench-fluentbit*.log
+        multiline.parser cri
+        Read_from_Head false
+        Skip_Long_Lines On
+        Refresh_Interval 5
+
+    [FILTER]
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+        Buffer_Size 1M
+
+    [FILTER]
+        Name record_modifier
+        Match kube.*
+        Record test.type tier3
+        Record benchmark.tier tier3-logs-metrics-traces
+        Record benchmark.engine fluentbit
+        Record k8s.cluster.name benchmark-cluster
+
+    [OUTPUT]
+        Name opentelemetry
+        Match kube.*
+        Host YOUR_TENANT.live.dynatrace.com
+        Port 443
+        Logs_URI /api/v2/otlp/v1/logs
+        TLS On
+        TLS.Verify On
+        Header Authorization Api-Token ${DT_API_TOKEN}
+        Retry_Limit False
+---
+# --- METRICS pipeline config (StatefulSet) — identical to Tier-2, tier tag -> tier3 ------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-fluentbit-metrics-config
+  namespace: bench-fluentbit
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush 5
+        Log_Level info
+        Daemon off
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        storage.metrics On
+
+    [INPUT]
+        Name prometheus_scrape
+        Tag metrics.istiod
+        Host istiod.istio-system.svc.cluster.local
+        Port 15014
+        Metrics_Path /metrics
+        Scrape_Interval 15s
+        buffer_max_size 1M
+
+    [INPUT]
+        Name prometheus_scrape
+        Tag metrics.kepler
+        Host kepler.kepler.svc.cluster.local
+        Port 9102
+        Metrics_Path /metrics
+        Scrape_Interval 15s
+        buffer_max_size 1M
+
+    [OUTPUT]
+        Name opentelemetry
+        Match metrics.*
+        Host YOUR_TENANT.live.dynatrace.com
+        Port 443
+        Metrics_URI /api/v2/otlp/v1/metrics
+        TLS On
+        TLS.Verify On
+        Header Authorization Api-Token ${DT_API_TOKEN}
+        add_label test.type tier3
+        add_label benchmark.tier tier3-logs-metrics-traces
+        add_label benchmark.engine fluentbit
+        add_label k8s.cluster.name benchmark-cluster
+        Retry_Limit False
+---
+# --- TRACES pipeline config (Deployment) — TIER-3 DELTA ----------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-fluentbit-traces-config
+  namespace: bench-fluentbit
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush 5
+        Log_Level info
+        Daemon off
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        storage.metrics On
+
+    [INPUT]
+        Name opentelemetry
+        Tag otel.traces
+        Listen 0.0.0.0
+        Port 4318
+
+    [FILTER]
+        Name record_modifier
+        Match otel.*
+        Record test.type tier3
+        Record benchmark.tier tier3-logs-metrics-traces
+        Record benchmark.engine fluentbit
+        Record k8s.cluster.name benchmark-cluster
+
+    [OUTPUT]
+        Name opentelemetry
+        Match otel.*
+        Host YOUR_TENANT.live.dynatrace.com
+        Port 443
+        Traces_URI /api/v2/otlp/v1/traces
+        TLS On
+        TLS.Verify On
+        Header Authorization Api-Token ${DT_API_TOKEN}
+        Retry_Limit False
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bench-fluentbit-logs
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit-logs }
+spec:
+  selector:
+    matchLabels: { app: bench-fluentbit-logs }
+  template:
+    metadata:
+      labels: { app: bench-fluentbit-logs }
+    spec:
+      serviceAccountName: bench-fluentbit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:5.1.1
+          args: ["--config=/fluent-bit/etc/fluent-bit.conf"]
+          env:
+            - name: DT_API_TOKEN
+              valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
+          ports:
+            - { name: http, containerPort: 2020 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "2", memory: 512Mi }
+          volumeMounts:
+            - { name: config, mountPath: /fluent-bit/etc/ }
+            - { name: varlog, mountPath: /var/log, readOnly: true }
+            - { name: varlibdockercontainers, mountPath: /var/lib/docker/containers, readOnly: true }
+      volumes:
+        - name: config
+          configMap: { name: bench-fluentbit-logs-config }
+        - name: varlog
+          hostPath: { path: /var/log }
+        - name: varlibdockercontainers
+          hostPath: { path: /var/lib/docker/containers }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bench-fluentbit-metrics
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit-metrics }
+spec:
+  serviceName: bench-fluentbit-metrics
+  replicas: 1
+  selector:
+    matchLabels: { app: bench-fluentbit-metrics }
+  template:
+    metadata:
+      labels: { app: bench-fluentbit-metrics }
+    spec:
+      serviceAccountName: bench-fluentbit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:5.1.1
+          args: ["--config=/fluent-bit/etc/fluent-bit.conf"]
+          env:
+            - name: DT_API_TOKEN
+              valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
+          ports:
+            - { name: http, containerPort: 2020 }
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { cpu: "2", memory: 1Gi }
+          volumeMounts:
+            - { name: config, mountPath: /fluent-bit/etc/ }
+      volumes:
+        - name: config
+          configMap: { name: bench-fluentbit-metrics-config }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-fluentbit-traces
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit-otlp }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: bench-fluentbit-otlp }
+  template:
+    metadata:
+      labels: { app: bench-fluentbit-otlp }
+    spec:
+      serviceAccountName: bench-fluentbit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:5.1.1
+          args: ["--config=/fluent-bit/etc/fluent-bit.conf"]
+          env:
+            - name: DT_API_TOKEN
+              valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
+          ports:
+            - { name: http, containerPort: 2020 }
+            - { name: otlp-http, containerPort: 4318 }
+          resources:
+            requests: { cpu: 200m, memory: 128Mi }
+            limits: { cpu: "2", memory: 512Mi }
+          volumeMounts:
+            - { name: config, mountPath: /fluent-bit/etc/ }
+      volumes:
+        - name: config
+          configMap: { name: bench-fluentbit-traces-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-fluentbit-otlp
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit-otlp }
+spec:
+  selector: { app: bench-fluentbit-otlp }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4318 } # harness targets :4317; see FB-arm validation note above
+    - { name: otlp-http, port: 4318, targetPort: 4318 }

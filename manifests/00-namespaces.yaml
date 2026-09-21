@@ -1,0 +1,30 @@
+# isolated benchmark namespaces (one per engine-under-test).
+# CRITICAL : oneagent=false keeps the Dynatrace
+# OneAgent from injecting/wrapping the engine-under-test. the cluster's DynaKube
+# namespaceSelector is `oneagent NotIn [false]`, so WITHOUT this label OneAgent
+# would attach and pollute the CPU/mem measurement of the collector/FB pods.
+#
+# istio-injection is deliberately NOT enabled on the engine namespaces themselves:
+# the daemonset agents run at node level. The mesh path that reproduces the
+# The known Fluent Bit SIGSEGV is on the EXPORT hop to the backend over ztunnel — exercised by
+# routing FB/collector egress through the mesh in later tiers, not by sidecar-wrapping
+# the collector pod (which would re-introduce the OneAgent-style measurement bias).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-collector
+  labels:
+    oneagent: "false"
+    benchmark: fluentbit-vs-collector
+    engine: otel-collector-contrib
+    kubernetes.io/metadata.name: bench-collector
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-fluentbit
+  labels:
+    oneagent: "false"
+    benchmark: fluentbit-vs-collector
+    engine: fluent-bit
+    kubernetes.io/metadata.name: bench-fluentbit

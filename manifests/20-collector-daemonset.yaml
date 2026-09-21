@@ -1,0 +1,174 @@
+# Engine-under-test A: otel-collector-contrib v0.159.0 as a DAEMONSET.
+# (node-level log tail via filelog), #4 (scrape istio control-plane +
+# Kepler power metrics). Runs in bench-collector ns (oneagent=false → NO OneAgent
+# wrapping,/this step). Export target for the smoke is `debug` +
+# self-telemetry Prometheus (accepted==sent loss accounting, KPI toolkit);
+# the real backend OTLP exporter is wired per-tier in Tiers 1–4, not here.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bench-collector
+  namespace: bench-collector
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bench-collector
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes", "nodes/proxy", "endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "daemonsets", "deployments"]
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bench-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bench-collector
+subjects:
+  - kind: ServiceAccount
+    name: bench-collector
+    namespace: bench-collector
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-collector-config
+  namespace: bench-collector
+data:
+  config.yaml: |
+    receivers:
+      # node-level log tail (DaemonSet). Each pod reads its own node.
+      filelog:
+        include: [ /var/log/pods/*/*/*.log ]
+        exclude: [ /var/log/pods/bench-collector_*/*/*.log ] # don't tail self (feedback loop)
+        start_at: end
+        include_file_path: true
+        operators:
+          - type: container
+            id: container-parser
+      # scrape istio control-plane + Kepler power metrics.
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: istio-control-plane
+              scrape_interval: 15s
+              kubernetes_sd_configs: [ { role: pod, namespaces: { names: [ istio-system ] } } ]
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_number]
+                  action: keep
+                  regex: "15014" # istiod monitoring port
+            - job_name: kepler
+              scrape_interval: 15s
+              kubernetes_sd_configs: [ { role: pod, namespaces: { names: [ kepler ] } } ]
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_number]
+                  action: keep
+                  regex: "9102"
+      # traces from otel-demo + hipster-shop (OTLP). Apps repoint to
+      # the bench-collector-otlp Service (see Service below) per-arm (per-run).
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    processors:
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        extract:
+          metadata: [ k8s.namespace.name, k8s.pod.name, k8s.node.name, k8s.container.name ]
+      memory_limiter: # prior experience — bound the encoder/heap floor.
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 15
+      batch:
+        send_batch_size: 8192
+        timeout: 5s
+    exporters:
+      debug:
+        verbosity: basic
+        sampling_initial: 5
+        sampling_thereafter: 1000
+    service:
+      telemetry:
+        metrics:
+          level: detailed # exposes otelcol_receiver_accepted / _refused / exporter_sent — loss accounting
+          # v0.159.0 schema: `address` was REMOVED; use readers/pull prometheus exporter.
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 0.0.0.0
+                    port: 8888
+      pipelines:
+        logs:
+          receivers: [ filelog ]
+          processors: [ memory_limiter, k8sattributes, batch ]
+          exporters: [ debug ]
+        metrics:
+          receivers: [ prometheus ]
+          processors: [ memory_limiter, batch ]
+          exporters: [ debug ]
+        traces:
+          receivers: [ otlp ]
+          processors: [ memory_limiter, k8sattributes, batch ]
+          exporters: [ debug ]
+---
+# OTLP ingress Service for app traces (otel-demo + hipster-shop).
+# ClusterIP fronts the DaemonSet pods; apps set OTEL exporter endpoint to
+# bench-collector-otlp.bench-collector.svc.cluster.local:4317 for the collector arm.
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-collector-otlp
+  namespace: bench-collector
+  labels: { app: bench-collector }
+spec:
+  selector: { app: bench-collector }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bench-collector
+  namespace: bench-collector
+  labels: { app: bench-collector, engine: otel-collector-contrib }
+spec:
+  selector:
+    matchLabels: { app: bench-collector }
+  template:
+    metadata:
+      labels: { app: bench-collector, engine: otel-collector-contrib }
+    spec:
+      serviceAccountName: bench-collector
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.159.0
+          args: [ "--config=/conf/config.yaml" ]
+          env:
+            - name: K8S_NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+          ports:
+            - { name: metrics, containerPort: 8888 }
+            - { name: otlp-grpc, containerPort: 4317, hostPort: 4317 } # node-local ingress option
+            - { name: otlp-http, containerPort: 4318 }
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { memory: 512Mi } # hard cap for TAIL-flat leak readout
+          volumeMounts:
+            - { name: config, mountPath: /conf }
+            - { name: varlogpods, mountPath: /var/log/pods, readOnly: true }
+      volumes:
+        - name: config
+          configMap: { name: bench-collector-config }
+        - name: varlogpods
+          hostPath: { path: /var/log/pods }

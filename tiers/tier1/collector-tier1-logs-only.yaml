@@ -1,0 +1,57 @@
+# Tier 1 (LOGS ONLY) collector config — SERIAL SINGLE-ENGINE (serial single-engine methodology).
+# Design note 09-02: we do NOT run both engines side-by-side. One engine live at a
+# time; the engine EXPORTS real signal to Dynatrace and the validation gate = signal
+# RECEIVED IN DYNATRACE (+ pods healthy + traffic reaching app). So the logs pipeline
+# exports to DT via otlphttp AND to debug (local accepted==sent oracle for loss accounting).
+receivers:
+  filelog:
+    include: [ /var/log/pods/*/*/*.log ]
+    exclude: [ /var/log/pods/bench-collector_*/*/*.log ] # don't tail self (feedback loop)
+    start_at: end
+    include_file_path: true
+    operators:
+      - type: container
+        id: container-parser
+processors:
+  k8sattributes:
+    auth_type: serviceAccount
+    passthrough: false
+    extract:
+      metadata: [ k8s.namespace.name, k8s.pod.name, k8s.node.name, k8s.container.name ]
+  resource/ident:
+    attributes:
+      - { key: benchmark.tier, value: "tier1-logs", action: upsert }
+      - { key: benchmark.engine, value: "collector", action: upsert }
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 15
+  batch:
+    send_batch_size: 8192
+    timeout: 5s
+exporters:
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 1000
+  # validation path: export logs to Dynatrace (Grail). Token via env from secret dt-otlp.
+  otlphttp/dynatrace:
+    logs_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/logs
+    headers:
+      Authorization: "Api-Token ${env:DT_API_TOKEN}"
+    retry_on_failure: { enabled: true }
+service:
+  telemetry:
+    metrics:
+      level: detailed # otelcol_receiver_accepted / _refused / exporter_sent — loss accounting
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+  pipelines:
+    logs:
+      receivers: [ filelog ]
+      processors: [ memory_limiter, k8sattributes, resource/ident, batch ]
+      exporters: [ debug, otlphttp/dynatrace ]

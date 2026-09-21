@@ -1,0 +1,82 @@
+# stable-load harness (telemetrygen).
+# Fixed-rate generators for logs/metrics/traces. Two profiles are driven by
+#./run-profile.sh (2h-rampup gate, 24h-stable soak) which sets DURATION + rate.
+#
+# ⭐ Note: use STANDARD telemetrygen framing over the real Istio mesh —
+# do NOT use slowloris-style framing (trips the safety guard AND is not the
+# real FB failure path). The real Fluent Bit HTTP/2 SIGSEGV needs the normal mesh HTTP/2
+# path + multi-hour duration, which the 24h-stable profile provides.
+# ⭐ Note: telemetrygen pods run in ns `bench-load` (oneagent=false) so the
+# generator itself is not OneAgent-wrapped. Targets are the two engine OTLP endpoints.
+#
+# ENDPOINT is templated per engine arm by run-profile.sh:
+# collector arm → bench-collector otlp svc :4317
+# fluentbit arm → bench-fluentbit otlp svc :4317 (traces only; FB logs come from tail)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-load
+  labels: { oneagent: "false" }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgen-traces
+  namespace: bench-load
+  labels: { app: tgen-traces, role: harness }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: tgen-traces } }
+  template:
+    metadata:
+      labels: { app: tgen-traces, role: harness }
+    spec:
+      containers:
+        - name: telemetrygen
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.159.0
+          args:
+            - traces
+            - --otlp-endpoint=$(OTLP_ENDPOINT)
+            - --otlp-insecure
+            - --rate=$(RATE) # spans/sec — set by run-profile.sh
+            - --duration=$(DURATION) # e.g. 2h / 24h
+            - --workers=4
+            - --service=bench-traces-gen
+          env:
+            - { name: OTLP_ENDPOINT, value: "PLACEHOLDER:4317" }
+            - { name: RATE, value: "200" }
+            - { name: DURATION, value: "2h" }
+          resources:
+            requests: { cpu: 200m, memory: 128Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgen-metrics
+  namespace: bench-load
+  labels: { app: tgen-metrics, role: harness }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: tgen-metrics } }
+  template:
+    metadata:
+      labels: { app: tgen-metrics, role: harness }
+    spec:
+      containers:
+        - name: telemetrygen
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.159.0
+          args:
+            - metrics
+            - --otlp-endpoint=$(OTLP_ENDPOINT)
+            - --otlp-insecure
+            - --rate=$(RATE)
+            - --duration=$(DURATION)
+            - --metrics=10
+          env:
+            - { name: OTLP_ENDPOINT, value: "PLACEHOLDER:4317" }
+            - { name: RATE, value: "100" }
+            - { name: DURATION, value: "2h" }
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { memory: 128Mi }
