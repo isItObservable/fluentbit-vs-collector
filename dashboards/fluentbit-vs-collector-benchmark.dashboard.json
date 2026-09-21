@@ -1,0 +1,252 @@
+{
+  "name": "Fluent Bit v5 vs OTel Collector \u2014 Progressive Signal Benchmark",
+  "type": "dashboard",
+  "content": {
+    "version": 21,
+    "variables": [
+      {
+        "version": 3,
+        "key": "K8sCluster",
+        "name": "K8sCluster",
+        "type": "csv",
+        "visible": true,
+        "editable": true,
+        "input": "*",
+        "multiple": false
+      },
+      {
+        "version": 3,
+        "key": "collector",
+        "name": "collector",
+        "type": "csv",
+        "visible": true,
+        "editable": true,
+        "input": "2026-09-16T09:00:00Z",
+        "multiple": false
+      },
+      {
+        "version": 3,
+        "key": "fluentbit",
+        "name": "fluentbit",
+        "type": "csv",
+        "visible": true,
+        "editable": true,
+        "input": "2026-09-17T17:00:00Z",
+        "multiple": false
+      },
+      {
+        "version": 3,
+        "key": "Duration",
+        "name": "Duration",
+        "type": "csv",
+        "visible": true,
+        "editable": true,
+        "input": "2",
+        "multiple": false
+      }
+    ],
+    "tiles": {
+      "title": {
+        "type": "markdown",
+        "content": "# Fluent Bit v5 vs OpenTelemetry Collector \u2014 Progressive Signal Benchmark"
+      },
+      "intro": {
+        "type": "markdown",
+        "content": "A like-for-like benchmark of **Fluent Bit v5.1.1** vs **OpenTelemetry Collector-contrib v0.159.0**, stacking one telemetry signal at a time \u2014 **logs \u2192 +metrics \u2192 +traces \u2192 +tail-sampling** \u2014 so each tier's delta is the *incremental cost of the added signal*. Each engine ran serially (one live at a time, exporting real signals to Dynatrace) through a **2 h rampup validity gate \u2192 24 h+ soak**, on an Istio 1.29 cluster under otel-demo + hipster-shop load.\n\n**Headline:** Fluent Bit is the lighter engine at **every** tier \u2014 ~5\u00d7 lighter memory on logs, ~11\u00d7 on the metrics arm, ~41% lighter memory / ~44% lighter CPU at the full signal set \u2014 with **zero loss** throughout. The Collector is the *capability* engine: native gRPC trace ingress, per-datapoint metrics, and **in-pipeline tail sampling** (Tier 4) are Collector-only. No memory leak in either engine at any tier (all runs tail-flat, \u22641.81% drift)."
+      },
+      "sec_soak": {
+        "type": "markdown",
+        "content": "## \ud83d\udcca Soak results \u2014 24 h steady state (per tier, per engine)"
+      },
+      "summary": {
+        "title": "Per-tier, per-engine summary (working-set CPU & memory, matched load)",
+        "type": "data",
+        "query": "data record(tier=\"T1\", signal=\"logs\", engine=\"Fluent Bit v5\", cpu=\"94 m\", mem=\"37 MiB\", loss=\"none\", cost_mc_1M=\"2,079\"), record(tier=\"T1\", signal=\"logs\", engine=\"OTel Collector\", cpu=\"135 m\", mem=\"184 MiB\", loss=\"none\", cost_mc_1M=\"2,964\"), record(tier=\"T2\", signal=\"+metrics\", engine=\"Fluent Bit v5\", cpu=\"~92 m (logs)\", mem=\"7 MiB (metrics arm)\", loss=\"none\", cost_mc_1M=\"see mem delta\"), record(tier=\"T2\", signal=\"+metrics\", engine=\"OTel Collector\", cpu=\"n/a (not snapshotted)\", mem=\"78 MiB (metrics arm)\", loss=\"none\", cost_mc_1M=\"see mem delta\"), record(tier=\"T3\", signal=\"+traces\", engine=\"Fluent Bit v5\", cpu=\"~100 m\", mem=\"~200 MiB\", loss=\"none (0 dropped)\", cost_mc_1M=\"n/a (see note)\"), record(tier=\"T3\", signal=\"+traces\", engine=\"OTel Collector\", cpu=\"~180 m\", mem=\"~337 MiB\", loss=\"0.011% DT-failed\", cost_mc_1M=\"n/a (see note)\"), record(tier=\"T4\", signal=\"+tail-sampling\", engine=\"Fluent Bit v5 (no-TS control)\", cpu=\"~143 m\", mem=\"~198 MiB\", loss=\"none (0 dropped)\", cost_mc_1M=\"n/a\"), record(tier=\"T4\", signal=\"+tail-sampling\", engine=\"OTel Collector\", cpu=\"~165 m\", mem=\"~413 MiB\", loss=\"\u22640.005% refused+failed\", cost_mc_1M=\"n/a\") | fields tier, signal, engine, cpu, mem, loss, cost_mc_1M",
+        "visualization": "table",
+        "visualizationSettings": {}
+      },
+      "mem_bar": {
+        "title": "Memory at full signal stack (Tier 4, 5-pod aggregate, MiB) \u2014 lower = lighter",
+        "type": "data",
+        "query": "data record(engine=\"Fluent Bit v5 (no-TS)\", memory_MiB=198), record(engine=\"OTel Collector\", memory_MiB=413)",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {}
+      },
+      "cpu_bar": {
+        "title": "CPU at full signal stack (Tier 4, 5-pod aggregate, mCores) \u2014 lower = cheaper",
+        "type": "data",
+        "query": "data record(engine=\"Fluent Bit v5\", cpu_mCores=143), record(engine=\"OTel Collector\", cpu_mCores=165)",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {}
+      },
+      "cost_bar": {
+        "title": "Efficiency \u2014 CPU cost per 1M records, logs tier (T1, lower = cheaper)",
+        "type": "data",
+        "query": "data record(engine=\"Fluent Bit v5\", mc_per_1M_records=2079), record(engine=\"OTel Collector\", mc_per_1M_records=2964)",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {}
+      },
+      "loss_tbl": {
+        "title": "Data loss & census \u2014 both engines 0-restart every tier",
+        "type": "data",
+        "query": "data record(tier=\"T1 logs\", collector=\"none\", fluent_bit=\"none\"), record(tier=\"T2 +metrics\", collector=\"none\", fluent_bit=\"none\"), record(tier=\"T3 +traces\", collector=\"0.011% DT-failed\", fluent_bit=\"0 dropped\"), record(tier=\"T4 +tail-sampling\", collector=\"<=0.005% refused+failed\", fluent_bit=\"0 dropped\") | fields tier, collector, fluent_bit",
+        "visualization": "table",
+        "visualizationSettings": {}
+      },
+      "narrative": {
+        "type": "markdown",
+        "content": "### Incremental cost of each added signal\n- **Logs (T1):** both cheap & leak-free over 24\u201326 h. Fluent Bit ~30% lower CPU, ~5\u00d7 lower memory, ~30% lower cost/1M at matched ~755 rec/s.\n- **+metrics (T1\u2192T2):** a high-cardinality istiod-CP + Kepler scrape on a dedicated metrics StatefulSet. Widest gap of the ladder: Collector metrics pipeline ~**78 MiB** tail-flat vs Fluent Bit ~**7 MiB / 2 m** \u2014 **~11\u00d7 memory advantage** for Fluent Bit. Neither leaks under the Kepler stressor.\n- **+traces (T2\u2192T3):** OTLP trace path on a dedicated traces workload. Fluent Bit holds its lead \u2014 ~200 MiB vs ~337 MiB, ~100 m vs ~180 m CPU \u2014 with **zero dropped** vs the Collector's small non-zero loss (0.011% DT-failed). Trace ingress differs by design (FB HTTP :4318 only vs Collector gRPC :4317).\n- **+tail-sampling (T3\u2192T4):** **Collector-only, most expensive single add.** The stateful tailsampling processor (keep-errors OR 30% probabilistic non-health, decision_wait 10 s, num_traces 100k) pushes the traces pod **53 \u2192 152 MiB (~2.9\u00d7)** \u2014 the price of a capability Fluent Bit does not have."
+      },
+      "ts_tbl": {
+        "title": "Tier 4 \u2014 the tail-sampling capability premium (Collector-only)",
+        "type": "data",
+        "query": "data record(metric=\"Traces-pod memory \u2014 T3 (no tail sampling)\", value=\"53 MiB\"), record(metric=\"Traces-pod memory \u2014 T4 (tail sampling on)\", value=\"152 MiB\"), record(metric=\"Tail-sampling memory premium (per pipeline)\", value=\"~2.9x (+~99 MiB)\"), record(metric=\"5-pod aggregate delta T3->T4\", value=\"+76 MiB (~+23%)\"), record(metric=\"Fluent Bit in-pipeline tail sampling\", value=\"not available\") | fields metric, value",
+        "visualization": "table",
+        "visualizationSettings": {}
+      },
+      "ts_md": {
+        "type": "markdown",
+        "content": "### \ud83c\udfaf The capability tier\nTier 4 is where the two engines stop being comparable on cost alone. **Only the Collector can tail-sample in-pipeline.** That stage is *stateful* \u2014 it buffers trace windows before deciding \u2014 so it costs memory: the traces pod grows **~2.9\u00d7** and the decision buffer rides its 100k-trace cap the whole soak (still tail-flat at **+0.00%**, the flattest run of the benchmark).\n\nFluent Bit's Tier-4 arm is a **no-tail-sampling control**: it keeps its lightness (~198 MiB, 0 dropped) but cannot make the keep/drop decision at all. **If you need in-pipeline tail sampling, the ~+76 MiB / pipeline premium is what you pay for it.**"
+      },
+      "sec_live": {
+        "type": "markdown",
+        "content": "## \ud83d\udcc8 Rampup \u2192 soak \u2014 live Dynatrace time-series (real Grail data)\nOverlaid from each engine's actual Tier-4 run window, aligned by relative interval (the OTAP-benchmark compare technique). Default window = the **2 h rampup**; widen the **Duration** variable (hours) to view into the soak. `avg` = per-container mean across the engine's workloads; the tables above carry the authoritative multi-pod totals."
+      },
+      "live_cpu": {
+        "title": "CPU during the run \u2014 Collector vs Fluent Bit (avg container mCores)",
+        "type": "data",
+        "query": "timeseries base=avg(dt.kubernetes.container.cpu_usage), filter:{ matchesValue(k8s.cluster.name,$K8sCluster) and matchesValue(k8s.workload.name,\"bench-collector-*\") }, from:toTimestamp($collector), to:toTimestamp($collector)+duration(toLong($Duration),unit:\"h\"), interval:5m | fieldsAdd collector=base[] | fieldsRemove base\n| lookup [ timeseries r=avg(dt.kubernetes.container.cpu_usage), filter:{ matchesValue(k8s.cluster.name,$K8sCluster) and matchesValue(k8s.workload.name,\"bench-fluentbit-*\") }, from:toTimestamp($fluentbit), to:toTimestamp($fluentbit)+duration(toLong($Duration),unit:\"h\"), interval:5m | fieldsAdd fluentbit=r[] | fieldsRemove r ], sourceField:interval, lookupField:interval, fields:{fluentbit}",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "fieldMapping": {
+              "leftAxisValues": [
+                "collector",
+                "fluentbit"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "xAxisScaling": "auto"
+          }
+        }
+      },
+      "live_mem": {
+        "title": "Memory working-set during the run \u2014 Collector vs Fluent Bit (avg container MiB)",
+        "type": "data",
+        "query": "timeseries base=avg(dt.kubernetes.container.memory_working_set), filter:{ matchesValue(k8s.cluster.name,$K8sCluster) and matchesValue(k8s.workload.name,\"bench-collector-*\") }, from:toTimestamp($collector), to:toTimestamp($collector)+duration(toLong($Duration),unit:\"h\"), interval:5m | fieldsAdd collector=base[]/1048576 | fieldsRemove base\n| lookup [ timeseries r=avg(dt.kubernetes.container.memory_working_set), filter:{ matchesValue(k8s.cluster.name,$K8sCluster) and matchesValue(k8s.workload.name,\"bench-fluentbit-*\") }, from:toTimestamp($fluentbit), to:toTimestamp($fluentbit)+duration(toLong($Duration),unit:\"h\"), interval:5m | fieldsAdd fluentbit=r[]/1048576 | fieldsRemove r ], sourceField:interval, lookupField:interval, fields:{fluentbit}",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "fieldMapping": {
+              "leftAxisValues": [
+                "collector",
+                "fluentbit"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "xAxisScaling": "auto"
+          }
+        }
+      },
+      "footer": {
+        "type": "markdown",
+        "content": "### Reproduce this benchmark\nEngine pins, pipeline configs (both engines, all four tiers), the load harness, and the full step-by-step run guide (2 h rampup \u2192 24 h soak) are in the repository. Methodology follows the serial single-engine pattern: deploy one engine \u2192 validate signal received + census 0-restart + load reaching the app \u2192 rampup gate \u2192 soak \u2192 tear down \u2192 next engine."
+      }
+    },
+    "layouts": {
+      "title": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "intro": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 4
+      },
+      "sec_soak": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "summary": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 9
+      },
+      "mem_bar": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "cpu_bar": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "cost_bar": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "loss_tbl": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "narrative": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 9
+      },
+      "ts_tbl": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 7
+      },
+      "ts_md": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 7
+      },
+      "sec_live": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 2
+      },
+      "live_cpu": {
+        "x": 0,
+        "y": 49,
+        "w": 24,
+        "h": 8
+      },
+      "live_mem": {
+        "x": 0,
+        "y": 57,
+        "w": 24,
+        "h": 8
+      },
+      "footer": {
+        "x": 0,
+        "y": 65,
+        "w": 24,
+        "h": 4
+      }
+    },
+    "settings": {}
+  }
+}
