@@ -21,8 +21,9 @@ A/B/C rather than three sequential cluster rebuilds.
 > **Companion benchmark in this repo:** a separate, progressive **signal-stacking**
 > benchmark compares the latest **OpenTelemetry Collector `v0.159.0`** against **Fluent Bit
 > `v5.1.1`** across four tiers — **logs → +metrics → +traces → +tail-sampling** — each with a
-> 2-hour ramp-up gate and a 24-hour soak. See [`docs/RESULTS.md`](./docs/RESULTS.md) for the
-> results and [`docs/RERUN-GUIDE.md`](./docs/RERUN-GUIDE.md) to reproduce it.
+> 2-hour ramp-up gate and a 24-hour soak. See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+> for how it's built, [`docs/RESULTS.md`](./docs/RESULTS.md) for the results, and
+> [`docs/RERUN-GUIDE.md`](./docs/RERUN-GUIDE.md) to reproduce it.
 
 ## Methodology (kept comparable to the v4 run)
 

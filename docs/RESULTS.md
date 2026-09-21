@@ -46,7 +46,7 @@ with no loss, and load reached the apps. No arm was allowed into a soak without 
 | T4 | +tail-sampling | Collector v0.159.0 | GREEN | 200 VU/app + 200 span/s | none |
 | T4 | +tail-sampling | Fluent Bit v5.1.1 (no-TS control) | GREEN | 200 VU/app + 200 span/s | none |
 
-Detailed per-arm gate readouts live under `tiers/tierN/tierN-*-2h-gate.md`.
+Each tier's consolidated per-engine ramp-up + soak KPIs are in `tiers/tierN/tierN-comparison.md`.
 
 ---
 
@@ -175,12 +175,10 @@ Two views are provided to match how the runs were actually monitored:
 
 ## 7. Provenance (source data)
 
-- **T1 (logs):** `tiers/tier1/tier1-comparison.md` (+ raw `tier1-collector-results.md`,
-  `tier1-fluentbit-results.md`).
-- **T2 (logs+metrics):** `tiers/tier2/tier2-comparison.md` (+ `tier2-fluentbit-results.md`).
-- **T3 (+traces):** `tiers/tier3/tier3-comparison.md` (+ `tier3-collector-results.md`,
-  `tier3-collector-2h-gate.md`, arm readouts).
-- **T4 (+tail-sampling):** `tiers/tier4/tier4-collector-results.md` +
-  `tiers/tier4/tier4-fluentbit-results.md`. Configs: `tiers/tier4/collector-tier4.yaml`
-  (T3 + tail_sampling) / `tiers/tier4/fluentbit-tier4.yaml`.
-- Version pins: `VERSIONS.md`.
+Each tier's per-engine comparison table:
+
+- **T1 (logs):** `tiers/tier1/tier1-comparison.md` · configs `tiers/tier1/collector-tier1-logs-only.yaml`, `tiers/tier1/fluentbit-tier1-logs-only.conf`
+- **T2 (logs+metrics):** `tiers/tier2/tier2-comparison.md` (metrics pipelines wired in `manifests/20-collector-daemonset.yaml` / `manifests/30-fluentbit-daemonset.yaml`)
+- **T3 (+traces):** `tiers/tier3/tier3-comparison.md` · configs `tiers/tier3/collector-tier3.yaml`, `tiers/tier3/fluentbit-tier3.yaml`
+- **T4 (+tail-sampling):** `tiers/tier4/tier4-comparison.md` · configs `tiers/tier4/collector-tier4.yaml` (T3 + `tail_sampling`), `tiers/tier4/fluentbit-tier4.yaml`
+- Version pins: `../VERSIONS.md`. Architecture: `ARCHITECTURE.md`. Reproduce: `RERUN-GUIDE.md`.
