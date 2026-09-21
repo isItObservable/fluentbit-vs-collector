@@ -33,12 +33,12 @@ configs are in [`../tiers/`](../tiers/).
 | **1** | logs | node log tail | baseline footprint |
 | **2** | + metrics | istiod + Kepler high-cardinality scrape | widest engine gap (metrics pipeline) |
 | **3** | + traces | OTLP trace path @200 span/s | full three-signal footprint |
-| **4** | + tail sampling | `tail_sampling` processor (**collector only**) | Fluent Bit runs the Tier-3 shape as the no-TS control |
+| **4** | + tail sampling | collector `tail_sampling` processor **and** Fluent Bit `sampling` (`type: tail`) processor | like-for-like tail-sampling comparison (both engines) — *re-run in progress* |
 
 Because each tier only *adds* to the tier below it, the row-to-row delta is the **incremental
-cost of the added signal**. Tail sampling is collector-only by design (Fluent Bit has no
-equivalent in-pipeline stage), so Tier 4 measures a *capability premium*, not a like-for-like
-race.
+cost of the added signal**. Both engines support in-pipeline tail sampling (collector
+`tail_sampling`; Fluent Bit v5 `sampling` `type: tail`), so Tier 4 is a like-for-like
+tail-sampling comparison, not a capability premium.
 
 ## How a run is executed
 

@@ -1,5 +1,14 @@
 # Results — OpenTelemetry Collector vs Fluent Bit v5
 
+> ⚠️ **ERRATUM / REVISION IN PROGRESS (Tier 4).** An earlier version of this page stated that
+> tail sampling is *collector-only* and that Fluent Bit has no equivalent in-pipeline stage.
+> **That is incorrect.** Fluent Bit v5 ships a [`sampling` processor](https://docs.fluentbit.io/manual/data-pipeline/processors/sampling)
+> that supports **tail sampling** (`type: tail`, with latency / span-count / status-code /
+> attribute policies) and a [`cumulative_to_delta` processor](https://docs.fluentbit.io/manual/data-pipeline/processors/cumulative-to-delta).
+> Tier 4 is therefore being **re-run as a like-for-like tail-sampling comparison** (both engines
+> sampling), replacing the "collector-only capability premium" framing below. The Tier 4 numbers
+> and verdict in this doc are **superseded pending that re-run**; Tiers 1–3 are unaffected.
+
 A progressive, signal-stacking benchmark comparing the **OpenTelemetry Collector**
 (`contrib v0.159.0`) against **Fluent Bit v5** (`v5.1.1`) as node-level telemetry agents.
 Each tier adds one signal on top of the previous one — **logs → +metrics → +traces →
@@ -54,9 +63,10 @@ Each tier's consolidated per-engine ramp-up + soak KPIs are in `tiers/tierN/tier
 
 Each arm soaked for 24 h+ at 50 VU/app. The **memory** column is the tail-flat leak check:
 we compare the mid-third average against the tail-third average — a flat tail means no leak
-or floor-creep. Tail sampling is **collector-only by design** (Fluent Bit has no equivalent
-in-pipeline stage), so at Tier 4 Fluent Bit runs the same trace pipeline as Tier 3 and acts
-as the no-tail-sampling control.
+or floor-creep. **Tier 4 tail-sampling note (under revision):** the original run configured tail
+sampling only on the collector and ran Fluent Bit as a no-sampling control. That was a mistake —
+Fluent Bit v5's `sampling` processor supports tail sampling too, so Tier 4 is being re-run with
+**both** engines tail-sampling for a true like-for-like comparison (see the erratum at the top).
 
 | Tier | Signals | Engine | Census | Ingest (matched load) | CPU (working-set) | Memory (tail-flat) | Loss | Cost/1M |
 |------|---------|--------|--------|-----------------------|-------------------|--------------------|------|---------|
