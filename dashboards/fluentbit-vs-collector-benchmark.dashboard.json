@@ -52,7 +52,7 @@
       },
       "intro": {
         "type": "markdown",
-        "content": "A like-for-like benchmark of **Fluent Bit v5.1.1** vs **OpenTelemetry Collector-contrib v0.159.0**, stacking one telemetry signal at a time \u2014 **logs \u2192 +metrics \u2192 +traces \u2192 +tail-sampling** \u2014 so each tier's delta is the *incremental cost of the added signal*. Each engine ran serially (one live at a time, exporting real signals to Dynatrace) through a **2 h rampup validity gate \u2192 24 h+ soak**, on an Istio 1.29 cluster under otel-demo + hipster-shop load.\n\n**Headline:** Fluent Bit is the lighter engine at **every** tier \u2014 ~5\u00d7 lighter memory on logs, ~11\u00d7 on the metrics arm, ~41% lighter memory / ~44% lighter CPU at the full signal set \u2014 with **zero loss** throughout. The Collector is the *capability* engine: native gRPC trace ingress, per-datapoint metrics, and **in-pipeline tail sampling** (Tier 4) are Collector-only. No memory leak in either engine at any tier (all runs tail-flat, \u22641.81% drift)."
+        "content": "A like-for-like benchmark of **Fluent Bit v5.1.1** vs **OpenTelemetry Collector-contrib v0.159.0**, stacking one telemetry signal at a time \u2014 **logs \u2192 +metrics \u2192 +traces \u2192 +tail-sampling** \u2014 so each tier's delta is the *incremental cost of the added signal*. Each engine ran serially (one live at a time, exporting real signals to Dynatrace) through a **2 h rampup validity gate \u2192 24 h+ soak**, on an Istio 1.29 cluster under otel-demo + hipster-shop load.\n\n**Headline:** Fluent Bit is the lighter engine at **every** tier \u2014 ~5\u00d7 lighter memory on logs, ~11\u00d7 on the metrics arm, ~41% lighter memory / ~44% lighter CPU at the full signal set \u2014 with **zero loss** throughout. The Collector is the *capability* engine on trace ingress (native gRPC vs FB HTTP-only) and per-datapoint metrics. No memory leak in either engine at any tier (all runs tail-flat, \u22641.81% drift).\n\n> \u26a0\ufe0f **Tier 4 erratum / re-run in progress:** an earlier version said tail sampling is Collector-only. That is wrong \u2014 Fluent Bit v5's `sampling` processor (`type: tail`) supports it too. Tier 4 is being re-run as a like-for-like both-engines tail-sampling comparison; the T4 figures below are superseded pending that re-run. Tiers 1\u20133 unaffected."
       },
       "sec_soak": {
         "type": "markdown",
@@ -95,18 +95,18 @@
       },
       "narrative": {
         "type": "markdown",
-        "content": "### Incremental cost of each added signal\n- **Logs (T1):** both cheap & leak-free over 24\u201326 h. Fluent Bit ~30% lower CPU, ~5\u00d7 lower memory, ~30% lower cost/1M at matched ~755 rec/s.\n- **+metrics (T1\u2192T2):** a high-cardinality istiod-CP + Kepler scrape on a dedicated metrics StatefulSet. Widest gap of the ladder: Collector metrics pipeline ~**78 MiB** tail-flat vs Fluent Bit ~**7 MiB / 2 m** \u2014 **~11\u00d7 memory advantage** for Fluent Bit. Neither leaks under the Kepler stressor.\n- **+traces (T2\u2192T3):** OTLP trace path on a dedicated traces workload. Fluent Bit holds its lead \u2014 ~200 MiB vs ~337 MiB, ~100 m vs ~180 m CPU \u2014 with **zero dropped** vs the Collector's small non-zero loss (0.011% DT-failed). Trace ingress differs by design (FB HTTP :4318 only vs Collector gRPC :4317).\n- **+tail-sampling (T3\u2192T4):** **Collector-only, most expensive single add.** The stateful tailsampling processor (keep-errors OR 30% probabilistic non-health, decision_wait 10 s, num_traces 100k) pushes the traces pod **53 \u2192 152 MiB (~2.9\u00d7)** \u2014 the price of a capability Fluent Bit does not have."
+        "content": "### Incremental cost of each added signal\n- **Logs (T1):** both cheap & leak-free over 24\u201326 h. Fluent Bit ~30% lower CPU, ~5\u00d7 lower memory, ~30% lower cost/1M at matched ~755 rec/s.\n- **+metrics (T1\u2192T2):** a high-cardinality istiod-CP + Kepler scrape on a dedicated metrics StatefulSet. Widest gap of the ladder: Collector metrics pipeline ~**78 MiB** tail-flat vs Fluent Bit ~**7 MiB / 2 m** \u2014 **~11\u00d7 memory advantage** for Fluent Bit. Neither leaks under the Kepler stressor.\n- **+traces (T2\u2192T3):** OTLP trace path on a dedicated traces workload. Fluent Bit holds its lead \u2014 ~200 MiB vs ~337 MiB, ~100 m vs ~180 m CPU \u2014 with **zero dropped** vs the Collector's small non-zero loss (0.011% DT-failed). Trace ingress differs by design (FB HTTP :4318 only vs Collector gRPC :4317).\n- **+tail-sampling (T3\u2192T4):** the most expensive single add. On the collector the stateful tailsampling processor (keep-errors OR 30% probabilistic non-health, decision_wait 10 s, num_traces 100k) pushes the traces pod **53 \u2192 152 MiB (~2.9\u00d7)**. Both engines support tail sampling (FB v5 `sampling` `type: tail`); the like-for-like both-engines re-run is in progress \u2014 these T4 figures are the collector-only-TS run."
       },
       "ts_tbl": {
-        "title": "Tier 4 \u2014 the tail-sampling capability premium (Collector-only)",
+        "title": "Tier 4 \u2014 tail-sampling cost on the collector arm (both-engines re-run in progress)",
         "type": "data",
-        "query": "data record(metric=\"Traces-pod memory \u2014 T3 (no tail sampling)\", value=\"53 MiB\"), record(metric=\"Traces-pod memory \u2014 T4 (tail sampling on)\", value=\"152 MiB\"), record(metric=\"Tail-sampling memory premium (per pipeline)\", value=\"~2.9x (+~99 MiB)\"), record(metric=\"5-pod aggregate delta T3->T4\", value=\"+76 MiB (~+23%)\"), record(metric=\"Fluent Bit in-pipeline tail sampling\", value=\"not available\") | fields metric, value",
+        "query": "data record(metric=\"Traces-pod memory \u2014 T3 (no tail sampling)\", value=\"53 MiB\"), record(metric=\"Traces-pod memory \u2014 T4 (tail sampling on)\", value=\"152 MiB\"), record(metric=\"Tail-sampling memory premium (per pipeline)\", value=\"~2.9x (+~99 MiB)\"), record(metric=\"5-pod aggregate delta T3->T4\", value=\"+76 MiB (~+23%)\"), record(metric=\"Fluent Bit in-pipeline tail sampling\", value=\"supported (v5 sampling type:tail) - re-run pending\") | fields metric, value",
         "visualization": "table",
         "visualizationSettings": {}
       },
       "ts_md": {
         "type": "markdown",
-        "content": "### \ud83c\udfaf The capability tier\nTier 4 is where the two engines stop being comparable on cost alone. **Only the Collector can tail-sample in-pipeline.** That stage is *stateful* \u2014 it buffers trace windows before deciding \u2014 so it costs memory: the traces pod grows **~2.9\u00d7** and the decision buffer rides its 100k-trace cap the whole soak (still tail-flat at **+0.00%**, the flattest run of the benchmark).\n\nFluent Bit's Tier-4 arm is a **no-tail-sampling control**: it keeps its lightness (~198 MiB, 0 dropped) but cannot make the keep/drop decision at all. **If you need in-pipeline tail sampling, the ~+76 MiB / pipeline premium is what you pay for it.**"
+        "content": "### \ud83c\udfaf Tier 4 \u2014 tail-sampling cost (re-run in progress)\nThe tail-sampling stage is *stateful* \u2014 it buffers trace windows before deciding \u2014 so it costs memory: on the collector the traces pod grows **~2.9\u00d7** and the decision buffer rides its 100k-trace cap the whole soak (still tail-flat at **+0.00%**).\n\n**Correction:** Fluent Bit v5 also supports tail sampling (`sampling` `type: tail`) \u2014 the original run mistakenly configured it collector-only. Tier 4 is being re-run with **both** engines sampling so the cost comparison is like-for-like; the figures here are from the collector-only-TS run and are superseded."
       },
       "sec_live": {
         "type": "markdown",
@@ -142,6 +142,28 @@
               "leftAxisValues": [
                 "collector",
                 "fluentbit"
+              ],
+              "timestamp": "timeframe"
+            },
+            "gapPolicy": "connect",
+            "xAxisScaling": "auto"
+          }
+        }
+      },
+      "sec_rampup": {
+        "type": "markdown",
+        "content": "## \u2705 Rampup validation \u2014 incoming cluster log volume climbs with the load (real Grail data)\nThe test is only valid if the load actually ramped. These tiles show **incoming log records per 5 min across the whole cluster** over each engine's 2 h rampup window \u2014 a rising curve confirms the 50\u2192200 VU/app ramp drove real traffic. Windows follow the `collector` / `fluentbit` variables; widen `Duration` to see the soak plateau."
+      },
+      "rampup_col": {
+        "title": "Incoming cluster logs during the 2h rampup (records / 5 min) \u2014 climbing curve validates the load ramp",
+        "type": "data",
+        "query": "fetch logs, from:toTimestamp($collector), to:toTimestamp($collector)+duration(toLong($Duration),unit:\"h\") | filter matchesValue(k8s.cluster.name,$K8sCluster) | makeTimeseries incoming_logs=count(), interval:5m",
+        "visualization": "lineChart",
+        "visualizationSettings": {
+          "chartSettings": {
+            "fieldMapping": {
+              "leftAxisValues": [
+                "incoming_logs"
               ],
               "timestamp": "timeframe"
             },
@@ -240,9 +262,21 @@
         "w": 24,
         "h": 8
       },
-      "footer": {
+      "sec_rampup": {
         "x": 0,
         "y": 65,
+        "w": 24,
+        "h": 2
+      },
+      "rampup_col": {
+        "x": 0,
+        "y": 67,
+        "w": 24,
+        "h": 8
+      },
+      "footer": {
+        "x": 0,
+        "y": 75,
         "w": 24,
         "h": 4
       }
