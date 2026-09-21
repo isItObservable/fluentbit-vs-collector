@@ -39,6 +39,25 @@ to abandon the arm.
   rollout-restart to take effect).
 - **OpenTelemetry Demo** + **Online Boutique (hipster-shop)** as the trace/log source apps.
 
+## Fluent Bit v5.1.1 — tail-sampling capability finding (ISI-4768 / Tier-4 re-run)
+
+On-cluster boot smoke of `fluent/fluent-bit:5.1.1` (no pin bump needed):
+
+- `sampling` processor `type: tail` **SHIPS** and initializes clean. Condition types validated
+  live: `status_code`, `string_attribute` (regex + negative-lookahead invert), `latency`
+  (`threshold_ms_low`). Also documented: `span_count`, `numeric_attribute`, `boolean_attribute`,
+  `trace_state`.
+- `cumulative_to_delta` processor **SHIPS** (`drop_on_reset` default `true`, plus `drop_first`,
+  `initial_value`) — the fix for negative deltas on counter/histogram resets.
+- **Limitation:** FB tail sampling has **no `probabilistic` condition**. Percentage sampling in
+  FB is a *separate* `type: probabilistic` = **head** sampling (drops at ingest, before the tail
+  decision), so it cannot be composed inside the tail decision the way the collector's
+  `probabilistic` tail policy can, and a head-probabilistic would drop error traces before
+  keep-errors runs. => The collector's original "keep-errors OR (non-health AND 30% probabilistic)"
+  has no like-for-like FB-tail equivalent. Tier-4 re-run uses **Design A**: both engines run an
+  identical condition-based tail policy — keep-errors + keep-slow-non-health (latency ≥ 250ms,
+  drop /health|/ready|/live). No FB pin change; frozen pins hold.
+
 ## Provenance
 
 ```

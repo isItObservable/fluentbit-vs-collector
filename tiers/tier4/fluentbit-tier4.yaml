@@ -1,14 +1,27 @@
-# Tier 4 CONTROL ARM (ARM 2) = Fluent Bit v5.1.1 — logs+metrics+traces, NO tail sampling.
-# SERIAL SINGLE-ENGINE (serial single-engine): deployed AFTER the collector arm is fully torn down (the Fluent Bit control run). NOTE: Fluent Bit v5 DOES support tail sampling (`sampling` `type: tail`); in this first pass the FB arm ran the
-# T3-shaped full-stack trace load WITHOUT a sampling stage (a like-for-like re-run with both engines sampling is in progress). This provisional arm isolated the collector's
-# T3->T4 tail-sampling delta (CPU/mem/decision-buffer cost lives on the collector arm only).
-# Config is byte-identical to the Tier 3 FB arm except the tier tag bump (tier4-*): frozen pins
-# FB v5.1.1 / Kepler 0.8.0 / collector v0.159.0 (no-drift rule).
+# Tier 4 RE-RUN (ISI-4768 / E8) — ARM 2 = Fluent Bit v5.1.1 — logs+metrics+traces WITH TAIL SAMPLING.
+# SERIAL SINGLE-ENGINE: deployed AFTER the collector arm is fully torn down.
 #
-# ⚠️ T3-resolved launch item, applied here: telemetrygen targets bench-fluentbit-otlp:4317, which the
-# Service maps to targetPort 4318, and MUST run with `--otlp-http` (FB `opentelemetry` INPUT is
-# OTLP/HTTP-first; gRPC does not bind on v5.1.1). tier4-arm2-driver.sh adds the flag and confirms
-# span ingest via fluentbit_input_records_total on the traces pod BEFORE committing T0.
+# ⭐ SUPERSEDES the old "FB = no-tail-sampling CONTROL" framing. Board comment 52ae3b13 correctly
+#   flagged that Fluent Bit v5 ships an in-pipeline `sampling` processor (type: tail) + a
+#   `cumulative_to_delta` processor, so Tier-4 is re-run as a LIKE-FOR-LIKE tail-sampling comparison.
+#
+# ⚠️ ON-CLUSTER CAPABILITY FINDING (v5.1.1 boot smoke, ISI-4768):
+#   - `sampling` type:tail SHIPS and initializes clean; condition types validated on-cluster:
+#     status_code, string_attribute (regex, invert via negative-lookahead). Also available per docs:
+#     latency, span_count, numeric_attribute, boolean_attribute, trace_state.
+#   - `cumulative_to_delta` SHIPS (drop_on_reset default true) — the negative-delta-on-counter-reset fix.
+#   - FB tail sampling does NOT support a `probabilistic` condition. Percentage sampling in FB is a
+#     SEPARATE `type: probabilistic` = HEAD sampling (drops at ingest, before the tail decision) — so it
+#     CANNOT be composed inside the tail decision the way the collector's `probabilistic` tail policy is,
+#     and a head-probabilistic would drop ~70% of ERROR traces before keep-errors runs (breaks error-keep).
+#   => The collector's "keep-errors OR (non-health AND 30% probabilistic)" has NO like-for-like FB-tail
+#      equivalent. This config implements DESIGN A (both engines identical, condition-based tail):
+#        keep-errors (status_code==ERROR)  +  keep-slow-non-health (NOT healthcheck AND latency>=250ms).
+#      Health-probe traffic (http.target ~ /health|/ready|/live...) matches nothing => dropped.
+#      collector-tier4.yaml traces policy is aligned to the SAME two conditions for a true like-for-like.
+#   (Design A/B fork surfaced to the board on ISI-4768 for confirmation before the soak clock starts.)
+#
+# Frozen pins (no-drift rule): FB v5.1.1 / Kepler 0.8.0 / collector v0.159.0.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -44,7 +57,7 @@ subjects:
     name: bench-fluentbit
     namespace: bench-fluentbit
 ---
-# --- LOGS pipeline config (DaemonSet) — identical to T3 FB arm, tier tag -> tier4 ------------
+# --- LOGS pipeline config (DaemonSet) — HELD IDENTICAL to Tier-1/2/3 FB arm (classic .conf) --
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -82,7 +95,7 @@ data:
         Name record_modifier
         Match kube.*
         Record test.type tier4
-        Record benchmark.tier tier4-logs-metrics-traces
+        Record benchmark.tier tier4-logs-metrics-traces-tailsampling
         Record benchmark.engine fluentbit
         Record k8s.cluster.name benchmark-cluster
 
@@ -97,97 +110,132 @@ data:
         Header Authorization Api-Token ${DT_API_TOKEN}
         Retry_Limit False
 ---
-# --- METRICS pipeline config (StatefulSet) — identical to T3 FB arm, tier tag -> tier4 ------
+# --- METRICS pipeline config (StatefulSet) — YAML format, ADDS cumulative_to_delta (TIER-4 fix) --
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: bench-fluentbit-metrics-config
   namespace: bench-fluentbit
 data:
-  fluent-bit.conf: |
-    [SERVICE]
-        Flush 5
-        Log_Level info
-        Daemon off
-        HTTP_Server On
-        HTTP_Listen 0.0.0.0
-        HTTP_Port 2020
-        storage.metrics On
-
-    [INPUT]
-        Name prometheus_scrape
-        Tag metrics.istiod
-        Host istiod.istio-system.svc.cluster.local
-        Port 15014
-        Metrics_Path /metrics
-        Scrape_Interval 15s
-        buffer_max_size 1M
-
-    [INPUT]
-        Name prometheus_scrape
-        Tag metrics.kepler
-        Host kepler.kepler.svc.cluster.local
-        Port 9102
-        Metrics_Path /metrics
-        Scrape_Interval 15s
-        buffer_max_size 1M
-
-    [OUTPUT]
-        Name opentelemetry
-        Match metrics.*
-        Host YOUR_TENANT.live.dynatrace.com
-        Port 443
-        Metrics_URI /api/v2/otlp/v1/metrics
-        TLS On
-        TLS.Verify On
-        Header Authorization Api-Token ${DT_API_TOKEN}
-        add_label test.type tier4
-        add_label benchmark.tier tier4-logs-metrics-traces
-        add_label benchmark.engine fluentbit
-        add_label k8s.cluster.name benchmark-cluster
-        Retry_Limit False
+  fluent-bit.yaml: |
+    service:
+      flush: 5
+      log_level: info
+      daemon: off
+      http_server: on
+      http_listen: 0.0.0.0
+      http_port: 2020
+      storage.metrics: on
+    pipeline:
+      inputs:
+        - name: prometheus_scrape
+          tag: metrics.istiod
+          host: istiod.istio-system.svc.cluster.local
+          port: 15014
+          metrics_path: /metrics
+          scrape_interval: 15s
+          buffer_max_size: 1M
+          processors:
+            metrics:
+              # TIER-4 fix: cumulative -> delta; drop the datapoint on a counter/histogram reset so no
+              # negative delta reaches the backend (the board's negative-values finding). drop_first
+              # discards the first sample of each new series (no baseline to diff against).
+              - name: cumulative_to_delta
+                initial_value: auto
+                drop_first: true
+                drop_on_reset: true
+        - name: prometheus_scrape
+          tag: metrics.kepler
+          host: kepler.kepler.svc.cluster.local
+          port: 9102
+          metrics_path: /metrics
+          scrape_interval: 15s
+          buffer_max_size: 1M
+          processors:
+            metrics:
+              - name: cumulative_to_delta
+                initial_value: auto
+                drop_first: true
+                drop_on_reset: true
+      outputs:
+        - name: opentelemetry
+          match: 'metrics.*'
+          host: YOUR_TENANT.live.dynatrace.com
+          port: 443
+          metrics_uri: /api/v2/otlp/v1/metrics
+          tls: on
+          tls.verify: on
+          header:
+            - Authorization Api-Token ${DT_API_TOKEN}
+          add_label:
+            - test.type tier4
+            - benchmark.tier tier4-logs-metrics-traces-tailsampling
+            - benchmark.engine fluentbit
+            - k8s.cluster.name benchmark-cluster
+          retry_limit: false
 ---
-# --- TRACES pipeline config (Deployment) — TIER-3 DELTA ----------------------------------
+# --- TRACES pipeline config (Deployment) — YAML format, ADDS sampling type:tail (TIER-4 DELTA) --
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: bench-fluentbit-traces-config
   namespace: bench-fluentbit
 data:
-  fluent-bit.conf: |
-    [SERVICE]
-        Flush 5
-        Log_Level info
-        Daemon off
-        HTTP_Server On
-        HTTP_Listen 0.0.0.0
-        HTTP_Port 2020
-        storage.metrics On
-
-    [INPUT]
-        Name opentelemetry
-        Tag otel.traces
-        Listen 0.0.0.0
-        Port 4318
-
-    [FILTER]
-        Name record_modifier
-        Match otel.*
-        Record test.type tier4
-        Record benchmark.tier tier4-logs-metrics-traces
-        Record benchmark.engine fluentbit
-        Record k8s.cluster.name benchmark-cluster
-
-    [OUTPUT]
-        Name opentelemetry
-        Match otel.*
-        Host YOUR_TENANT.live.dynatrace.com
-        Port 443
-        Traces_URI /api/v2/otlp/v1/traces
-        TLS On
-        TLS.Verify On
-        Header Authorization Api-Token ${DT_API_TOKEN}
-        Retry_Limit False
+  fluent-bit.yaml: |
+    service:
+      flush: 5
+      log_level: info
+      daemon: off
+      http_server: on
+      http_listen: 0.0.0.0
+      http_port: 2020
+      storage.metrics: on
+    pipeline:
+      inputs:
+        - name: opentelemetry
+          tag: otel.traces
+          listen: 0.0.0.0
+          port: 4318
+          processors:
+            traces:
+              # TIER-4 DELTA: stateful tail sampling. Buffers each trace for decision_wait, then applies
+              # conditions. DESIGN A (like-for-like, identical to the collector arm):
+              #   1) keep-errors : status_code == ERROR
+              #   2) keep-slow non-health : http.target NOT ~ health/ready/live... AND latency >= 250ms
+              # Health probes match neither -> dropped. This is the CPU/mem/decision-buffer cost Tier-4 measures.
+              - name: sampling
+                type: tail
+                sampling_settings:
+                  decision_wait: 10s
+                  max_traces: 100000
+                conditions:
+                  - type: status_code
+                    status_codes: [ERROR]
+                  - type: string_attribute
+                    key: http.target
+                    match_type: regex
+                    values: ["^(?!.*(health|healthz|ready|readyz|live|livez)).*"]
+                  - type: latency
+                    threshold_ms_low: 250
+      filters:
+        - name: record_modifier
+          match: 'otel.*'
+          record:
+            - test.type tier4
+            - benchmark.tier tier4-logs-metrics-traces-tailsampling
+            - benchmark.engine fluentbit
+            - k8s.cluster.name benchmark-cluster
+      outputs:
+        - name: opentelemetry
+          match: 'otel.*'
+          host: YOUR_TENANT.live.dynatrace.com
+          port: 443
+          traces_uri: /api/v2/otlp/v1/traces
+          tls: on
+          tls.verify: on
+          header:
+            - Authorization Api-Token ${DT_API_TOKEN}
+          retry_limit: false
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -246,7 +294,7 @@ spec:
       containers:
         - name: fluent-bit
           image: fluent/fluent-bit:5.1.1
-          args: ["--config=/fluent-bit/etc/fluent-bit.conf"]
+          args: ["--config=/fluent-bit/etc/fluent-bit.yaml"]
           env:
             - name: DT_API_TOKEN
               valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
@@ -279,7 +327,7 @@ spec:
       containers:
         - name: fluent-bit
           image: fluent/fluent-bit:5.1.1
-          args: ["--config=/fluent-bit/etc/fluent-bit.conf"]
+          args: ["--config=/fluent-bit/etc/fluent-bit.yaml"]
           env:
             - name: DT_API_TOKEN
               valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
@@ -287,8 +335,9 @@ spec:
             - { name: http, containerPort: 2020 }
             - { name: otlp-http, containerPort: 4318 }
           resources:
-            requests: { cpu: 200m, memory: 128Mi }
-            limits: { cpu: "2", memory: 512Mi }
+            requests: { cpu: 200m, memory: 256Mi }
+            # tail sampling holds the decision buffer (max_traces) in memory -> 1Gi ceiling like collector.
+            limits: { cpu: "2", memory: 1Gi }
           volumeMounts:
             - { name: config, mountPath: /fluent-bit/etc/ }
       volumes:
@@ -304,5 +353,5 @@ metadata:
 spec:
   selector: { app: bench-fluentbit-otlp }
   ports:
-    - { name: otlp-grpc, port: 4317, targetPort: 4318 } # harness targets :4317; see FB-arm validation note above
+    - { name: otlp-grpc, port: 4317, targetPort: 4318 } # harness targets :4317; FB opentelemetry input is HTTP-first
     - { name: otlp-http, port: 4318, targetPort: 4318 }
