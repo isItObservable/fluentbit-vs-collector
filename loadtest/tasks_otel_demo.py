@@ -2,7 +2,7 @@
 # tasks_otel_demo.py — Locust user for the OpenTelemetry Demo frontend.
 #
 # Drives the demo's frontend HTTP API so the request load produces logs AND
-# traces aligned with the load (ISI-1779 methodology). Run headless against
+# traces aligned with the load (methodology). Run headless against
 # http://opentelemetry-demo-frontend.otel-demo:8080.
 #
 # The BenchmarkShape import is what makes this file phase-aware — Locust
@@ -12,7 +12,7 @@ import random
 
 from locust import HttpUser, between, task
 
-from loadshape import BenchmarkShape  # noqa: F401  (discovered by Locust)
+from loadshape import BenchmarkShape # noqa: F401 (discovered by Locust)
 
 # Static product ids shipped by the OTel demo catalog.
 PRODUCTS = [
@@ -34,7 +34,7 @@ class OtelDemoUser(HttpUser):
         self.client.get(f"/api/products/{pid}", name="get_product")
         self.client.get(
             f"/api/recommendations?productIds={pid}", name="get_recommendations"
-        )
+)
 
     @task(3)
     def get_cart(self):
@@ -54,7 +54,7 @@ class OtelDemoUser(HttpUser):
             json={"item": {"productId": pid, "quantity": random.randint(1, 5)},
                   "userId": "loadtest"},
             name="add_to_cart",
-        )
+)
 
     @task(1)
     def checkout(self):
@@ -64,7 +64,7 @@ class OtelDemoUser(HttpUser):
             json={"item": {"productId": pid, "quantity": random.randint(1, 3)},
                   "userId": "loadtest"},
             name="add_to_cart",
-        )
+)
         self.client.post(
             "/api/checkout",
             json={
@@ -84,4 +84,4 @@ class OtelDemoUser(HttpUser):
                 },
             },
             name="checkout",
-        )
+)

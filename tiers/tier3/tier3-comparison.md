@@ -1,4 +1,4 @@
-# Tier 3 — E3 Comparison: collector v0.159.0 vs Fluent Bit v5.1.1
+# Tier 3 — Comparison: collector v0.159.0 vs Fluent Bit v5.1.1
 ## Signal set: LOGS + METRICS + TRACES (otel-demo + hipster-shop), NO tail sampling
 
 Generated: 2026-09-15T13:00Z
@@ -15,7 +15,7 @@ Generated: 2026-09-15T13:00Z
 | Metrics source | StatefulSet (Prometheus receiver: istiod + Kepler) | StatefulSet (Prometheus input: istiod + Kepler) |
 | Traces source | Deployment (OTLP gRPC :4317) | Deployment (OTLP HTTP :4318 — `--otlp-http`) |
 | Traces load | telemetrygen @200 span/s, gRPC | telemetrygen @200 span/s, HTTP (gRPC N/A for FB INPUT) |
-| Cluster | observable-otelarrow | observable-otelarrow |
+| Cluster | benchmark-cluster | benchmark-cluster |
 
 ---
 

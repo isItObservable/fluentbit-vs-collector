@@ -1,15 +1,14 @@
-# ISI-3578 E4 — Tier 4 CONTROL ARM (ARM 2) = Fluent Bit v5.1.1 — logs+metrics+traces, NO tail sampling.
-# SERIAL SINGLE-ENGINE (pt9): deployed AFTER the collector arm is fully torn down (tier4-arm2-driver.sh
-# deletes bench-collector first). Fluent Bit has NO tail-sampling processor, so the FB arm runs the
+# Tier 4 CONTROL ARM (ARM 2) = Fluent Bit v5.1.1 — logs+metrics+traces, NO tail sampling.
+# SERIAL SINGLE-ENGINE (serial single-engine): deployed AFTER the collector arm is fully torn down (the Fluent Bit control run). Fluent Bit has NO tail-sampling processor, so the FB arm runs the
 # T3-shaped full-stack trace load and serves as the no-TS CONTROL that isolates the collector's
 # T3->T4 tail-sampling delta (CPU/mem/decision-buffer cost lives on the collector arm only).
-# Config is byte-identical to the E3/Tier-3 FB arm except the tier tag bump (tier4-*): frozen pins
-# FB v5.1.1 / Kepler 0.8.0 / collector v0.159.0 (ISI-1779 no-drift rule).
+# Config is byte-identical to the Tier 3 FB arm except the tier tag bump (tier4-*): frozen pins
+# FB v5.1.1 / Kepler 0.8.0 / collector v0.159.0 (no-drift rule).
 #
 # ⚠️ T3-resolved launch item, applied here: telemetrygen targets bench-fluentbit-otlp:4317, which the
-#    Service maps to targetPort 4318, and MUST run with `--otlp-http` (FB `opentelemetry` INPUT is
-#    OTLP/HTTP-first; gRPC does not bind on v5.1.1). tier4-arm2-driver.sh adds the flag and confirms
-#    span ingest via fluentbit_input_records_total on the traces pod BEFORE committing T0.
+# Service maps to targetPort 4318, and MUST run with `--otlp-http` (FB `opentelemetry` INPUT is
+# OTLP/HTTP-first; gRPC does not bind on v5.1.1). tier4-arm2-driver.sh adds the flag and confirms
+# span ingest via fluentbit_input_records_total on the traces pod BEFORE committing T0.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -54,49 +53,49 @@ metadata:
 data:
   fluent-bit.conf: |
     [SERVICE]
-        Flush            5
-        Log_Level        info
-        Daemon           off
-        HTTP_Server      On
-        HTTP_Listen      0.0.0.0
-        HTTP_Port        2020
-        storage.metrics  On
+        Flush 5
+        Log_Level info
+        Daemon off
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        storage.metrics On
 
     [INPUT]
-        Name             tail
-        Tag              kube.*
-        Path             /var/log/containers/*.log
-        Exclude_Path     /var/log/containers/*bench-fluentbit*.log
+        Name tail
+        Tag kube.*
+        Path /var/log/containers/*.log
+        Exclude_Path /var/log/containers/*bench-fluentbit*.log
         multiline.parser cri
-        Read_from_Head   false
-        Skip_Long_Lines  On
+        Read_from_Head false
+        Skip_Long_Lines On
         Refresh_Interval 5
 
     [FILTER]
-        Name             kubernetes
-        Match            kube.*
-        Merge_Log        On
-        Keep_Log         Off
-        Buffer_Size      1M
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+        Buffer_Size 1M
 
     [FILTER]
-        Name             record_modifier
-        Match            kube.*
-        Record           test.type tier4
-        Record           benchmark.tier tier4-logs-metrics-traces
-        Record           benchmark.engine fluentbit
-        Record           k8s.cluster.name observable-otelarrow
+        Name record_modifier
+        Match kube.*
+        Record test.type tier4
+        Record benchmark.tier tier4-logs-metrics-traces
+        Record benchmark.engine fluentbit
+        Record k8s.cluster.name benchmark-cluster
 
     [OUTPUT]
-        Name             opentelemetry
-        Match            kube.*
-        Host             oat05854.dev.dynatracelabs.com
-        Port             443
-        Logs_URI         /api/v2/otlp/v1/logs
-        TLS              On
-        TLS.Verify       On
-        Header           Authorization Api-Token ${DT_API_TOKEN}
-        Retry_Limit      False
+        Name opentelemetry
+        Match kube.*
+        Host YOUR_TENANT.live.dynatrace.com
+        Port 443
+        Logs_URI /api/v2/otlp/v1/logs
+        TLS On
+        TLS.Verify On
+        Header Authorization Api-Token ${DT_API_TOKEN}
+        Retry_Limit False
 ---
 # --- METRICS pipeline config (StatefulSet) — identical to T3 FB arm, tier tag -> tier4 ------
 apiVersion: v1
@@ -107,46 +106,46 @@ metadata:
 data:
   fluent-bit.conf: |
     [SERVICE]
-        Flush            5
-        Log_Level        info
-        Daemon           off
-        HTTP_Server      On
-        HTTP_Listen      0.0.0.0
-        HTTP_Port        2020
-        storage.metrics  On
+        Flush 5
+        Log_Level info
+        Daemon off
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        storage.metrics On
 
     [INPUT]
-        Name             prometheus_scrape
-        Tag              metrics.istiod
-        Host             istiod.istio-system.svc.cluster.local
-        Port             15014
-        Metrics_Path     /metrics
-        Scrape_Interval  15s
-        buffer_max_size  1M
+        Name prometheus_scrape
+        Tag metrics.istiod
+        Host istiod.istio-system.svc.cluster.local
+        Port 15014
+        Metrics_Path /metrics
+        Scrape_Interval 15s
+        buffer_max_size 1M
 
     [INPUT]
-        Name             prometheus_scrape
-        Tag              metrics.kepler
-        Host             kepler.kepler.svc.cluster.local
-        Port             9102
-        Metrics_Path     /metrics
-        Scrape_Interval  15s
-        buffer_max_size  1M
+        Name prometheus_scrape
+        Tag metrics.kepler
+        Host kepler.kepler.svc.cluster.local
+        Port 9102
+        Metrics_Path /metrics
+        Scrape_Interval 15s
+        buffer_max_size 1M
 
     [OUTPUT]
-        Name             opentelemetry
-        Match            metrics.*
-        Host             oat05854.dev.dynatracelabs.com
-        Port             443
-        Metrics_URI      /api/v2/otlp/v1/metrics
-        TLS              On
-        TLS.Verify       On
-        Header           Authorization Api-Token ${DT_API_TOKEN}
-        add_label        test.type tier4
-        add_label        benchmark.tier tier4-logs-metrics-traces
-        add_label        benchmark.engine fluentbit
-        add_label        k8s.cluster.name observable-otelarrow
-        Retry_Limit      False
+        Name opentelemetry
+        Match metrics.*
+        Host YOUR_TENANT.live.dynatrace.com
+        Port 443
+        Metrics_URI /api/v2/otlp/v1/metrics
+        TLS On
+        TLS.Verify On
+        Header Authorization Api-Token ${DT_API_TOKEN}
+        add_label test.type tier4
+        add_label benchmark.tier tier4-logs-metrics-traces
+        add_label benchmark.engine fluentbit
+        add_label k8s.cluster.name benchmark-cluster
+        Retry_Limit False
 ---
 # --- TRACES pipeline config (Deployment) — TIER-3 DELTA ----------------------------------
 apiVersion: v1
@@ -157,38 +156,38 @@ metadata:
 data:
   fluent-bit.conf: |
     [SERVICE]
-        Flush            5
-        Log_Level        info
-        Daemon           off
-        HTTP_Server      On
-        HTTP_Listen      0.0.0.0
-        HTTP_Port        2020
-        storage.metrics  On
+        Flush 5
+        Log_Level info
+        Daemon off
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        storage.metrics On
 
     [INPUT]
-        Name             opentelemetry
-        Tag              otel.traces
-        Listen           0.0.0.0
-        Port             4318
+        Name opentelemetry
+        Tag otel.traces
+        Listen 0.0.0.0
+        Port 4318
 
     [FILTER]
-        Name             record_modifier
-        Match            otel.*
-        Record           test.type tier4
-        Record           benchmark.tier tier4-logs-metrics-traces
-        Record           benchmark.engine fluentbit
-        Record           k8s.cluster.name observable-otelarrow
+        Name record_modifier
+        Match otel.*
+        Record test.type tier4
+        Record benchmark.tier tier4-logs-metrics-traces
+        Record benchmark.engine fluentbit
+        Record k8s.cluster.name benchmark-cluster
 
     [OUTPUT]
-        Name             opentelemetry
-        Match            otel.*
-        Host             oat05854.dev.dynatracelabs.com
-        Port             443
-        Traces_URI       /api/v2/otlp/v1/traces
-        TLS              On
-        TLS.Verify       On
-        Header           Authorization Api-Token ${DT_API_TOKEN}
-        Retry_Limit      False
+        Name opentelemetry
+        Match otel.*
+        Host YOUR_TENANT.live.dynatrace.com
+        Port 443
+        Traces_URI /api/v2/otlp/v1/traces
+        TLS On
+        TLS.Verify On
+        Header Authorization Api-Token ${DT_API_TOKEN}
+        Retry_Limit False
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -215,7 +214,7 @@ spec:
             - { name: http, containerPort: 2020 }
           resources:
             requests: { cpu: 100m, memory: 128Mi }
-            limits:   { cpu: "2",  memory: 512Mi }
+            limits: { cpu: "2", memory: 512Mi }
           volumeMounts:
             - { name: config, mountPath: /fluent-bit/etc/ }
             - { name: varlog, mountPath: /var/log, readOnly: true }
@@ -255,7 +254,7 @@ spec:
             - { name: http, containerPort: 2020 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
-            limits:   { cpu: "2",  memory: 1Gi }
+            limits: { cpu: "2", memory: 1Gi }
           volumeMounts:
             - { name: config, mountPath: /fluent-bit/etc/ }
       volumes:
@@ -285,11 +284,11 @@ spec:
             - name: DT_API_TOKEN
               valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
           ports:
-            - { name: http,      containerPort: 2020 }
+            - { name: http, containerPort: 2020 }
             - { name: otlp-http, containerPort: 4318 }
           resources:
             requests: { cpu: 200m, memory: 128Mi }
-            limits:   { cpu: "2",  memory: 512Mi }
+            limits: { cpu: "2", memory: 512Mi }
           volumeMounts:
             - { name: config, mountPath: /fluent-bit/etc/ }
       volumes:
@@ -305,5 +304,5 @@ metadata:
 spec:
   selector: { app: bench-fluentbit-otlp }
   ports:
-    - { name: otlp-grpc, port: 4317, targetPort: 4318 }   # harness targets :4317; see FB-arm validation note above
+    - { name: otlp-grpc, port: 4317, targetPort: 4318 } # harness targets :4317; see FB-arm validation note above
     - { name: otlp-http, port: 4318, targetPort: 4318 }

@@ -1,32 +1,32 @@
-# ISI-3578 E4 — Tier 4 (LOGS + METRICS + TRACES + TAIL SAMPLING) — ARM 1 = otel-collector-contrib v0.159.0.
-# SERIAL SINGLE-ENGINE (pt9): only ONE engine live at a time; collector runs first, FB after teardown.
-# Tier delta vs E3/Tier-3 = ADD a `tail_sampling` processor to the TRACES pipeline. Logs + metrics
-# pipelines are held IDENTICAL to Tier-2/Tier-3 (ISI-1779 cardinal rule: NO version/config drift across
+# Tier 4 (LOGS + METRICS + TRACES + TAIL SAMPLING) — ARM 1 = otel-collector-contrib v0.159.0.
+# SERIAL SINGLE-ENGINE (serial single-engine): only ONE engine live at a time; collector runs first, FB after teardown.
+# Tier delta vs Tier 3 = ADD a `tail_sampling` processor to the TRACES pipeline. Logs + metrics
+# pipelines are held IDENTICAL to Tier-2/Tier-3 (cardinal rule: NO version/config drift across
 # tiers; frozen pins collector v0.159.0 / FB v5.1.1 / Kepler 0.8.0).
 #
-# Tail-sampling policy (per RUN-PLAN / board scope, collector-ONLY — FB has no tail sampling, so its
+# Tail-sampling policy (per RUN-PLAN / maintainer scope, collector-ONLY — FB has no tail sampling, so its
 # T4 = T3-shaped trace load = the no-TS control that isolates the collector's T3->T4 tail-sampling delta):
-#   - keep-errors            : always sample traces whose status_code == ERROR
-#   - drop-healthchecks      : health-probe traffic (http.target ~ /health|/ready|/live) is excluded
-#   - probabilistic 30%      : 30% of everything else is sampled
-#   Top-level policies are OR-combined => keep-errors OR (NOT healthcheck AND 30%). A non-error
-#   health-check trace matches NO policy => dropped. This is the stateful stage whose CPU/mem/decision-
-#   buffer cost is the E4 measurement (tail_sampling holds every trace in memory for decision_wait).
+# - keep-errors : always sample traces whose status_code == ERROR
+# - drop-healthchecks : health-probe traffic (http.target ~ /health|/ready|/live) is excluded
+# - probabilistic 30% : 30% of everything else is sampled
+# Top-level policies are OR-combined => keep-errors OR (NOT healthcheck AND 30%). A non-error
+# health-check trace matches NO policy => dropped. This is the stateful stage whose CPU/mem/decision-
+# buffer cost is the Tier 4 measurement (tail_sampling holds every trace in memory for decision_wait).
 #
 # Topology (mirrors Tier-2/3 split so the per-engine cost lines stay comparable):
-#   - DaemonSet   bench-collector-logs    : filelog node tail  -> DT logs
-#   - StatefulSet bench-collector-metrics : prometheus scrape istiod(:15014)+Kepler(:9102),
-#                                           cumulative->delta, drop-summary -> DT metrics
-#   - Deployment  bench-collector-traces  : OTLP receiver (4317/4318) -> tail_sampling -> DT traces  [TIER-4 DELTA]
-#   - Service     bench-collector-otlp    : fronts the traces Deployment; telemetrygen @200 span/s
-#                                           targets bench-collector-otlp...:4317 (run-profile.sh).
+# - DaemonSet bench-collector-logs : filelog node tail -> DT logs
+# - StatefulSet bench-collector-metrics : prometheus scrape istiod(:15014)+Kepler(:9102),
+# cumulative->delta, drop-summary -> DT metrics
+# - Deployment bench-collector-traces : OTLP receiver (4317/4318) -> tail_sampling -> DT traces [TIER-4 DELTA]
+# - Service bench-collector-otlp : fronts the traces Deployment; telemetrygen @200 span/s
+# targets bench-collector-otlp...:4317 (run-profile.sh).
 apiVersion: v1
 kind: Namespace
 metadata:
   name: bench-collector
   labels:
-    oneagent: "false"          # ISI-1927: keep OneAgent OUT of engine-under-test ns
-    benchmark: isi3572
+    oneagent: "false" # Note: keep OneAgent OUT of engine-under-test ns
+    benchmark: fluentbit-vs-collector
     engine: otel-collector-contrib
     kubernetes.io/metadata.name: bench-collector
 ---
@@ -90,7 +90,7 @@ data:
         attributes:
           - { key: benchmark.tier, value: "tier4-logs-metrics-traces-tailsampling", action: upsert }
           - { key: benchmark.engine, value: "collector", action: upsert }
-          - { key: k8s.cluster.name, value: "observable-otelarrow", action: upsert }
+          - { key: k8s.cluster.name, value: "benchmark-cluster", action: upsert }
       memory_limiter:
         check_interval: 1s
         limit_percentage: 80
@@ -104,7 +104,7 @@ data:
         sampling_initial: 5
         sampling_thereafter: 1000
       otlphttp/dynatrace:
-        logs_endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/logs
+        logs_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/logs
         headers:
           Authorization: "Api-Token ${env:DT_API_TOKEN}"
         retry_on_failure: { enabled: true }
@@ -161,7 +161,7 @@ data:
         attributes:
           - { key: benchmark.tier, value: "tier4-logs-metrics-traces-tailsampling", action: upsert }
           - { key: benchmark.engine, value: "collector", action: upsert }
-          - { key: k8s.cluster.name, value: "observable-otelarrow", action: upsert }
+          - { key: k8s.cluster.name, value: "benchmark-cluster", action: upsert }
       batch:
         send_batch_size: 8192
         timeout: 5s
@@ -171,7 +171,7 @@ data:
         sampling_initial: 5
         sampling_thereafter: 1000
       otlphttp/dynatrace:
-        metrics_endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/metrics
+        metrics_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/metrics
         headers:
           Authorization: "Api-Token ${env:DT_API_TOKEN}"
         retry_on_failure: { enabled: true }
@@ -202,7 +202,7 @@ data:
           http: { endpoint: 0.0.0.0:4318 }
     processors:
       # TIER-4 DELTA: stateful tail sampling. Holds every trace in a decision buffer for decision_wait
-      # before applying policies (OR-combined). THIS is the CPU/mem/state cost E4 measures.
+      # before applying policies (OR-combined). THIS is the CPU/mem/state cost Tier 4 measures.
       tail_sampling:
         decision_wait: 10s
         num_traces: 100000
@@ -238,7 +238,7 @@ data:
         attributes:
           - { key: benchmark.tier, value: "tier4-logs-metrics-traces-tailsampling", action: upsert }
           - { key: benchmark.engine, value: "collector", action: upsert }
-          - { key: k8s.cluster.name, value: "observable-otelarrow", action: upsert }
+          - { key: k8s.cluster.name, value: "benchmark-cluster", action: upsert }
       memory_limiter:
         check_interval: 1s
         limit_percentage: 80
@@ -252,7 +252,7 @@ data:
         sampling_initial: 5
         sampling_thereafter: 1000
       otlphttp/dynatrace:
-        traces_endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/traces
+        traces_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/traces
         headers:
           Authorization: "Api-Token ${env:DT_API_TOKEN}"
         retry_on_failure: { enabled: true }
@@ -296,7 +296,7 @@ spec:
             - { name: metrics, containerPort: 8888 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
-            limits:   { memory: 512Mi }
+            limits: { memory: 512Mi }
           volumeMounts:
             - { name: config, mountPath: /conf }
             - { name: varlogpods, mountPath: /var/log/pods, readOnly: true }
@@ -333,7 +333,7 @@ spec:
             - { name: metrics, containerPort: 8888 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
-            limits:   { memory: 1Gi }
+            limits: { memory: 1Gi }
           volumeMounts:
             - { name: config, mountPath: /conf }
       volumes:
@@ -363,14 +363,14 @@ spec:
             - name: DT_API_TOKEN
               valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
           ports:
-            - { name: metrics,   containerPort: 8888 }
+            - { name: metrics, containerPort: 8888 }
             - { name: otlp-grpc, containerPort: 4317 }
             - { name: otlp-http, containerPort: 4318 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
             # TIER-4: tail_sampling holds the decision buffer (num_traces) in memory -> raise the
             # ceiling vs T3's 512Mi so the stateful stage is measured, not OOM-clipped.
-            limits:   { memory: 1Gi }
+            limits: { memory: 1Gi }
           volumeMounts:
             - { name: config, mountPath: /conf }
       volumes:

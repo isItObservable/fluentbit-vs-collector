@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================================
-# run-benchmark.sh — orchestrate the ISI-1779 phased benchmark exactly as
-# Henrik specified (comment 2026-07-21):
+# run-benchmark.sh — orchestrate the a prior benchmark phased benchmark exactly as
+# the maintainer specified (comment 2026-07-21):
 #
-#   Phase 1  stable30   50 VU on EACH app (otel-demo + hipster-shop), 30 min
-#            -> wait for BOTH apps to recover
-#   Phase 2  rampup2h   +50 VU every 30 min for 2 h (50->100->150->200)
-#            -> wait for BOTH apps to recover
-#   Phase 3  leak24h    50 VU on each app, 24 h  (memory-leak detection)
+# Phase 1 stable30 50 VU on EACH app (otel-demo + hipster-shop), 30 min
+# -> wait for BOTH apps to recover
+# Phase 2 rampup2h +50 VU every 30 min for 2 h (50->100->150->200)
+# -> wait for BOTH apps to recover
+# Phase 3 leak24h 50 VU on each app, 24 h (memory-leak detection)
 #
 # Load is applied by the two Locust drivers (loadgen-otel-demo /
 # loadgen-hipster-shop) sharing the phase-aware BenchmarkShape. At every phase
@@ -20,17 +20,17 @@
 # re-applies the drivers. Snapshots land in $OUTDIR.
 #
 # Usage:
-#   export KUBECONFIG=~/.config/capmox/observable-otelarrow.kubeconfig
-#   ./run-benchmark.sh [OUTDIR]
+# export KUBECONFIG=$HOME/.kube/config
+#./run-benchmark.sh [OUTDIR]
 # ============================================================================
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUTDIR="${1:-/tmp/isi1779-run}"
 NS_APPS_OTEL="otel-demo"
 NS_APPS_HIPSTER="hipster-shop"
-RECOVERY_MAX="${RECOVERY_MAX:-1800}"   # cap the "wait for recovery" gate at 30 min
+RECOVERY_MAX="${RECOVERY_MAX:-1800}" # cap the "wait for recovery" gate at 30 min
 RECOVERY_QUIET="${RECOVERY_QUIET:-180}" # apps must stay Ready this long to count as recovered
-SNAP_EVERY="${SNAP_EVERY:-7200}"       # leak phase: snapshot every 2 h
+SNAP_EVERY="${SNAP_EVERY:-7200}" # leak phase: snapshot every 2 h
 
 mkdir -p "$OUTDIR"
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
@@ -77,14 +77,14 @@ wait_recovery() { # gate between phases: apps Ready and stable for RECOVERY_QUIE
 
 set_phase() { # $1 phase name
   log "phase -> $1"
-  kubectl set env deploy/loadgen-otel-demo    LOAD_PHASE="$1" -n default >/dev/null
+  kubectl set env deploy/loadgen-otel-demo LOAD_PHASE="$1" -n default >/dev/null
   kubectl set env deploy/loadgen-hipster-shop LOAD_PHASE="$1" -n default >/dev/null
   kubectl rollout restart deploy/loadgen-otel-demo deploy/loadgen-hipster-shop -n default >/dev/null
-  kubectl rollout status  deploy/loadgen-otel-demo -n default --timeout=120s
-  kubectl rollout status  deploy/loadgen-hipster-shop -n default --timeout=120s
+  kubectl rollout status deploy/loadgen-otel-demo -n default --timeout=120s
+  kubectl rollout status deploy/loadgen-hipster-shop -n default --timeout=120s
 }
 
-# --- 0. deploy drivers (scripts ConfigMap from the .py, then both Deployments)
+# --- 0. deploy drivers (scripts ConfigMap from the.py, then both Deployments)
 log "creating loadtest-scripts ConfigMap from python files"
 kubectl create configmap loadtest-scripts -n default \
   --from-file="$HERE/loadshape.py" \
@@ -120,5 +120,5 @@ done
 snap "p3_leak_end"
 
 log "done. Compute per-phase tables, e.g.:"
-log "  python3 $HERE/../scripts/compute.py $OUTDIR/snap_p1_stable_t0.txt $OUTDIR/snap_p1_stable_t1.txt"
-log "  python3 $HERE/../scripts/compute.py $OUTDIR/snap_p3_leak_t0.txt   $OUTDIR/snap_p3_leak_end.txt   # 24h leak delta"
+log " python3 $HERE/../scripts/compute.py $OUTDIR/snap_p1_stable_t0.txt $OUTDIR/snap_p1_stable_t1.txt"
+log " python3 $HERE/../scripts/compute.py $OUTDIR/snap_p3_leak_t0.txt $OUTDIR/snap_p3_leak_end.txt # 24h leak delta"

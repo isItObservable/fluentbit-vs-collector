@@ -1,9 +1,9 @@
-# ISI-3574 E0 — Engine-under-test A: otel-collector-contrib v0.159.0 as a DAEMONSET.
-# Deliverable #3 (node-level log tail via filelog), #4 (scrape istio control-plane +
+# Engine-under-test A: otel-collector-contrib v0.159.0 as a DAEMONSET.
+# (node-level log tail via filelog), #4 (scrape istio control-plane +
 # Kepler power metrics). Runs in bench-collector ns (oneagent=false → NO OneAgent
-# wrapping, ISI-1927/deliverable #2). Export target for the smoke is `debug` +
-# self-telemetry Prometheus (accepted==sent loss accounting, ISI-1779 KPI toolkit);
-# the real backend OTLP exporter is wired per-tier in E1-E4, not here.
+# wrapping,/this step). Export target for the smoke is `debug` +
+# self-telemetry Prometheus (accepted==sent loss accounting, KPI toolkit);
+# the real backend OTLP exporter is wired per-tier in Tiers 1–4, not here.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -45,16 +45,16 @@ metadata:
 data:
   config.yaml: |
     receivers:
-      # Deliverable #3 — node-level log tail (DaemonSet). Each pod reads its own node.
+      # node-level log tail (DaemonSet). Each pod reads its own node.
       filelog:
         include: [ /var/log/pods/*/*/*.log ]
-        exclude: [ /var/log/pods/bench-collector_*/*/*.log ]  # don't tail self (feedback loop)
+        exclude: [ /var/log/pods/bench-collector_*/*/*.log ] # don't tail self (feedback loop)
         start_at: end
         include_file_path: true
         operators:
           - type: container
             id: container-parser
-      # Deliverable #4a — scrape istio control-plane + Kepler power metrics.
+      # scrape istio control-plane + Kepler power metrics.
       prometheus:
         config:
           scrape_configs:
@@ -64,7 +64,7 @@ data:
               relabel_configs:
                 - source_labels: [__meta_kubernetes_pod_container_port_number]
                   action: keep
-                  regex: "15014"      # istiod monitoring port
+                  regex: "15014" # istiod monitoring port
             - job_name: kepler
               scrape_interval: 15s
               kubernetes_sd_configs: [ { role: pod, namespaces: { names: [ kepler ] } } ]
@@ -72,8 +72,8 @@ data:
                 - source_labels: [__meta_kubernetes_pod_container_port_number]
                   action: keep
                   regex: "9102"
-      # Deliverable #5 — traces from otel-demo + hipster-shop (OTLP). Apps repoint to
-      # the bench-collector-otlp Service (see Service below) per-arm (ISI-1779 per-RUN).
+      # traces from otel-demo + hipster-shop (OTLP). Apps repoint to
+      # the bench-collector-otlp Service (see Service below) per-arm (per-run).
       otlp:
         protocols:
           grpc: { endpoint: 0.0.0.0:4317 }
@@ -84,7 +84,7 @@ data:
         passthrough: false
         extract:
           metadata: [ k8s.namespace.name, k8s.pod.name, k8s.node.name, k8s.container.name ]
-      memory_limiter:               # ISI-3477 lesson — bound the encoder/heap floor.
+      memory_limiter: # prior experience — bound the encoder/heap floor.
         check_interval: 1s
         limit_percentage: 80
         spike_limit_percentage: 15
@@ -99,7 +99,7 @@ data:
     service:
       telemetry:
         metrics:
-          level: detailed          # exposes otelcol_receiver_accepted / _refused / exporter_sent — loss accounting
+          level: detailed # exposes otelcol_receiver_accepted / _refused / exporter_sent — loss accounting
           # v0.159.0 schema: `address` was REMOVED; use readers/pull prometheus exporter.
           readers:
             - pull:
@@ -121,7 +121,7 @@ data:
           processors: [ memory_limiter, k8sattributes, batch ]
           exporters: [ debug ]
 ---
-# Deliverable #5 — OTLP ingress Service for app traces (otel-demo + hipster-shop).
+# OTLP ingress Service for app traces (otel-demo + hipster-shop).
 # ClusterIP fronts the DaemonSet pods; apps set OTEL exporter endpoint to
 # bench-collector-otlp.bench-collector.svc.cluster.local:4317 for the collector arm.
 apiVersion: v1
@@ -159,11 +159,11 @@ spec:
               valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
           ports:
             - { name: metrics, containerPort: 8888 }
-            - { name: otlp-grpc, containerPort: 4317, hostPort: 4317 }  # node-local ingress option
+            - { name: otlp-grpc, containerPort: 4317, hostPort: 4317 } # node-local ingress option
             - { name: otlp-http, containerPort: 4318 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
-            limits:   { memory: 512Mi }     # hard cap for TAIL-flat leak readout (ISI-1779)
+            limits: { memory: 512Mi } # hard cap for TAIL-flat leak readout
           volumeMounts:
             - { name: config, mountPath: /conf }
             - { name: varlogpods, mountPath: /var/log/pods, readOnly: true }

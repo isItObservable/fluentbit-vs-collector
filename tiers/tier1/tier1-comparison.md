@@ -1,6 +1,6 @@
-# Tier 1 (logs only) — E1 per-engine comparison → feeds E5
+# Tier 1 (logs only) — per-engine comparison → feeds the consolidated results
 
-**Signal set:** LOGS ONLY (daemonset).  **Methodology:** pt9 serial single-engine — one engine live at a time, exporting real logs to Dynatrace, validation gate = signal RECEIVED IN DYNATRACE + census PASS + load reaching app.  **Cluster:** observable-otelarrow.  **Load:** locust(otel-demo) + k6(hipster-shop).
+**Signal set:** LOGS ONLY (daemonset). **Methodology:** serial single-engine — one engine live at a time, exporting real logs to Dynatrace, validation gate = signal RECEIVED IN DYNATRACE + census PASS + load reaching app. **Cluster:** benchmark-cluster. **Load:** locust(otel-demo) + k6(hipster-shop).
 
 Both arms ran a **2h rampup validity gate (GREEN required) → 24h+ soak**. Both gates went GREEN; both soaks completed clean and were torn down.
 
@@ -21,12 +21,12 @@ Both arms ran a **2h rampup validity gate (GREEN required) → 24h+ soak**. Both
 
 ## Verdict
 - **Both engines PASS all Tier 1 validity + KPI gates** (census, DT-receipt, no-loss, tail-flat). Dataset VALID.
-- **Fluent Bit v5 is the lighter logs-only engine**: ~30% lower CPU, ~5× lower memory, ~30% lower cost-per-1M at matched ingest (~755 rec/s). Directionally consistent with the ISI-1779 clean 3-engine benchmark (fluentbit < collector on mc/1M).
+- **Fluent Bit v5 is the lighter logs-only engine**: ~30% lower CPU, ~5× lower memory, ~30% lower cost-per-1M at matched ingest (~755 rec/s). Directionally consistent with a prior clean 3-engine benchmark (fluentbit < collector on mc/1M).
 - **No memory leak in either engine** over 24–26h (tail-flat, sub-3% drift = warm-up floor-creep, not runaway).
 - App-tier churn (postgresql/redis/currencysvc OOMKills) was WARNING-only — log sources kept flowing; engine+infra pods stayed 0-restart, so validity holds.
 
-## Provenance (delivered to ISI-3575)
+## Provenance (delivered to)
 - ARM 1 collector 2h gate GREEN: comment 2026-09-03T18:23Z · 24h COMPLETE VALID: 2026-09-04T18:26Z
 - ARM 2 fluent-bit 2h gate GREEN: comment 2026-09-04T20:43Z · 24h COMPLETE VALID: 2026-09-05T20:47Z
-- Raw readouts: `tier1-collector-results.md`, `tier1-fluentbit-results.md` (this dir). Drivers `tier1-driver.sh` / `tier1-arm2-driver.sh` both logged `DONE` + HTTP 201 post + bench-load teardown.
-- Executed by backup_PM (agent fce265dd) after board takeover 2026-09-04 17:20Z.
+- Raw readouts: `tier1-collector-results.md`, `tier1-fluentbit-results.md` (this dir). The tier runs both completed and tore down the load generators.
+- Executed by backup_PM (agent fce265dd) after maintainer takeover 2026-09-04 17:20Z.

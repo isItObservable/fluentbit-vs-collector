@@ -1,6 +1,6 @@
 # Results — Fluent Bit v5 vs OTel-Collector (OTLP) vs OTel-Arrow (OTAP)
 
-Cluster: **observable-otelarrow** (CAPI/Proxmox, 3 workers, k8s v1.35.3). All three
+Cluster: **benchmark-cluster** (CAPI/Proxmox, 3 workers, k8s v1.35.3). All three
 edge shippers tail the same `/var/log/pods` and run **concurrently** on the same nodes,
 so they ship an identical log stream. Signal under test: **pod logs**. Load: the OTel
 Demo's always-on load generator. Measurement window: see `TS=` in the snapshot files.
@@ -17,13 +17,13 @@ long-lived stream warms:
 
 | otel-arrow stream age | log records shipped | `sent_wire` bytes (logs) | wire bytes / record |
 |-----------------------|---------------------|--------------------------|---------------------|
-| ~3.3 h (42.5k recs)   | 42,511              | 10,487,975               | **246.7**           |
-| +~10 min (206k recs)  | 205,873             | 12,125,558               | **58.9**            |
-| marginal (over that Δ) | +163,362           | +1,637,583               | **~10.0**           |
+| ~3.3 h (42.5k recs) | 42,511 | 10,487,975 | **246.7** |
+| +~10 min (206k recs) | 205,873 | 12,125,558 | **58.9** |
+| marginal (over that Δ) | +163,362 | +1,637,583 | **~10.0** |
 
 That marginal ~10 B/record is the OTAP steady-state story; the vs-uncompressed-OTLP
 "10×–30×" headline should be quoted **only** against a named uncompressed baseline
-(ISI-1776 number discipline). The apples-to-apples baseline is OTLP **+ zstd** (Variant B).
+(number discipline). The apples-to-apples baseline is OTLP **+ zstd** (Variant B).
 
 ## Loss — all three effectively lossless under this load
 
@@ -49,9 +49,9 @@ from per-pod cAdvisor (uniform source), records/loss from self-telemetry.
 
 | Variant | Transport | Throughput (recs/s) | Wire bytes/record | CPU (cores, 3-pod DS) | Mem (MiB/pod) | Loss |
 |---------|-----------|--------------------:|------------------:|----------------------:|--------------:|-----:|
-| **A · otel-arrow**   | OTAP (Arrow/gRPC stream)   | 7,591.7 | **9.2** (native `sent_wire` 7.8) | 0.242 | 175.1 | 0 |
-| **B · otel-collector** | OTLP/gRPC + zstd         | 7,591.1 | **17.0** | 0.216 | 86.4 | 0 |
-| **C · fluentbit v5** | OTLP/HTTP (uncompressed)   | 7,591.3 | **214.7** | 1.516 | **14.5** | 0 |
+| **A · otel-arrow** | OTAP (Arrow/gRPC stream) | 7,591.7 | **9.2** (native `sent_wire` 7.8) | 0.242 | 175.1 | 0 |
+| **B · otel-collector** | OTLP/gRPC + zstd | 7,591.1 | **17.0** | 0.216 | 86.4 | 0 |
+| **C · fluentbit v5** | OTLP/HTTP (uncompressed) | 7,591.3 | **214.7** | 1.516 | **14.5** | 0 |
 
 Throughput is identical by construction (all three tail the same logs) — that's the
 control confirming a fair test, not a result. The results are the three cost columns.
@@ -60,7 +60,7 @@ control confirming a fair test, not a result. The results are the three cost col
 
 - **Wire efficiency (the OTAP headline):** OTAP **9.2 B/record** vs OTLP+zstd **17.0** =
   **~1.85× leaner on the wire against a compressed baseline** — squarely the "~2× vs
-  OTLP+zstd" figure (ISI-1776 discipline), *not* the inflated vs-uncompressed number.
+  OTLP+zstd" figure (discipline), *not* the inflated vs-uncompressed number.
   vs Fluent Bit's uncompressed OTLP/HTTP (214.7 B/rec) OTAP is **~23×** — that large
   ratio is a *compression* story (fluentbit sends no compression by default), so quote it
   as "vs uncompressed," never bare. OTAP's own `sent_wire` self-telem (7.8 B/rec, logs
@@ -96,8 +96,8 @@ start (`08:16:57Z` collectors / `08:59:58Z` fluentbit) → snapshot at `2026-07-
 
 | Variant | Transport | Records | Throughput (recs/s) | Wire bytes/record | CPU (cores/DS) | Mem (MiB/pod) | Loss |
 |---------|-----------|--------:|--------------------:|------------------:|---------------:|--------------:|-----:|
-| **A · otel-arrow**   | OTAP (Arrow/gRPC stream) | 680,622,969 | 7,997.5 | **8.6** | 0.357 | 116.2 | 0 |
-| **B · otel-collector** | OTLP/gRPC + zstd       | 680,661,389 | 7,998.0 | **15.6** | 0.337 | 85.9 | 0 |
+| **A · otel-arrow** | OTAP (Arrow/gRPC stream) | 680,622,969 | 7,997.5 | **8.6** | 0.357 | 116.2 | 0 |
+| **B · otel-collector** | OTLP/gRPC + zstd | 680,661,389 | 7,998.0 | **15.6** | 0.337 | 85.9 | 0 |
 | **C · fluentbit v5** | OTLP/HTTP (uncompressed) | 663,113,926 | 8,035.5 | **214.4** | 1.733 | 18.8 | 18 |
 
 ### Feature-on vs enrich-only — what the transform cost
@@ -108,7 +108,7 @@ start (`08:16:57Z` collectors / `08:59:58Z` fluentbit) → snapshot at `2026-07-
 | CPU cores/DS | 0.242 → **0.357** (+48 %) | 0.216 → **0.337** (+56 %) | 1.516 → **1.733** (+14 %) |
 | Mem MiB/pod | 175.1 → **116.2** | 86.4 → **85.9** | 14.5 → **18.8** |
 
-- **The OTAP headline holds under a realistic pipeline:** **8.6 vs 15.6 B/rec = ~1.81×
+- **The OTAP headline holds under a realistic pipeline:8.6 vs 15.6 B/rec = ~1.81×
   leaner than OTLP+zstd** (was 1.85× enrich-only). Transformation doesn't erode the
   transport win — OTTL runs before OTAP encoding.
 - **The transform is not free, and it's charged to everyone:** CPU rose on all three.
@@ -146,13 +146,13 @@ transport plateaus; a monotonic rise across the 2 h intermediate points
 
 ## CPU / memory comparison surface — Dynatrace dashboard (authoritative)
 
-Per Henrik (2026-07-21), CPU/memory are reported from **Dynatrace** and the
+Per the maintainer (2026-07-21), CPU/memory are reported from **Dynatrace** and the
 comparison is done on a **DT dashboard** — not the local `collect.sh` cAdvisor
 snapshot (which stays as an independent cross-check).
 
 - **Dashboard:** *"Fluent Bit v5 vs OTel-Collector vs OTel-Arrow — Resource
-  Comparison"* — `764f7082-0039-4f3f-ad39-47b5abc5bb73` on `oat05854`.
-  Built from Henrik's own "fluentbit comparison" dashboard schema; source JSON
+  Comparison"* — `764f7082-0039-4f3f-ad39-47b5abc5bb73` on `YOUR_TENANT`.
+  Built from the maintainer's own "fluentbit comparison" dashboard schema; source JSON
   staged at `dt-dashboard-resource-comparison.json`.
 - **Source metrics:** `dt.kubernetes.container.cpu_usage` (millicores) +
   `dt.kubernetes.container.memory_working_set` (bytes), sliced by
@@ -162,9 +162,9 @@ snapshot (which stays as an independent cross-check).
 
   | Shipper | CPU (millicores/pod) | Mem (MiB/pod) |
   |---------|---------------------:|--------------:|
-  | A · otel-arrow (OTAP)   | ~60  | **~205** (fattest RAM) |
-  | B · otel-collector (OTLP+zstd) | ~80  | ~86 |
-  | C · fluent bit v5       | **~513** (CPU-hungry) | **~13** (leanest RAM) |
+  | A · otel-arrow (OTAP) | ~60 | **~205** (fattest RAM) |
+  | B · otel-collector (OTLP+zstd) | ~80 | ~86 |
+  | C · fluent bit v5 | **~513** (CPU-hungry) | **~13** (leanest RAM) |
 
   Same story as the cAdvisor 5.98 h table (§ above): OTAP buys wire with RAM;
   fluentbit buys RAM-leanness with CPU; OTLP+zstd is the middle. Two independent
@@ -173,10 +173,10 @@ snapshot (which stays as an independent cross-check).
 The 24 h leak soak's memory trend is read directly off the dashboard's
 memory-working-set line (rising = leak) and the restarts/oom tiles.
 
-### Teardown (restore ISI-1783 clean state)
+### Teardown (restore clean state)
 
 ```bash
-kubectl delete -f otel-collector/ -f fluentbit-v5/   # leaves Variant A (the deployed default)
+kubectl delete -f otel-collector/ -f fluentbit-v5/ # leaves Variant A (the deployed default)
 # phased harness teardown:
 kubectl delete -f loadtest/locust-otel-demo.yaml -f loadtest/locust-hipster-shop.yaml --ignore-not-found
 kubectl delete configmap loadtest-scripts -n default --ignore-not-found
@@ -190,5 +190,5 @@ kubectl delete -k loadtest/hipster-shop/ --ignore-not-found; kubectl delete ns h
   shipping dominates; treat wire bytes/record as ±low-single-digit-%.
 - Fluent Bit's leaner memory vs the collectors is the clearest cross-variant contrast;
   OTAP's win is **wire bytes**, paid for in agent CPU + RAM.
-- Scope: **no tail sampling / no OTTL** (out of scope per ISI-1779) — transport is the
+- Scope: **no tail sampling / no OTTL** (out of scope per) — transport is the
   only variable.

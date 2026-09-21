@@ -1,12 +1,12 @@
-# ISI-3575 E1 — Tier 1 (LOGS ONLY) collector config — SERIAL SINGLE-ENGINE (pt9 methodology).
-# Board correction 09-02: we do NOT run both engines side-by-side. One engine live at a
+# Tier 1 (LOGS ONLY) collector config — SERIAL SINGLE-ENGINE (serial single-engine methodology).
+# Design note 09-02: we do NOT run both engines side-by-side. One engine live at a
 # time; the engine EXPORTS real signal to Dynatrace and the validation gate = signal
 # RECEIVED IN DYNATRACE (+ pods healthy + traffic reaching app). So the logs pipeline
 # exports to DT via otlphttp AND to debug (local accepted==sent oracle for loss accounting).
 receivers:
   filelog:
     include: [ /var/log/pods/*/*/*.log ]
-    exclude: [ /var/log/pods/bench-collector_*/*/*.log ]  # don't tail self (feedback loop)
+    exclude: [ /var/log/pods/bench-collector_*/*/*.log ] # don't tail self (feedback loop)
     start_at: end
     include_file_path: true
     operators:
@@ -34,16 +34,16 @@ exporters:
     verbosity: basic
     sampling_initial: 5
     sampling_thereafter: 1000
-  # pt9 validation path: export logs to Dynatrace (Grail). Token via env from secret dt-otlp.
+  # validation path: export logs to Dynatrace (Grail). Token via env from secret dt-otlp.
   otlphttp/dynatrace:
-    logs_endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/logs
+    logs_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/logs
     headers:
       Authorization: "Api-Token ${env:DT_API_TOKEN}"
     retry_on_failure: { enabled: true }
 service:
   telemetry:
     metrics:
-      level: detailed          # otelcol_receiver_accepted / _refused / exporter_sent — loss accounting
+      level: detailed # otelcol_receiver_accepted / _refused / exporter_sent — loss accounting
       readers:
         - pull:
             exporter:
