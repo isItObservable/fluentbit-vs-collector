@@ -14,12 +14,13 @@
 #     SEPARATE `type: probabilistic` = HEAD sampling (drops at ingest, before the tail decision) — so it
 #     CANNOT be composed inside the tail decision the way the collector's `probabilistic` tail policy is,
 #     and a head-probabilistic would drop ~70% of ERROR traces before keep-errors runs (breaks error-keep).
-#   => The collector's "keep-errors OR (non-health AND 30% probabilistic)" has NO like-for-like FB-tail
-#      equivalent. This config implements DESIGN A (both engines identical, condition-based tail):
-#        keep-errors (status_code==ERROR)  +  keep-slow-non-health (NOT healthcheck AND latency>=250ms).
-#      Health-probe traffic (http.target ~ /health|/ready|/live...) matches nothing => dropped.
-#      collector-tier4.yaml traces policy is aligned to the SAME two conditions for a true like-for-like.
-#   (Design A/B fork surfaced to the board on ISI-4768 for confirmation before the soak clock starts.)
+#   - FB tail conditions only OR-combine (no AND / nesting, on-cluster verified) AND its `latency`
+#     condition matches the EXTREMES (<=low OR >=high). => neither the "30% probabilistic" nor the
+#     "NOT healthcheck AND latency" nesting is FB-expressible. DESIGN A (board-approved, ISI-4768) is
+#     therefore the two OR-combined conditions BOTH engines express identically:
+#        keep-errors (status_code==ERROR)  OR  keep-slow (latency >= 250ms  via threshold_ms_high=250).
+#      Health probes are fast (<250ms) + non-error => match neither => dropped implicitly.
+#      collector-tier4.yaml runs the identical "keep-errors OR keep-slow" policy.
 #
 # Frozen pins (no-drift rule): FB v5.1.1 / Kepler 0.8.0 / collector v0.159.0.
 apiVersion: v1
@@ -199,10 +200,15 @@ data:
           processors:
             traces:
               # TIER-4 DELTA: stateful tail sampling. Buffers each trace for decision_wait, then applies
-              # conditions. DESIGN A (like-for-like, identical to the collector arm):
-              #   1) keep-errors : status_code == ERROR
-              #   2) keep-slow non-health : http.target NOT ~ health/ready/live... AND latency >= 250ms
-              # Health probes match neither -> dropped. This is the CPU/mem/decision-buffer cost Tier-4 measures.
+              # conditions. DESIGN A (like-for-like, identical policy to the collector arm):
+              #   keep-errors (status_code==ERROR)  OR  keep-slow (latency >= 250ms).
+              # ⚠️ ON-CLUSTER-VERIFIED FB semantics (v5.1.1):
+              #   - conditions OR-combine: a trace matching ANY condition is sampled (no AND / nesting).
+              #     => the health-exclusion AND-clause is NOT expressible; instead health probes are fast
+              #        (<250ms) + non-error so they match NEITHER condition and are dropped implicitly.
+              #   - `latency` matches the EXTREMES (latency <= threshold_ms_low OR latency >= threshold_ms_high).
+              #     To keep SLOW spans (>=250ms) set threshold_ms_high=250 (threshold_ms_low=0 disables the
+              #     low/fast arm). Verified: 300ms kept, 50ms dropped.
               - name: sampling
                 type: tail
                 sampling_settings:
@@ -211,12 +217,9 @@ data:
                 conditions:
                   - type: status_code
                     status_codes: [ERROR]
-                  - type: string_attribute
-                    key: http.target
-                    match_type: regex
-                    values: ["^(?!.*(health|healthz|ready|readyz|live|livez)).*"]
                   - type: latency
-                    threshold_ms_low: 250
+                    threshold_ms_low: 0
+                    threshold_ms_high: 250
       filters:
         - name: record_modifier
           match: 'otel.*'

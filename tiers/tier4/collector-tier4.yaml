@@ -4,15 +4,14 @@
 # pipelines are held IDENTICAL to Tier-2/Tier-3 (cardinal rule: NO version/config drift across
 # tiers; frozen pins collector v0.159.0 / FB v5.1.1 / Kepler 0.8.0).
 #
-# Tail-sampling policy for the collector arm (Fluent Bit v5 also supports tail sampling via its
-# `sampling` `type: tail` processor; in the first pass the FB arm ran without it — a like-for-like
-# re-run with both engines sampling is in progress):
+# Tail-sampling policy (ISI-4768 DESIGN A, board-approved — IDENTICAL on both engines):
 # - keep-errors : always sample traces whose status_code == ERROR
-# - drop-healthchecks : health-probe traffic (http.target ~ /health|/ready|/live) is excluded
-# - probabilistic 30% : 30% of everything else is sampled
-# Top-level policies are OR-combined => keep-errors OR (NOT healthcheck AND 30%). A non-error
-# health-check trace matches NO policy => dropped. This is the stateful stage whose CPU/mem/decision-
-# buffer cost is the Tier 4 measurement (tail_sampling holds every trace in memory for decision_wait).
+# - keep-slow   : sample traces with latency >= 250ms
+# Policies are OR-combined => keep-errors OR keep-slow. Fast, non-error traffic (incl. health probes,
+# which are <250ms) matches NEITHER policy => dropped. The health-exclusion / probabilistic variants
+# from earlier drafts were dropped because Fluent Bit v5.1.1 tail sampling only OR-combines conditions
+# (no AND/nesting) and has no probabilistic condition, so this two-condition OR policy is the form BOTH
+# engines express natively. This is the stateful stage whose CPU/mem/decision-buffer cost Tier 4 measures.
 #
 # Topology (mirrors Tier-2/3 split so the per-engine cost lines stay comparable):
 # - DaemonSet bench-collector-logs : filelog node tail -> DT logs
@@ -214,25 +213,16 @@ data:
             type: status_code
             status_code:
               status_codes: [ ERROR ]
-          # 2) keep SLOW, non-health traces. DESIGN A (ISI-4768 like-for-like): the collector CAN do a
-          #    `probabilistic` tail policy but Fluent Bit v5.1.1 tail sampling CANNOT (probabilistic is
-          #    head-only in FB) -> to keep the comparison identical across engines the volume-reduction
-          #    knob is a `latency` condition BOTH engines express natively (FB `latency` threshold_ms_low).
-          - name: sample-slow-non-health
-            type: and
-            and:
-              and_sub_policy:
-                - name: drop-healthchecks
-                  type: string_attribute
-                  string_attribute:
-                    key: http.target
-                    values: [ "/health.*", "/healthz.*", "/livez.*", "/readyz.*", "/ready.*", "/live.*" ]
-                    enabled_regex_matching: true
-                    invert_match: true
-                - name: keep-slow-250ms
-                  type: latency
-                  latency:
-                    threshold_ms: 250
+          # 2) keep SLOW traces (latency >= 250ms). DESIGN A (ISI-4768 like-for-like): both engines run the
+          #    SAME two OR-combined conditions "keep-errors OR keep-slow". FB v5.1.1 tail sampling has NO
+          #    probabilistic condition AND its conditions only OR-combine (no AND/nesting, validated
+          #    on-cluster) -> the collector's tail policy is aligned to the same two independent policies
+          #    (dropped the health-exclusion AND-clause, which FB can't express; health probes are fast +
+          #    non-error so they match neither policy and are dropped implicitly).
+          - name: keep-slow
+            type: latency
+            latency:
+              threshold_ms: 250
       k8sattributes:
         auth_type: serviceAccount
         passthrough: false
