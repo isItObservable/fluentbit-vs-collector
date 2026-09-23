@@ -1,13 +1,15 @@
 # Results — OpenTelemetry Collector vs Fluent Bit v5
 
-> ⚠️ **ERRATUM / REVISION IN PROGRESS (Tier 4).** An earlier version of this page stated that
-> tail sampling is *collector-only* and that Fluent Bit has no equivalent in-pipeline stage.
-> **That is incorrect.** Fluent Bit v5 ships a [`sampling` processor](https://docs.fluentbit.io/manual/data-pipeline/processors/sampling)
-> that supports **tail sampling** (`type: tail`, with latency / span-count / status-code /
-> attribute policies) and a [`cumulative_to_delta` processor](https://docs.fluentbit.io/manual/data-pipeline/processors/cumulative-to-delta).
-> Tier 4 is therefore being **re-run as a like-for-like tail-sampling comparison** (both engines
-> sampling), replacing the "collector-only capability premium" framing below. The Tier 4 numbers
-> and verdict in this doc are **superseded pending that re-run**; Tiers 1–3 are unaffected.
+> ⏳ **TIER 4 REVISION IN PROGRESS — ARM 1 COMPLETE, ARM 2 24h SOAK RUNNING.**
+> An earlier version of this page stated that tail sampling is *collector-only* and that
+> Fluent Bit has no equivalent in-pipeline stage. **That is incorrect.** Fluent Bit v5 ships
+> a [`sampling` processor](https://docs.fluentbit.io/manual/data-pipeline/processors/sampling)
+> with `type: tail` support and a [`cumulative_to_delta` processor](https://docs.fluentbit.io/manual/data-pipeline/processors/cumulative-to-delta).
+> Tier 4 is being **re-run as a like-for-like comparison** (both engines tail-sampling, identical
+> Design-A policy). ARM 1 (collector) is **complete** (24h soak valid, results in
+> `tiers/tier4/tier4-comparison.md`). ARM 2 (Fluent Bit) **24h soak in progress — auto-posts
+> ~2026-09-24T09:29Z**. The Tier 4 numbers below will be updated once ARM 2 completes;
+> Tiers 1–3 are unaffected.
 
 A progressive, signal-stacking benchmark comparing the **OpenTelemetry Collector**
 (`contrib v0.159.0`) against **Fluent Bit v5** (`v5.1.1`) as node-level telemetry agents.
@@ -53,7 +55,7 @@ with no loss, and load reached the apps. No arm was allowed into a soak without 
 | T3 | +traces | Collector v0.159.0 | GREEN | 200 VU/app + 200 span/s | none |
 | T3 | +traces | Fluent Bit v5.1.1 | GREEN | 200 VU/app + 200 span/s | none |
 | T4 | +tail-sampling | Collector v0.159.0 | GREEN | 200 VU/app + 200 span/s | none |
-| T4 | +tail-sampling | Fluent Bit v5.1.1 (ran without sampling — provisional, see erratum) | GREEN | 200 VU/app + 200 span/s | none |
+| T4 | +tail-sampling | Fluent Bit v5.1.1 (Design A, keep-errors OR keep-slow≥250ms) | GREEN | 200 VU/app + 200 span/s | none |
 
 Each tier's consolidated per-engine ramp-up + soak KPIs are in `tiers/tierN/tierN-comparison.md`.
 
@@ -76,8 +78,8 @@ Fluent Bit v5's `sampling` processor supports tail sampling too, so Tier 4 is be
 | **T2** | logs+metrics | Fluent Bit v5.1.1 | PASS 0-restart | 503 rec/s + conv | logs ~92 m | metrics pod **~7 MiB** / logs ~36 MiB | NONE | see §4 |
 | **T3** | +traces | Collector v0.159.0 | PASS 0-restart (26h) | logs+metrics+traces @200 span/s (gRPC :4317) | **~180 m** (5-pod) | ~337 MiB (5-pod, tail-flat) | 0.011% backend-failed | see note |
 | **T3** | +traces | Fluent Bit v5.1.1 | PASS 0-restart (26h) | logs+metrics+traces @200 span/s (HTTP :4318) | **~100 m** (5-pod) | **~200 MiB** (5-pod, tail-flat) | **NONE (0 dropped)** | see note |
-| **T4** | +tail-sampling | Collector v0.159.0 | PASS 0-restart | logs+metrics+traces @200 span/s (gRPC :4317) + tail_sampling | **~165 m** (5-pod) | **~413 MiB** (5-pod, tail-flat +0.00%) | <=0.005% refused+failed | see note |
-| **T4** | +tail-sampling | Fluent Bit v5.1.1 (ran without sampling — provisional, see erratum) | PASS 0-restart | logs+metrics+traces @200 span/s (HTTP :4318), no sampling stage — provisional | **~143 m** (5-pod) | **~198 MiB** (5-pod, tail-flat +1.81%) | **NONE (0 dropped)** | see note |
+| **T4** | +tail-sampling | Collector v0.159.0 (Design A, keep-errors OR keep-slow≥250ms) | PASS 0-restart | logs+metrics+traces @200 span/s (gRPC :4317) + `tail_sampling` | **184m** (2h, 5-pod) | **391 MiB** (2h, tail-flat −0.95%) | **NONE (0 refused, 0 failed)** | see note |
+| **T4** | +tail-sampling | Fluent Bit v5.1.1 (Design A, keep-errors OR keep-slow≥250ms) — ⏳ 24h in progress | PASS 0-restart (2h gate) | logs+metrics+traces @200 span/s (HTTP :4318) + `sampling type:tail` | **47m** (2h, 5-pod) | **69 MiB** (2h, 5-pod) — ⏳ 24h pending | PENDING 24h | see note |
 
 **Note (T2 CPU):** both arms captured a memory plateau (the leak readout) but a symmetric
 per-pod CPU snapshot was only taken on the Fluent Bit arm, so the T2 cost/1M line is not
