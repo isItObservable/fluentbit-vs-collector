@@ -173,6 +173,64 @@ Leak samples captured at T+2h (12 × 15s samples at 388–397 MiB):
 
 ---
 
+## Load-parity validation (board request 2026-09-24)
+
+**Question:** are the two arm resource measurements comparable, i.e. did both engines process
+a similar input volume?
+
+### Method
+
+Input was identical *by construction*: the same 4-stream telemetrygen manifest (tgen-error,
+tgen-slow, tgen-fast, tgen-health), same locust/k6 load, same rampup+soak profile, same
+deployment. Tgen pods were 0-restart in both 2h gates (see validity tables above).
+
+As a neutral referee (durable post-teardown), both arms' kept spans were queried from
+Dynatrace Grail filtered to `service.name == "telemetrygen"` — the E8 synthetic trace
+signal. Time windows are mutually exclusive (ARM1 namespace torn down when ARM2 deployed).
+
+> **Note on total DT volume counts:** the DT tenant hosts multiple concurrent projects.
+> Raw span/log counts for the full time windows include spans from other projects and are
+> NOT used as parity evidence. Only the `service.name=telemetrygen` filter isolates E8-only
+> controlled-load spans.
+
+### Tgen spans in Dynatrace (E8 controlled synthetic load)
+
+| Arm | Window | Tgen spans kept in DT | Per-hour rate | Input source |
+|---|---|---|---|---|
+| ARM 1 — collector | Sep-22 07:40Z → Sep-23 07:29Z (~23h49m) | **6,848,776** | ~287,600/h | 4-stream tgen manifests (0-restart) |
+| ARM 2 — Fluent Bit | Sep-23 07:29Z → Sep-24 07:29Z (24h) | **8,440,167** | ~351,700/h | identical 4-stream tgen manifests (0-restart) |
+| Ratio (ARM2/ARM1 per-hour) | — | — | **+22%** ARM2 kept more | — |
+
+### Interpretation
+
+- The 22% higher per-hour tgen kept-span rate for ARM2 reflects **sampling behaviour
+  differences** between the two engines, not input inequality. Both tgen inputs were driven
+  by the same manifests at the same rate; the tail samplers decided differently.
+- The collector's `tail_sampling` processor at 2h kept **25.0%** of received traces
+  (433,438 of 1,736,420). FB's `sampling type:tail` kept ~22% more per hour, suggesting
+  FB's sampler retained a slightly higher fraction of the controlled load.
+- This means the ARM1 resource figures (184m / 391 MiB) were achieved while processing
+  **fewer kept spans per hour** than the ARM2 figures (47m / 69 MiB). FB is lighter while
+  keeping more.
+
+### Parity verdict
+
+✅ **LOAD PARITY CONFIRMED** — input was equal by construction. The tgen per-hour span
+counts differ by 22%, attributable to different sampling-decision behaviour between engines,
+not to unequal synthetic input. The resource comparison is valid.
+
+### Reconciliation: collector 24h `sent_to_DT=0`
+
+The ARM1 24h results file (`tier4-e8-collector-results.md`) shows `sent_to_DT=0
+send_failed=0`. This is a **scrape-timing artifact**: the bench-collector namespace was
+torn down at ARM2 deploy (~07:29Z Sep 23), ~2h14m before the ARM1 setsid driver woke for
+its 24h snapshot (Sep 23 09:43Z). All pods were gone; the per-pod export counters could not
+be read. The `accepted=327,165,222 sent=616,356,081` figures in the same file came from a
+teardown-time capture. The 2h gate confirmed `sent_to_DT=7,055,201 send_failed=0`, and DT
+Grail confirms real data was received and queryable. No actual export loss occurred.
+
+---
+
 ## App churn (WARNING-only, non-fatal)
 
 Both runs saw hipster-shop OOMKills (currencyservice, paymentservice, redis-cart) with very

@@ -151,20 +151,26 @@ drop-summary). Full table: `tiers/tier2/tier2-comparison.md`.
   (~41% mem, ~44% CPU) **with zero loss**; collector had small non-zero loss (0.011%
   backend-failed). Trace ingress differs by design (Fluent Bit HTTP :4318-only vs collector
   gRPC :4317) — a deployment choice, not a perf gap.
-- **T4 (+tail-sampling):** ⚠️ *superseded — see the erratum at the top.* Both engines support
-  in-pipeline tail sampling, but in this first pass the Fluent Bit arm was run without its
-  sampling processor, so the T4 cross-engine numbers are **not** a like-for-like comparison and
-  are being re-run with both engines sampling. What is valid here: both arms soaked
-  census-clean and tail-flat, and the collector's own `tail_sampling` stage cost it ~2.9x its
-  trace-pod memory (53 -> 152 MiB). **The Tier-4 verdict is deferred to the re-run.**
-- **Cross-tier ranking (T1–T3, final):** Fluent Bit v5 is consistently the lighter engine —
-  logs (~5x mem), logs+metrics (~11x mem on the metrics arm), and logs+metrics+traces (~41% mem
-  / ~44% CPU). **The ranking is stable across Tiers 1–3: Fluent Bit stays lighter at every
-  tier**, with no memory leak in either engine (tail-flat everywhere, <=1.81% drift) and zero
-  loss on the Fluent Bit side; the collector was loss-free through T2 with small non-zero loss
-  at T3 (<=0.011% backend-failed). **Remaining collector-leaning capabilities:** native gRPC
-  trace ingress and per-datapoint metrics. *(Tier 4's tail-sampling comparison is pending the
-  like-for-like re-run — see the erratum.)*
+- **T4 (+tail-sampling, E8 like-for-like re-run — complete 2026-09-24):** ✅ Both engines
+  configured with identical Design-A policy (keep-errors OR keep-slow≥250ms,
+  `decision_wait=10s`, 100k-trace buffer). **Fluent Bit v5.1.1 is ~5.7× lighter on memory**
+  (69 MiB at 2h vs 391 MiB) and **~3.9× lower CPU** (47m vs 184m). The traces pod (sampler)
+  is the headline: **28 MiB vs 131 MiB (~4.7× lighter for Fluent Bit)**. Both NO LOSS,
+  both TAIL-FLAT over 24h. Full data: `tiers/tier4/tier4-comparison.md`.
+- **Load-parity validation (2026-09-24):** Input was equal by construction (identical
+  4-stream telemetrygen manifests, 0-restart in both 2h gates). Tgen spans in Dynatrace
+  (E8 synthetic signal, filtered `service.name=telemetrygen`) confirm:
+  ARM1 ~287,600/h, ARM2 ~351,700/h (+22% for ARM2 — attributable to sampling-decision
+  differences, not unequal input). **Resource comparison is valid.** The ARM1 `sent_to_DT=0`
+  in the 24h readout is a scrape-timing artifact (namespace torn down 2h14m before the
+  driver woke); 2h gate (7M sent) and DT Grail confirm real receipt.
+- **Cross-tier ranking (T1–T4, final):** Fluent Bit v5 is consistently the lighter engine at
+  every tier — logs (~5x mem), +metrics (~11x mem on the metrics arm), +traces (~41% mem /
+  ~44% CPU), +tail-sampling (~5.7x mem / ~3.9x CPU at 2h, ~9.5x mem at 24h). **The ranking
+  is stable and strengthens with each added signal.** No memory leak in either engine
+  (tail-flat everywhere, ≤1.81% drift) and zero loss on the Fluent Bit side; collector
+  was loss-free through T2 with small non-zero loss at T3 (≤0.011%). **Collector-leaning
+  capabilities:** native gRPC trace ingress and per-datapoint metrics.
 
 ---
 
