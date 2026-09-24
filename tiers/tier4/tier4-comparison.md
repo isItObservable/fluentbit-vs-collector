@@ -117,15 +117,21 @@ traces that triggered at least one keep condition (error status or slow span).
 | Errors | 0 |
 
 > **FB trace-count note:** The Fluent Bit OTLP input plugin does not populate
-> `fluentbit_input_records_total` / `fluentbit_output_proc_records_total` for traces — OTLP
-> batches (ResourceSpans) are not decomposed into individual span counts in these counters
-> (confirmed on both the legacy `/api/v1/metrics` JSON endpoint and the Prometheus
-> `/api/v2/metrics/prometheus` endpoint). This is specific to OTLP: the `tail` (logs) and
-> `prometheus_scrape` (metrics) inputs count records correctly in FB v5.1.1.
-> Active receipt is confirmed by: output `proc_bytes=535,458,199`; sampling processor invoked
-> 51,703 times; DT Grail confirms spans received (see load-parity section below); 0 dropped,
-> 0 errors. Per-trace kept/dropped ratio requires dividing by the individual span count, which
-> is not available from FB's internal counters alone.
+> `fluentbit_input_records_total` / `fluentbit_output_proc_records_total` for traces in
+> FB v5.1.1. This was verified via a controlled smoke test (2026-09-24):
+> a fresh FB v5.1.1 pod with both `opentelemetry` input (OTLP HTTP :4318) and
+> `fluentbit_metrics` input (the FB-native self-telemetry plugin that feeds internal counters
+> back through the pipeline) was deployed; telemetrygen sent traces, and `stdout` output
+> confirmed `proc_bytes=77,228` (spans flowing through). Both `/api/v2/metrics/prometheus`
+> AND the `fluentbit_metrics` input plugin reported `input_records_total{name="opentelemetry.0"}=0`
+> — the two endpoints read the same underlying counter and produce identical values.
+> The `records` counter in FB maps to structured items (log lines, metric data points); OTLP
+> batches (ResourceSpans) are treated differently and do not increment this counter, even as
+> bytes flow. This is specific to the OTLP input: `tail` (logs) and `prometheus_scrape`
+> (metrics) inputs count records correctly in FB v5.1.1.
+> Active trace receipt and sampling are confirmed by: output `proc_bytes=535,458,199`;
+> `fluentbit_processor_invocations_total{processor="sampling",signal="traces"}=51,703`;
+> DT Grail tgen spans (see load-parity section below); 0 dropped, 0 errors.
 
 ---
 

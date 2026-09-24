@@ -122,10 +122,13 @@ verdict purely on the fan-out artifact — so the trace-tier cost finding is car
   comparison. **Both engines process all three signals** — logs (FB: 9.1M records via `tail`
   input), metrics (FB: 12,416 Prometheus scrape batches via `prometheus_scrape` input), and
   traces (FB: 51,703 sampling-processor invocations, 535M output proc_bytes, confirmed in
-  Dynatrace). Fluent Bit's OTLP input does not populate `input_records_total` (OTLP batches
-  are not decomposed into individual span counts by this counter; tail+prometheus_scrape inputs
-  count records correctly). Active trace receipt is proven by proc_bytes, processor invocations,
-  DT receipt, and 0 drops. See `tiers/tier4/tier4-comparison.md` for full data.
+  Dynatrace). Fluent Bit's OTLP input does not populate `input_records_total` in FB v5.1.1 —
+  verified in a controlled smoke test: telemetrygen sending to a fresh FB pod, stdout output
+  confirming `proc_bytes=77k` (spans flowing), both `/api/v2/metrics/prometheus` and the
+  `fluentbit_metrics` input plugin (the FB-native self-telemetry path) report `records=0` for
+  the OTLP input because the two endpoints read the same underlying counter; `tail` and
+  `prometheus_scrape` inputs count records correctly. Active trace receipt is proven by
+  proc_bytes, processor invocations, DT receipt, and 0 drops. See `tiers/tier4/tier4-comparison.md` for full data.
 
 ---
 
