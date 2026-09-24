@@ -115,18 +115,17 @@ verdict purely on the fan-out artifact — so the trace-tier cost finding is car
   Bit's trace input is **HTTP :4318 only** (no gRPC), vs the collector's native gRPC :4317;
   (2) the collector's trace pod ran heaviest of its components — the one place its richer
   pipeline is competitive on the trace arm specifically.
-- **+tail-sampling (T3 -> T4):** ⚠️ *superseded — see the erratum at the top; a like-for-like
-  re-run with both engines sampling is in progress.* **Both engines support in-pipeline tail
-  sampling** (collector `tail_sampling`; Fluent Bit v5 `sampling` `type: tail`). In this first
-  pass only the collector arm was configured with a sampling stage, so the cross-engine T4
-  numbers below are **not** like-for-like and are being re-run. The one figure that is valid
-  as a collector self-measurement: turning on the collector's `tail_sampling` (keep-errors OR
-  30% probabilistic non-health, `decision_wait=10s`, `num_traces=100000` — a **stateful** stage
-  that buffers trace windows) moved its trace pod **53 MiB -> 152 MiB (~2.9x)**, pushing the
-  5-pod aggregate to **~413 MiB** (+76 MiB) at roughly flat CPU (~165 m), still tail-flat
-  (+0.00%). The Fluent Bit arm here ran **without** its sampling processor, so its ~198 MiB is a
-  no-sampling figure, not the tail-sampling comparison. **The tail-sampling verdict is deferred
-  to the re-run.**
+- **+tail-sampling (T3 -> T4, E8 like-for-like re-run — complete 2026-09-24):** **Both engines
+  support in-pipeline tail sampling** (collector `tail_sampling`; Fluent Bit v5 `sampling`
+  `type: tail`) and both ran identical Design-A policy (keep-errors OR keep-slow≥250ms,
+  `decision_wait=10s`, 100k-trace buffer). The E8 re-run is the definitive cross-engine
+  comparison. **Both engines process all three signals** — logs (FB: 9.1M records via `tail`
+  input), metrics (FB: 12,416 Prometheus scrape batches via `prometheus_scrape` input), and
+  traces (FB: 51,703 sampling-processor invocations, 535M output proc_bytes, confirmed in
+  Dynatrace). Fluent Bit's OTLP input does not populate `input_records_total` (OTLP batches
+  are not decomposed into individual span counts by this counter; tail+prometheus_scrape inputs
+  count records correctly). Active trace receipt is proven by proc_bytes, processor invocations,
+  DT receipt, and 0 drops. See `tiers/tier4/tier4-comparison.md` for full data.
 
 ---
 
@@ -158,12 +157,14 @@ drop-summary). Full table: `tiers/tier2/tier2-comparison.md`.
   is the headline: **28 MiB vs 131 MiB (~4.7× lighter for Fluent Bit)**. Both NO LOSS,
   both TAIL-FLAT over 24h. Full data: `tiers/tier4/tier4-comparison.md`.
 - **Load-parity validation (2026-09-24):** Input was equal by construction (identical
-  4-stream telemetrygen manifests, 0-restart in both 2h gates). Tgen spans in Dynatrace
-  (E8 synthetic signal, filtered `service.name=telemetrygen`) confirm:
+  4-stream telemetrygen manifests, 0-restart in both 2h gates). FB per-signal received volumes
+  (from live Prometheus endpoint at T+25h): logs 9,135,529 records, metrics 12,416 batches,
+  traces 51,703 sampler invocations + 535M output proc_bytes — all 3 signals confirmed active.
+  Tgen spans in Dynatrace (filtered `service.name=telemetrygen`):
   ARM1 ~287,600/h, ARM2 ~351,700/h (+22% for ARM2 — attributable to sampling-decision
-  differences, not unequal input). **Resource comparison is valid.** The ARM1 `sent_to_DT=0`
-  in the 24h readout is a scrape-timing artifact (namespace torn down 2h14m before the
-  driver woke); 2h gate (7M sent) and DT Grail confirm real receipt.
+  differences, not unequal input). **Resource comparison is valid.** ARM1 `sent_to_DT=0`
+  in the 24h readout is a scrape-timing artifact (namespace torn down 2h14m before driver
+  woke); 2h gate (7M sent) + DT Grail confirm real receipt.
 - **Cross-tier ranking (T1–T4, final):** Fluent Bit v5 is consistently the lighter engine at
   every tier — logs (~5x mem), +metrics (~11x mem on the metrics arm), +traces (~41% mem /
   ~44% CPU), +tail-sampling (~5.7x mem / ~3.9x CPU at 2h, ~9.5x mem at 24h). **The ranking

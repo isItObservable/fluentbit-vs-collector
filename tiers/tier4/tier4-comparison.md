@@ -112,15 +112,20 @@ traces that triggered at least one keep condition (error status or slow span).
 | Metric | Value |
 |---|---|
 | Output proc_bytes (exported to DT) | 535,458,199 |
-| Sampling rate | not computable — FB OTLP input plugin reports `input.records=0`; per-trace decision counters unavailable |
+| Sampling processor invocations | **51,703** trace batches (from `fluentbit_processor_invocations_total{processor="sampling",signal="traces"}`) |
 | dropped_records | 0 |
 | Errors | 0 |
 
-> **FB metrics note:** The Fluent Bit OTLP input plugin does not populate `input.records` or
-> `input.bytes` counters in the pipeline metrics (`records=0` at 24h despite active forwarding).
-> This is a known FB metrics limitation for the OTLP input. The output OTLP exporter correctly
-> reports `proc_bytes=535,458,199` with 0 errors and 0 dropped records, confirming active
-> sampling and forwarding. A per-trace kept/dropped ratio is not derivable from these counters.
+> **FB trace-count note:** The Fluent Bit OTLP input plugin does not populate
+> `fluentbit_input_records_total` / `fluentbit_output_proc_records_total` for traces — OTLP
+> batches (ResourceSpans) are not decomposed into individual span counts in these counters
+> (confirmed on both the legacy `/api/v1/metrics` JSON endpoint and the Prometheus
+> `/api/v2/metrics/prometheus` endpoint). This is specific to OTLP: the `tail` (logs) and
+> `prometheus_scrape` (metrics) inputs count records correctly in FB v5.1.1.
+> Active receipt is confirmed by: output `proc_bytes=535,458,199`; sampling processor invoked
+> 51,703 times; DT Grail confirms spans received (see load-parity section below); 0 dropped,
+> 0 errors. Per-trace kept/dropped ratio requires dividing by the individual span count, which
+> is not available from FB's internal counters alone.
 
 ---
 
@@ -192,6 +197,23 @@ signal. Time windows are mutually exclusive (ARM1 namespace torn down when ARM2 
 > Raw span/log counts for the full time windows include spans from other projects and are
 > NOT used as parity evidence. Only the `service.name=telemetrygen` filter isolates E8-only
 > controlled-load spans.
+
+### ARM 2 per-signal received volumes (Prometheus endpoint, live at T+25h)
+
+All three signals confirmed active on the FB side — sourced from
+`/api/v2/metrics/prometheus` on each running pod at the time of verification (2026-09-24):
+
+| Signal | Pod | Input plugin | Records received | Output proc_bytes |
+|---|---|---|---|---|
+| Logs | logs-hwfrz | tail.0 | 1,927,877 | 3,488,349,822 |
+| Logs | logs-q62sw | tail.0 | 3,396,911 | 6,179,088,708 |
+| Logs | logs-v45cp | tail.0 | 3,810,741 | 6,916,365,721 |
+| **Logs total** | 3 DaemonSet pods | — | **9,135,529 log records** | ~16.6 GB |
+| Metrics | metrics-0 | prometheus_scrape.0 + .1 | 6,208 + 6,208 = **12,416 batches** | 1,548,622,238 |
+| Traces | traces pod | opentelemetry.0 | OTLP batches not counted as records (see note above); sampler invoked **51,703 times** | 535,458,199 |
+
+Note: `tail` and `prometheus_scrape` input counters work correctly; the OTLP input's record
+counter does not decompose ResourceSpans batches into individual span counts.
 
 ### Tgen spans in Dynatrace (E8 controlled synthetic load)
 
