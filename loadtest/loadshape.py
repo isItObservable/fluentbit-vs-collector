@@ -1,14 +1,14 @@
 # ============================================================================
-# loadshape.py — Locust custom LoadTestShape for the ISI-1779 benchmark.
+# loadshape.py — Locust custom LoadTestShape for the a prior benchmark benchmark.
 #
-# Implements the three-phase load profile Henrik specified (ISI-1779 comment
+# Implements the three-phase load profile the maintainer specified (comment
 # 2026-07-21). ONE shape class, the active phase picked by env var LOAD_PHASE
 # so each phase runs as a cleanly-bounded, reproducible Locust run and the
 # orchestrator (run-benchmark.sh) can gate on app recovery *between* phases:
 #
-#   LOAD_PHASE=stable30   50 VU, held 30 min                      (baseline)
-#   LOAD_PHASE=rampup2h   50 VU + STEP_USERS every STEP_SECS, 2 h (scaling)
-#   LOAD_PHASE=leak24h    50 VU, held 24 h                        (memory leak)
+# LOAD_PHASE=stable30 50 VU, held 30 min (baseline)
+# LOAD_PHASE=rampup2h 50 VU + STEP_USERS every STEP_SECS, 2 h (scaling)
+# LOAD_PHASE=leak24h 50 VU, held 24 h (memory leak)
 #
 # The SAME shape is loaded by both app task files (tasks_otel_demo.py and
 # tasks_hipster_shop.py) so otel-demo and hipster-shop get an identical VU
@@ -31,13 +31,13 @@ def _int(name, default):
 
 PHASE = os.environ.get("LOAD_PHASE", "stable30").strip().lower()
 
-BASE_USERS = _int("BASE_USERS", 50)      # 50 VU per app, per Henrik
-STEP_USERS = _int("STEP_USERS", 50)      # rampup: +50 VU each step
-STEP_SECS = _int("STEP_SECS", 1800)      # rampup: new step every 30 min
-SPAWN_RATE = _int("SPAWN_RATE", 5)       # VU/s spawn — gentle, load aligned to traffic
-STABLE_SECS = _int("STABLE_SECS", 1800)  # stable30: 30 min
-RAMP_SECS = _int("RAMP_SECS", 7200)      # rampup2h: 2 h total
-LEAK_SECS = _int("LEAK_SECS", 86400)     # leak24h: 24 h
+BASE_USERS = _int("BASE_USERS", 50) # 50 VU per app, per the maintainer
+STEP_USERS = _int("STEP_USERS", 50) # rampup: +50 VU each step
+STEP_SECS = _int("STEP_SECS", 1800) # rampup: new step every 30 min
+SPAWN_RATE = _int("SPAWN_RATE", 5) # VU/s spawn — gentle, load aligned to traffic
+STABLE_SECS = _int("STABLE_SECS", 1800) # stable30: 30 min
+RAMP_SECS = _int("RAMP_SECS", 7200) # rampup2h: 2 h total
+LEAK_SECS = _int("LEAK_SECS", 86400) # leak24h: 24 h
 
 
 class BenchmarkShape(LoadTestShape):

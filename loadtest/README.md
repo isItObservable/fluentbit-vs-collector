@@ -1,6 +1,6 @@
 # Load harness — phased profile against two apps
 
-Implements the load methodology specified for ISI-1779 (Henrik, 2026-07-21):
+Implements the load methodology specified for a prior benchmark (the maintainer, 2026-07-21):
 drive **otel-demo** *and* **hipster-shop** together with a controlled, phased VU
 profile so the log/trace volume the three edge shippers (arrow / otlp /
 fluentbit) transport is *aligned with the load* rather than a free-running
@@ -41,7 +41,7 @@ and produces logs **and** traces proportional to the load.
 ## Run
 
 ```bash
-export KUBECONFIG=~/.config/capmox/observable-otelarrow.kubeconfig
+export KUBECONFIG=$HOME/.kube/config
 
 # 1. add hipster-shop to the cluster (otel-demo is already live)
 kubectl create namespace hipster-shop
@@ -49,12 +49,12 @@ kubectl apply -k hipster-shop/
 kubectl rollout status deploy -n hipster-shop --timeout=300s
 
 # 2. run the full phased benchmark (~27 h wall clock incl. the 24 h soak)
-./run-benchmark.sh /tmp/isi1779-run          # deploys the drivers + drives all phases
+./run-benchmark.sh /tmp/isi1779-run # deploys the drivers + drives all phases
 
 # 3. per-phase tables (records/s, CPU/mem, loss) for each variant
-python3 ../scripts/compute.py /tmp/isi1779-run/snap_p1_stable_t0.txt /tmp/isi1779-run/snap_p1_stable_t1.txt
+python3../scripts/compute.py /tmp/isi1779-run/snap_p1_stable_t0.txt /tmp/isi1779-run/snap_p1_stable_t1.txt
 # 24 h memory-leak delta: collector working-set start vs end
-python3 ../scripts/compute.py /tmp/isi1779-run/snap_p3_leak_t0.txt   /tmp/isi1779-run/snap_p3_leak_end.txt
+python3../scripts/compute.py /tmp/isi1779-run/snap_p3_leak_t0.txt /tmp/isi1779-run/snap_p3_leak_end.txt
 ```
 
 The `run-benchmark.sh` is designed for a **record-time** long run. It is

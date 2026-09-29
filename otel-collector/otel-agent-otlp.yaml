@@ -3,12 +3,12 @@
 # ----------------------------------------------------------------------------
 # Identical collector build + identical processing pipeline as the otel-arrow
 # variant. The ONLY variable is the edge->gateway transport:
-#     otelarrow exporter  (Variant A / OTAP, columnar Apache Arrow stream)
-#         --->  otlp exporter  (Variant B, protobuf OTLP with zstd compression)
+# otelarrow exporter (Variant A / OTAP, columnar Apache Arrow stream)
+# ---> otlp exporter (Variant B, protobuf OTLP with zstd compression)
 #
 # This is the apples-to-apples baseline for the OTAP wire-efficiency headline.
 # zstd is enabled so we compare OTAP against a *realistically compressed* OTLP
-# baseline (per ISI-1776 number discipline — never quote the vs-uncompressed
+# baseline (per number discipline — never quote the vs-uncompressed
 # figure bare).
 # ============================================================================
 apiVersion: opentelemetry.io/v1beta1
@@ -31,7 +31,7 @@ spec:
         path: /var/log/pods
   env:
     - name: K8S_CLUSTER_NAME
-      value: observable-otelarrow
+      value: benchmark-cluster
   config:
     receivers:
       # Tail the SAME host pod logs as Variant A — identical input signal.
@@ -62,7 +62,7 @@ spec:
           - action: upsert
             key: k8s.cluster.name
             value: ${env:K8S_CLUSTER_NAME}
-      # REALISTIC PROCESSING (ISI-1779, feature-parity) — IDENTICAL to Variant A
+      # REALISTIC PROCESSING (feature-parity) — IDENTICAL to Variant A
       # so processing cost is held constant and the ONLY variable stays the
       # edge->gateway transport (OTLP+zstd here vs OTAP in A).
       transform/redact:
@@ -71,8 +71,8 @@ spec:
           - context: log
             statements:
               - set(severity_text, "ERROR") where IsMatch(body, "(?i)(error|exception|panic|fatal)")
-              - set(severity_text, "WARN")  where severity_text == "" and IsMatch(body, "(?i)(warn)")
-              - set(severity_text, "INFO")  where severity_text == ""
+              - set(severity_text, "WARN") where severity_text == "" and IsMatch(body, "(?i)(warn)")
+              - set(severity_text, "INFO") where severity_text == ""
               - replace_pattern(body, "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "***@redacted")
               - delete_key(attributes, "log.file.path")
       batch: {}

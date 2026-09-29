@@ -17,7 +17,7 @@ spec:
   # collector talks to Dynatrace. Tokens are injected from the gateway-secret.
   env:
     - name: K8S_CLUSTER_NAME
-      value: observable-otelarrow
+      value: benchmark-cluster
     - name: DT_ENDPOINT
       valueFrom:
         secretKeyRef:
@@ -44,7 +44,7 @@ spec:
       # Prometheus scrape of the collectors' own internal telemetry (:8888) so the
       # OTAP efficiency metrics (otelcol_exporter_sent_wire_bytes, arrow batch/records,
       # compression ratio) land in Dynatrace. This is the "prometheus scrape config"
-      # called for in ISI-1773 and the primary data source for the OTAP benchmark.
+      # called for in a prior benchmark and the primary data source for the OTAP benchmark.
       prometheus/collector-selftelemetry:
         config:
           scrape_configs:

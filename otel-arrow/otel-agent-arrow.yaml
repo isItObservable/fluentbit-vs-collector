@@ -17,7 +17,7 @@ spec:
         path: /var/log/pods
   env:
     - name: K8S_CLUSTER_NAME
-      value: observable-otelarrow
+      value: benchmark-cluster
   config:
     receivers:
       # otel-demo apps push OTLP here (node-local). The agent then re-transmits
@@ -29,7 +29,7 @@ spec:
           http:
             endpoint: 0.0.0.0:4318
       # Pod log collection — the signal used for the otel-arrow vs fluentbit v5 vs
-      # otel-collector benchmark (ISI-1779, see ../benchmark/).
+      # otel-collector benchmark (see../benchmark/).
       filelog:
         include:
           - /var/log/pods/*/*/*.log
@@ -59,13 +59,13 @@ spec:
           - action: upsert
             key: k8s.cluster.name
             value: ${env:K8S_CLUSTER_NAME}
-      # REALISTIC PROCESSING (ISI-1779, feature-parity): a production log
+      # REALISTIC PROCESSING (feature-parity): a production log
       # pipeline doesn't just tail+enrich+ship — it transforms. This OTTL
       # `transform` does the representative work all three variants now run
       # identically, so the benchmark reflects a real pipeline's CPU cost:
-      #   1. normalize severity from the message body,
-      #   2. redact e-mail PII in the body,
-      #   3. drop the high-cardinality file path once enrichment is done.
+      # 1. normalize severity from the message body,
+      # 2. redact e-mail PII in the body,
+      # 3. drop the high-cardinality file path once enrichment is done.
       # OTAP is orthogonal to this — it's the wire hop; OTTL runs before encoding.
       transform/redact:
         error_mode: ignore
@@ -73,8 +73,8 @@ spec:
           - context: log
             statements:
               - set(severity_text, "ERROR") where IsMatch(body, "(?i)(error|exception|panic|fatal)")
-              - set(severity_text, "WARN")  where severity_text == "" and IsMatch(body, "(?i)(warn)")
-              - set(severity_text, "INFO")  where severity_text == ""
+              - set(severity_text, "WARN") where severity_text == "" and IsMatch(body, "(?i)(warn)")
+              - set(severity_text, "INFO") where severity_text == ""
               - replace_pattern(body, "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "***@redacted")
               - delete_key(attributes, "log.file.path")
       # CRITICAL: batch MUST be the last processor.

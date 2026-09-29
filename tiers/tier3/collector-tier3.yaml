@@ -1,23 +1,23 @@
-# ISI-3577 E3 — Tier 3 (LOGS + METRICS + TRACES, NO tail sampling) — ARM 1 = otel-collector-contrib v0.159.0.
-# SERIAL SINGLE-ENGINE (pt9): only ONE engine live at a time; collector runs first, FB after teardown.
-# Tier delta vs E2/Tier-2 = ADD a TRACES pipeline (otlp receiver -> DT traces). Logs + metrics
-# pipelines are held IDENTICAL to Tier-2 (ISI-1779 cardinal rule: NO version/config drift across tiers;
-# frozen pins collector v0.159.0 / FB v5.1.1 / Kepler 0.8.0). NO tail sampling — that is E4.
+# Tier 3 (LOGS + METRICS + TRACES, NO tail sampling) — ARM 1 = otel-collector-contrib v0.159.0.
+# SERIAL SINGLE-ENGINE (serial single-engine): only ONE engine live at a time; collector runs first, FB after teardown.
+# Tier delta vs Tier 2 = ADD a TRACES pipeline (otlp receiver -> DT traces). Logs + metrics
+# pipelines are held IDENTICAL to Tier-2 (cardinal rule: NO version/config drift across tiers;
+# frozen pins collector v0.159.0 / FB v5.1.1 / Kepler 0.8.0). NO tail sampling — that is Tier 4.
 #
 # Topology (mirrors Tier-2 split so the per-engine cost lines stay comparable):
-#   - DaemonSet   bench-collector-logs    : filelog node tail  -> DT logs
-#   - StatefulSet bench-collector-metrics : prometheus scrape istiod(:15014)+Kepler(:9102),
-#                                           cumulative->delta, drop-summary -> DT metrics
-#   - Deployment  bench-collector-traces  : OTLP receiver (4317/4318) -> DT traces   [TIER-3 DELTA]
-#   - Service     bench-collector-otlp    : fronts the traces Deployment; telemetrygen @200 span/s
-#                                           targets bench-collector-otlp...:4317 (run-profile.sh).
+# - DaemonSet bench-collector-logs : filelog node tail -> DT logs
+# - StatefulSet bench-collector-metrics : prometheus scrape istiod(:15014)+Kepler(:9102),
+# cumulative->delta, drop-summary -> DT metrics
+# - Deployment bench-collector-traces : OTLP receiver (4317/4318) -> DT traces [TIER-3 DELTA]
+# - Service bench-collector-otlp : fronts the traces Deployment; telemetrygen @200 span/s
+# targets bench-collector-otlp...:4317 (run-profile.sh).
 apiVersion: v1
 kind: Namespace
 metadata:
   name: bench-collector
   labels:
-    oneagent: "false"          # ISI-1927: keep OneAgent OUT of engine-under-test ns
-    benchmark: isi3572
+    oneagent: "false" # Note: keep OneAgent OUT of engine-under-test ns
+    benchmark: fluentbit-vs-collector
     engine: otel-collector-contrib
     kubernetes.io/metadata.name: bench-collector
 ---
@@ -81,7 +81,7 @@ data:
         attributes:
           - { key: benchmark.tier, value: "tier3-logs-metrics-traces", action: upsert }
           - { key: benchmark.engine, value: "collector", action: upsert }
-          - { key: k8s.cluster.name, value: "observable-otelarrow", action: upsert }
+          - { key: k8s.cluster.name, value: "benchmark-cluster", action: upsert }
       memory_limiter:
         check_interval: 1s
         limit_percentage: 80
@@ -95,7 +95,7 @@ data:
         sampling_initial: 5
         sampling_thereafter: 1000
       otlphttp/dynatrace:
-        logs_endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/logs
+        logs_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/logs
         headers:
           Authorization: "Api-Token ${env:DT_API_TOKEN}"
         retry_on_failure: { enabled: true }
@@ -152,7 +152,7 @@ data:
         attributes:
           - { key: benchmark.tier, value: "tier3-logs-metrics-traces", action: upsert }
           - { key: benchmark.engine, value: "collector", action: upsert }
-          - { key: k8s.cluster.name, value: "observable-otelarrow", action: upsert }
+          - { key: k8s.cluster.name, value: "benchmark-cluster", action: upsert }
       batch:
         send_batch_size: 8192
         timeout: 5s
@@ -162,7 +162,7 @@ data:
         sampling_initial: 5
         sampling_thereafter: 1000
       otlphttp/dynatrace:
-        metrics_endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/metrics
+        metrics_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/metrics
         headers:
           Authorization: "Api-Token ${env:DT_API_TOKEN}"
         retry_on_failure: { enabled: true }
@@ -201,7 +201,7 @@ data:
         attributes:
           - { key: benchmark.tier, value: "tier3-logs-metrics-traces", action: upsert }
           - { key: benchmark.engine, value: "collector", action: upsert }
-          - { key: k8s.cluster.name, value: "observable-otelarrow", action: upsert }
+          - { key: k8s.cluster.name, value: "benchmark-cluster", action: upsert }
       memory_limiter:
         check_interval: 1s
         limit_percentage: 80
@@ -214,9 +214,9 @@ data:
         verbosity: basic
         sampling_initial: 5
         sampling_thereafter: 1000
-      # NO tail sampling (E4 owns that) — this is the clean full-fidelity traces export.
+      # NO tail sampling (Tier 4 owns that) — this is the clean full-fidelity traces export.
       otlphttp/dynatrace:
-        traces_endpoint: https://oat05854.dev.dynatracelabs.com/api/v2/otlp/v1/traces
+        traces_endpoint: https://YOUR_TENANT.live.dynatrace.com/api/v2/otlp/v1/traces
         headers:
           Authorization: "Api-Token ${env:DT_API_TOKEN}"
         retry_on_failure: { enabled: true }
@@ -259,7 +259,7 @@ spec:
             - { name: metrics, containerPort: 8888 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
-            limits:   { memory: 512Mi }
+            limits: { memory: 512Mi }
           volumeMounts:
             - { name: config, mountPath: /conf }
             - { name: varlogpods, mountPath: /var/log/pods, readOnly: true }
@@ -296,7 +296,7 @@ spec:
             - { name: metrics, containerPort: 8888 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
-            limits:   { memory: 1Gi }
+            limits: { memory: 1Gi }
           volumeMounts:
             - { name: config, mountPath: /conf }
       volumes:
@@ -326,12 +326,12 @@ spec:
             - name: DT_API_TOKEN
               valueFrom: { secretKeyRef: { name: dt-otlp, key: apiToken } }
           ports:
-            - { name: metrics,   containerPort: 8888 }
+            - { name: metrics, containerPort: 8888 }
             - { name: otlp-grpc, containerPort: 4317 }
             - { name: otlp-http, containerPort: 4318 }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
-            limits:   { memory: 512Mi }
+            limits: { memory: 512Mi }
           volumeMounts:
             - { name: config, mountPath: /conf }
       volumes:

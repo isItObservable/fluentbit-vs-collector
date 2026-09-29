@@ -2,7 +2,7 @@
 # tasks_hipster_shop.py — Locust user for the Hipster Shop / Online Boutique
 # frontend (Google microservices-demo). Mirrors the demo's own locustfile
 # flow so traffic exercises the full service graph -> logs + traces aligned
-# with the load (ISI-1779 methodology).
+# with the load (methodology).
 #
 # Run headless against http://frontend.hipster-shop:80.
 # Same BenchmarkShape as otel-demo -> identical VU profile on both apps.
@@ -11,7 +11,7 @@ import random
 
 from locust import HttpUser, between, task
 
-from loadshape import BenchmarkShape  # noqa: F401  (discovered by Locust)
+from loadshape import BenchmarkShape # noqa: F401 (discovered by Locust)
 
 # Product ids from the Online Boutique catalog.
 PRODUCTS = [
@@ -34,7 +34,7 @@ class HipsterShopUser(HttpUser):
             "/setCurrency",
             data={"currency_code": random.choice(CURRENCIES)},
             name="set_currency",
-        )
+)
 
     @task(10)
     def browse_product(self):
@@ -52,7 +52,7 @@ class HipsterShopUser(HttpUser):
             "/cart",
             data={"product_id": pid, "quantity": random.choice([1, 2, 3, 4, 5, 10])},
             name="add_to_cart",
-        )
+)
 
     @task(1)
     def checkout(self):
@@ -61,7 +61,7 @@ class HipsterShopUser(HttpUser):
             "/cart",
             data={"product_id": pid, "quantity": random.choice([1, 2, 3])},
             name="add_to_cart",
-        )
+)
         self.client.post(
             "/cart/checkout",
             data={
@@ -77,4 +77,4 @@ class HipsterShopUser(HttpUser):
                 "credit_card_cvv": "672",
             },
             name="checkout",
-        )
+)

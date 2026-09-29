@@ -18,6 +18,13 @@ metadata enrichment (`k8sattributes` ≈ Fluent Bit `kubernetes` filter), and ru
 **concurrently** so they ship an identical log stream during the same window — a clean
 A/B/C rather than three sequential cluster rebuilds.
 
+> **Companion benchmark in this repo:** a separate, progressive **signal-stacking**
+> benchmark compares the latest **OpenTelemetry Collector `v0.159.0`** against **Fluent Bit
+> `v5.1.1`** across four tiers — **logs → +metrics → +traces → +tail-sampling** — each with a
+> 2-hour ramp-up gate and a 24-hour soak. See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+> for how it's built, [`docs/RESULTS.md`](./docs/RESULTS.md) for the results, and
+> [`docs/RERUN-GUIDE.md`](./docs/RERUN-GUIDE.md) to reproduce it.
+
 ## Methodology (kept comparable to the v4 run)
 
 Same four axes the v4 fluentbit-vs-collector episode measured:
@@ -35,7 +42,7 @@ Same four axes the v4 fluentbit-vs-collector episode measured:
    (`otelcol_receiver_accepted_log_records` − `otelcol_exporter_sent_log_records`;
    Fluent Bit `fluentbit_output_dropped_records_total` + `retries_failed`).
 
-### Load — phased profile against two apps (ISI-1779, 2026-07-21)
+### Load — phased profile against two apps (2026-07-21)
 
 Load is driven against **two** apps — **otel-demo** *and* **hipster-shop** (Online
 Boutique) — with a controlled, phased VU profile so the transported log/trace volume
@@ -77,34 +84,34 @@ runs **before** OTAP encoding, so the wire format is orthogonal to it.
   *volume* each variant ships and break the identical-stream control.)
 - **Isolated sinks.** Each variant's gateway drops received data (`nop`) so we measure
   the edge→gateway transport only, with no Dynatrace double-ingest skew. (The
-  production otel-arrow stack in ISI-1783 keeps its real Dynatrace egress; these
+  production otel-arrow stack keeps its real Dynatrace egress; these
   baseline gateways are benchmark-only.)
-- Number discipline (ISI-1776): OTAP efficiency is quoted **relative to a named
+- Number discipline: OTAP efficiency is quoted **relative to a named
   baseline** — ~2× vs OTLP+zstd is the honest headline; the 10×/15–30× figures are
   vs *uncompressed* OTLP and must be labelled as such.
 
 ## Layout
 
 ```
-otel-arrow/       Variant A — agent (OTAP) + gateway   (= the ISI-1783 deployed default)
-otel-collector/   Variant B — agent (OTLP+zstd) + gateway + RBAC
-fluentbit-v5/     Variant C — Fluent Bit v5 DaemonSet + config + OTLP/HTTP gateway
-loadtest/         phased load harness — 2 Locust drivers (otel-demo + hipster-shop),
+otel-arrow/ Variant A — agent (OTAP) + gateway (= the deployed default)
+otel-collector/ Variant B — agent (OTLP+zstd) + gateway + RBAC
+fluentbit-v5/ Variant C — Fluent Bit v5 DaemonSet + config + OTLP/HTTP gateway
+loadtest/ phased load harness — 2 Locust drivers (otel-demo + hipster-shop),
                   shared phase-aware LoadTestShape, hipster-shop/ deploy, run-benchmark.sh
-scripts/collect.sh  snapshot all three (run twice); compute.py -> the table
-RESULTS.md        the A/B/C comparison table
+scripts/collect.sh snapshot all three (run twice); compute.py -> the table
+RESULTS.md the A/B/C comparison table
 ```
 
 ## Run
 
 ```bash
-export KUBECONFIG=~/.config/capmox/observable-otelarrow.kubeconfig
-# Variant A is already live (ISI-1783). Add B and C:
-kubectl apply -f otel-collector/   # OTLP baseline agent+gateway+rbac
-kubectl apply -f fluentbit-v5/      # Fluent Bit v5 DS+config+gateway
+export KUBECONFIG=$HOME/.kube/config
+# Variant A is already live. Add B and C:
+kubectl apply -f otel-collector/ # OTLP baseline agent+gateway+rbac
+kubectl apply -f fluentbit-v5/ # Fluent Bit v5 DS+config+gateway
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 # let all three ship the same logs for >=20 min, then:
-scripts/collect.sh /tmp/snap_t0.txt         # wait >=20m
+scripts/collect.sh /tmp/snap_t0.txt # wait >=20m
 scripts/collect.sh /tmp/snap_t1.txt
-python3 scripts/compute.py /tmp/snap_t0.txt /tmp/snap_t1.txt   # -> the A/B/C table
+python3 scripts/compute.py /tmp/snap_t0.txt /tmp/snap_t1.txt # -> the A/B/C table
 ```
