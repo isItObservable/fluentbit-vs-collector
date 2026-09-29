@@ -1,0 +1,37 @@
+[arm1-readout] START at 2026-09-13T23:05:13Z
+# Tier 3 (logs+metrics+traces, NO tail sampling) — ARM 1 collector v0.159.0 — 24h soak readout
+generated: 2026-09-13T23:05:13Z · engine=collector (single, FB offline) · load=locust+k6+telemetrygen(traces@200,metrics@100)
+topology: DaemonSet(logs) + StatefulSet(metrics istiod+Kepler) + Deployment(traces OTLP) — TIER-3 delta = traces pipeline
+
+## Census gate (validity FIRST — engine+infra STRICT, apps liveness-only)
+NAMESPACE          POD                                PHASE      RESTARTS  ROLE   
+[skip] ns/bench-collector absent
+[skip] ns/kepler absent
+[skip] ns/otel-demo absent
+[skip] ns/hipster-shop absent
+CENSUS GATE: PASS — engine+infra (STRICT) Running & 0-restart; all log-source apps Running.
+
+## App churn during run (WARNING-only)
+[app-churn] log-source pods restarted DURING run (WARNING, non-fatal): 0
+
+## Load reaching app gate (#6c)
+[load] locust(otel-demo) pod= reqs=0 | k6(hipster-shop) pod= iters=0 | telemetrygen-traces pod= (@200 span/s)
+[load] LOAD REACHING APP: FAIL — a generator is not Running (dataset INVALID)
+
+## Dynatrace receipt gate (pt9 — logs+metrics+traces RECEIVED IN DYNATRACE)
+/home/hrexed/.cache/fbvc-e0-branch/tiers/tier3/tier3-arm1-readout.sh: line 19: kubectl: command not found
+[dt-receipt] TOTAL sent_to_DT=0 send_failed=0 (logs+metrics+traces)
+[dt-receipt] VERDICT: NOT CONFIRMED — investigate export
+
+## Leak readout — collector (all components, tail-flat)
+[leak] bench-collector — 12 samples @ 15s (needs metrics-server)
+
+## Loss accounting — collector (accepted vs sent, all signals)
+/home/hrexed/.cache/fbvc-e0-branch/kpi/loss-accounting.sh: line 18: kubectl: command not found
+
+## Resource snapshot (working-set, per component)
+/home/hrexed/.cache/fbvc-e0-branch/tiers/tier3/tier3-arm1-readout.sh: line 85: kubectl: command not found
+[post] HTTP 201
+[arm1-readout] tearing down bench-load
+/home/hrexed/.cache/fbvc-e0-branch/tiers/tier3/tier3-arm1-readout.sh: line 91: kubectl: command not found
+[arm1-readout] DONE — FB arm is the next manual step

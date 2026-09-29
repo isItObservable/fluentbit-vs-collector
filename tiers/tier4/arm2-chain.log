@@ -1,0 +1,4 @@
+[chain] guard armed at 2026-09-16T10:32:00Z; waiting for ARM1 soak completion
+[chain] poll 1 at 2026-09-17T11:20:00Z
+[chain] ARM1 soak VALID — launching ARM2 (FB no-TS control)
+[post] HTTP 201

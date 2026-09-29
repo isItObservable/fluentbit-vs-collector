@@ -1,0 +1,164 @@
+# ISI-3574 E0 — Engine-under-test B: Fluent Bit v5.1.1 as a DAEMONSET.
+# Deliverable #3 (node-level log tail), #4 (metric-conversion path: prometheus_scrape
+# of istio-CP + Kepler → emitted as metrics). Runs in bench-fluentbit ns
+# (oneagent=false → NO OneAgent wrapping, deliverable #2). Output for the smoke is
+# stdout+null with the built-in metrics endpoint (:2020) for accepted/dropped
+# accounting; real backend forward is wired per-tier in E1-E4.
+#
+# ⚠️ FB v5.1.1 CRASH RE-VALIDATION (ISI-2093): the v5.0.9 SIGSEGV is mesh-HTTP/2 +
+# multi-hour — NOT surfaced by this smoke. Tier-1 24h soak over the real Istio egress
+# path is the acceptance gate for that (see VERSIONS.md).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bench-fluentbit
+  namespace: bench-fluentbit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bench-fluentbit
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes", "nodes/proxy"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bench-fluentbit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bench-fluentbit
+subjects:
+  - kind: ServiceAccount
+    name: bench-fluentbit
+    namespace: bench-fluentbit
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-fluentbit-config
+  namespace: bench-fluentbit
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush            5
+        Log_Level        info
+        Daemon           off
+        HTTP_Server      On
+        HTTP_Listen      0.0.0.0
+        HTTP_Port        2020
+        storage.metrics  On
+
+    # Deliverable #3 — node-level log tail (DaemonSet).
+    [INPUT]
+        Name             tail
+        Tag              kube.*
+        Path             /var/log/containers/*.log
+        Exclude_Path     /var/log/containers/*bench-fluentbit*.log
+        multiline.parser cri
+        Read_from_Head   false
+        Skip_Long_Lines  On
+        Refresh_Interval 5
+
+    [FILTER]
+        Name             kubernetes
+        Match            kube.*
+        Merge_Log        On
+        Keep_Log         Off
+
+    # Deliverable #4 — FB metric-conversion path: scrape istio-CP + Kepler as metrics.
+    [INPUT]
+        Name             prometheus_scrape
+        Tag              metrics.istiod
+        Host             istiod.istio-system.svc.cluster.local
+        Port             15014
+        Metrics_Path     /metrics
+        Scrape_Interval  15s
+        buffer_max_size  1M
+
+    # buffer_max_size raised 32000(default)->1M: Kepler payload is 223KB and was
+    # truncated at the 32KB default ("cannot increase buffer: max=32000"), dropping
+    # high-cardinality power series. 1M gives headroom as series count grows (ISI-3574 finding #2).
+    [INPUT]
+        Name             prometheus_scrape
+        Tag              metrics.kepler
+        Host             kepler.kepler.svc.cluster.local
+        Port             9102
+        Metrics_Path     /metrics
+        Scrape_Interval  15s
+        buffer_max_size  1M
+
+    # Deliverable #5 — traces from otel-demo + hipster-shop via OTLP.
+    # FB's opentelemetry input ingests OTLP/HTTP (:4318). NOTE (finding): FB has no
+    # gRPC OTLP trace ingress like the collector's otlp receiver — for the FB arm the
+    # apps must export OTLP/HTTP to bench-fluentbit-otlp:4318 (protocol asymmetry vs
+    # collector's grpc+http; finalized in E3 traces tier).
+    [INPUT]
+        Name             opentelemetry
+        Tag              otlp.*
+        Listen           0.0.0.0
+        Port             4318
+
+    # Smoke outputs — count everything (accounting), discard payload.
+    [OUTPUT]
+        Name             null
+        Match            otlp.*
+
+    [OUTPUT]
+        Name             null
+        Match            kube.*
+
+    [OUTPUT]
+        Name             null
+        Match            metrics.*
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bench-fluentbit
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit, engine: fluent-bit }
+spec:
+  selector:
+    matchLabels: { app: bench-fluentbit }
+  template:
+    metadata:
+      labels: { app: bench-fluentbit, engine: fluent-bit }
+    spec:
+      serviceAccountName: bench-fluentbit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:5.1.1
+          args: [ "--config=/fluent-bit/etc/fluent-bit.conf" ]
+          ports:
+            - { name: http, containerPort: 2020 }
+            - { name: otlp-http, containerPort: 4318 }
+          resources:
+            requests: { cpu: 200m, memory: 128Mi }
+            limits:   { memory: 512Mi }     # match collector cap for a fair TAIL-flat readout
+          volumeMounts:
+            - { name: config, mountPath: /fluent-bit/etc/ }
+            - { name: varlog, mountPath: /var/log, readOnly: true }
+            - { name: varlibdockercontainers, mountPath: /var/lib/docker/containers, readOnly: true }
+      volumes:
+        - name: config
+          configMap: { name: bench-fluentbit-config }
+        - name: varlog
+          hostPath: { path: /var/log }
+        - name: varlibdockercontainers
+          hostPath: { path: /var/lib/docker/containers }
+---
+# Deliverable #5 — OTLP/HTTP ingress Service for app traces (FB arm).
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-fluentbit-otlp
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit }
+spec:
+  selector: { app: bench-fluentbit }
+  ports:
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
