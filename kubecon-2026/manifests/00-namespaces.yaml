@@ -1,0 +1,45 @@
+# WS2 — benchmark namespaces, one engine-under-test ns per arm.
+# Serial single-engine model: only ONE bench-* ns carries a running engine at a
+# time (deploy arm E → validate → run → teardown → next arm). All four are
+# declared up-front so the oneagent=false measurement-purity label is in place
+# before any DynaKube rollout touches the cluster.
+#
+# CRITICAL (plan §5 step 1, lesson): `oneagent: "false"` keeps the
+# Dynatrace OneAgent from injecting/wrapping the engine-under-test pod — WITHOUT
+# it OneAgent attaches and pollutes the engine's CPU/mem measurement. The
+# DynaKube namespaceSelector (see 10-dynakube.yaml) excludes oneagent=false.
+#
+# istio-injection is deliberately NOT enabled on the engine namespaces: the
+# engines run as node-level DaemonSets / plain Deployments. The mesh path that
+# reproduces the FB SIGSEGV is the EXPORT hop to the backend over
+# ztunnel (ambient captures node egress), not a sidecar wrapping the engine pod.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-fluentbit        # Arm A
+  labels: { oneagent: "false", benchmark: kubecon-2026, engine: fluent-bit, kubernetes.io/metadata.name: bench-fluentbit }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-collector        # Arm B
+  labels: { oneagent: "false", benchmark: kubecon-2026, engine: otel-collector-contrib, kubernetes.io/metadata.name: bench-collector }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-arrow            # Arm C (otel-arrow, OTLP egress)
+  labels: { oneagent: "false", benchmark: kubecon-2026, engine: otel-arrow-otlp, kubernetes.io/metadata.name: bench-arrow }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-otap            # Arm D (edge + df_engine OTAP relay + bridge)
+  labels: { oneagent: "false", benchmark: kubecon-2026, engine: otel-arrow-otap, kubernetes.io/metadata.name: bench-otap }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bench-load           # load generators (locust + k6) — NOT an engine, NOT oneagent=false
+  labels: { benchmark: kubecon-2026, kubernetes.io/metadata.name: bench-load }

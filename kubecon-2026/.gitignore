@@ -1,0 +1,3 @@
+# Never commit filled-in credentials
+dynatrace-secret.yaml
+*.secret.yaml

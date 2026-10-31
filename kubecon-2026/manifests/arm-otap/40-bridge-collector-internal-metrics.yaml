@@ -1,0 +1,151 @@
+# ============================================================================
+# WS2 — Arm D BRIDGE collector (D5: INTERNAL metrics ONLY).
+# ----------------------------------------------------------------------------
+# D5 architecture (board-locked 2026-10-19):
+#   df_engine exports the REAL benchmark telemetry (logs/metrics/traces)
+#   DIRECTLY to Dynatrace via OTLP. This bridge is NOT on that data path.
+#   Its ONE job: scrape df_engine's OWN internal/self metrics (which Dynatrace
+#   does not ingest natively — they are Prometheus-exposition only), convert
+#   them to OTLP, and push to Dynatrace so the benchmark can read df_engine's
+#   CPU-adjacent engine KPIs (accepted/sent/refused, arrow stream stats,
+#   queue/batch, memory) alongside every other arm's self-metrics.
+#
+# This is the §6 "OTel-Arrow INTERNAL/self metrics via the dedicated
+# bridge collector → Dynatrace" deliverable. It replaces the old OTAP
+# *data-translation* hop — there is NO data translation here, internal metrics only.
+#
+# WHY A BRIDGE AT ALL: df_engine (otel-arrow Go collector) emits its self-metrics
+# in Prometheus format on :8888/metrics. Dynatrace has no Prometheus-pull ingest
+# for arbitrary endpoints without this conversion; the bridge is a minimal
+# contrib collector doing prometheus-receiver → otlphttp/dynatrace. Tiny, cheap,
+# and — because it lives in bench-otap (oneagent=false) and carries
+# dynatrace.com/inject:false — it does not pollute the engine measurement.
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bench-otap-bridge
+  namespace: bench-otap
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bench-otap-bridge
+  namespace: bench-otap
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bench-otap-bridge
+  namespace: bench-otap
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: bench-otap-bridge }
+subjects:
+  - { kind: ServiceAccount, name: bench-otap-bridge, namespace: bench-otap }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-otap-bridge-config
+  namespace: bench-otap
+data:
+  config.yaml: |
+    receivers:
+      # Scrape df_engine's OWN internal/self metrics ONLY. Target is the
+      # df_engine self-telemetry endpoint (:8888), NOT its data receiver (:4317).
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: df-engine-internal
+              scrape_interval: 15s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces: { names: [ bench-otap ] }
+              relabel_configs:
+                # keep only the df_engine OTAP relay pod ...
+                - source_labels: [__meta_kubernetes_pod_label_benchmark_component]
+                  action: keep
+                  regex: df-engine
+                # ... and only its self-telemetry port (8888), never a data port.
+                - source_labels: [__meta_kubernetes_pod_container_port_number]
+                  action: keep
+                  regex: "8888"
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+      resource/static:
+        attributes:
+          - { key: k8s.cluster.name, value: benchmark-cluster, action: upsert }
+          - { key: benchmark.engine, value: otel-arrow-otap,      action: upsert }
+          - { key: benchmark.arm,    value: D,                     action: upsert }
+          - { key: benchmark.run,    value: kubecon-2026,               action: upsert }
+          - { key: metric.source,    value: df-engine-internal,    action: upsert }
+      # the DT dev tenant 400-rejects batches that are ONLY cumulative
+      # monotonic sums. Convert sums to delta (exclude histograms). Self-metrics
+      # like otelcol_receiver_accepted_* are exactly these cumulative sums.
+      cumulativetodelta:
+        include:
+          metric_types: [ sum ]
+      batch:
+        send_batch_size: 8192
+        send_batch_max_size: 16384
+        timeout: 5s
+    exporters:
+      otlphttp/dynatrace:
+        endpoint: https://<YOUR_TENANT>.live.dynatrace.com/api/v2/otlp
+        headers:
+          Authorization: "Api-Token ${env:DT_INGEST_TOKEN}"
+    service:
+      telemetry:
+        metrics:
+          level: none   # the bridge must not export ITS OWN self-metrics (feedback loop)
+      pipelines:
+        metrics:
+          receivers:  [prometheus]
+          processors: [memory_limiter, resource/static, cumulativetodelta, batch]
+          exporters:  [otlphttp/dynatrace]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-otap-bridge
+  namespace: bench-otap
+  labels: { benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: bridge }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: bench-otap-bridge }
+  template:
+    metadata:
+      labels: { app: bench-otap-bridge, benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: bridge }
+      annotations:
+        # The bridge lives in bench-otap (oneagent=false) so OneAgent will not
+        # inject it; these belt-and-suspenders annotations keep it clean even if
+        # the ns label is ever changed.
+        dynatrace.com/inject: "false"
+        oneagent.dynatrace.com/inject: "false"
+        sidecar.istio.io/inject: "false"
+    spec:
+      serviceAccountName: bench-otap-bridge
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.163.1
+          args: ["--config=/etc/otel/config.yaml"]
+          env:
+            - name: DT_INGEST_TOKEN
+              valueFrom: { secretKeyRef: { name: benchmark-cluster, key: dataIngestToken } }
+          ports:
+            - { name: self-metrics, containerPort: 8888 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/otel }
+      volumes:
+        - name: config
+          configMap: { name: bench-otap-bridge-config }

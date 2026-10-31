@@ -1,0 +1,243 @@
+# ============================================================================
+# WS2 — Arm C engine-under-test: df_engine (Rust otap-dataflow v0.61.0) via OTLP.
+# Board-confirmed 2026-10-19 (interaction 1bf1dffe): df_engine = Rust otap-dataflow;
+# export path = thin OTLP/HTTP FORWARDER (otap-dataflow exports otlp_grpc; DT SaaS
+# OTLP is HTTP+Api-Token). Arm C = df_engine with OTLP in/out (no OTAP hop).
+#
+# Topology:
+#   [agent DaemonSet: contrib]  filelog+kubeletstats, parity enrich → OTLP → df_engine
+#   [df_engine: otap-dataflow]  receiver:otlp → exporter:otlp_grpc → forwarder   (ENGINE UNDER TEST)
+#   [forwarder: contrib]        otlp(grpc) + prometheus(istiod) → k8sattributes,
+#                               resource/static, cumulativetodelta → otlphttp/dynatrace
+# Apps + agent target df_engine (Service bench-arrow-otlp). df_engine is the measured
+# engine; parity enrichment is on the contrib agent (keep the arrow engine a
+# pure relay), DT-400 cumulativetodelta on the contrib forwarder.
+#
+# ⚠️ DRAFT pending image build (blocked on a write:packages PAT): the otap-dataflow
+# df_engine config below follows the upstream configs/otlp-otlp.yaml schema
+# (version: otel_dataflow/v1); final receiver/exporter field names verified against
+# the built binary once ghcr.io/henrikrexed/df-engine:0.61.0 exists.
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: bench-arrow, namespace: bench-arrow }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: bench-arrow }
+rules:
+  - apiGroups: [""]
+    resources: ["pods","namespaces","nodes","nodes/proxy","nodes/stats","endpoints","services"]
+    verbs: ["get","list","watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets","daemonsets","deployments"]
+    verbs: ["get","list","watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: bench-arrow }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: bench-arrow }
+subjects:
+  - { kind: ServiceAccount, name: bench-arrow, namespace: bench-arrow }
+---
+# ---------- agent (contrib DaemonSet): logs+node metrics, parity enrich → df_engine ----------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-arrow-agent-config, namespace: bench-arrow }
+data:
+  config.yaml: |
+    receivers:
+      filelog:
+        include: [ /var/log/pods/*/*/*.log ]
+        exclude: [ /var/log/pods/bench-arrow_*/*/*.log ]
+        start_at: end
+        include_file_path: true
+        operators: [ { type: container, id: container-parser } ]
+      kubeletstats:
+        collection_interval: 15s
+        auth_type: serviceAccount
+        endpoint: https://${env:K8S_NODE_NAME}:10250
+        insecure_skip_verify: true
+        metric_groups: [ node, pod, container ]
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 15 }
+      k8sattributes:
+        auth_type: serviceAccount
+        extract: { metadata: [ k8s.namespace.name, k8s.pod.name, k8s.node.name, k8s.container.name ] }
+      resource/static:
+        attributes:
+          - { key: k8s.cluster.name, value: benchmark-cluster, action: upsert }
+          - { key: benchmark.engine, value: df-engine-otlp, action: upsert }
+          - { key: benchmark.arm,    value: C,       action: upsert }
+          - { key: benchmark.run,    value: kubecon-2026, action: upsert }
+          - { key: benchmark.component, value: agent, action: upsert }
+      batch: { send_batch_size: 8192, send_batch_max_size: 16384, timeout: 5s }
+    exporters:
+      otlp/dfengine:
+        endpoint: bench-arrow-otlp.bench-arrow.svc.cluster.local:4317
+        tls: { insecure: true }
+    service:
+      telemetry: { metrics: { readers: [ { pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } } } ] } }
+      pipelines:
+        logs:    { receivers: [filelog],     processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlp/dfengine] }
+        metrics: { receivers: [kubeletstats], processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlp/dfengine] }
+---
+# ---------- df_engine (otap-dataflow): OTLP in → otlp_grpc out → forwarder ----------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-arrow-dfengine-config, namespace: bench-arrow }
+data:
+  df_engine.yaml: |
+    version: otel_dataflow/v1
+    engine: {}
+    groups:
+      default:
+        pipelines:
+          main:
+            policies:
+              channel_capacity: { control: { node: 100, pipeline: 100 }, pdata: 128 }
+            nodes:
+              receiver:
+                type: receiver:otlp
+                config:
+                  protocols:
+                    grpc: { listening_addr: "0.0.0.0:4317" }
+                    http: { listening_addr: "0.0.0.0:4318" }
+              exporter:
+                type: exporter:otlp_grpc
+                config:
+                  grpc_endpoint: "http://bench-arrow-fwd.bench-arrow.svc.cluster.local:4317"
+            connections:
+              - { from: receiver, to: exporter }
+---
+# ---------- forwarder (contrib): otlp_grpc in + istiod scrape → cumulativetodelta → DT ----------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-arrow-fwd-config, namespace: bench-arrow }
+data:
+  config.yaml: |
+    receivers:
+      otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 } } }
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: istio-control-plane
+              scrape_interval: 15s
+              kubernetes_sd_configs: [ { role: pod, namespaces: { names: [ istio-system ] } } ]
+              relabel_configs:
+                - { source_labels: [__meta_kubernetes_pod_container_port_number], action: keep, regex: "15014" }
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 15 }
+      k8sattributes: { auth_type: serviceAccount, extract: { metadata: [ k8s.namespace.name, k8s.pod.name, k8s.node.name ] } }
+      resource/static:
+        attributes:
+          - { key: benchmark.arm, value: C, action: upsert }
+          - { key: benchmark.run, value: kubecon-2026, action: upsert }
+      cumulativetodelta: { include: { metric_types: [ sum ] } }
+      batch: { send_batch_size: 8192, send_batch_max_size: 16384, timeout: 5s }
+    exporters:
+      otlphttp/dynatrace:
+        endpoint: https://<YOUR_TENANT>.live.dynatrace.com/api/v2/otlp
+        headers: { Authorization: "Api-Token ${env:DT_INGEST_TOKEN}" }
+    service:
+      pipelines:
+        logs:    { receivers: [otlp],             processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlphttp/dynatrace] }
+        metrics: { receivers: [otlp, prometheus], processors: [memory_limiter, k8sattributes, resource/static, cumulativetodelta, batch], exporters: [otlphttp/dynatrace] }
+        traces:  { receivers: [otlp],             processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlphttp/dynatrace] }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bench-arrow-otlp, namespace: bench-arrow, labels: { app: bench-arrow-dfengine } }
+spec:
+  selector: { app: bench-arrow-dfengine }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bench-arrow-fwd, namespace: bench-arrow, labels: { app: bench-arrow-forwarder } }
+spec:
+  selector: { app: bench-arrow-forwarder }
+  ports: [ { name: otlp-grpc, port: 4317, targetPort: 4317 } ]
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bench-arrow-agent
+  namespace: bench-arrow
+  labels: { app: bench-arrow-agent, benchmark: kubecon-2026, benchmark.arm: C, benchmark.component: agent, engine: df-engine-otlp }
+spec:
+  selector: { matchLabels: { app: bench-arrow-agent } }
+  template:
+    metadata:
+      labels: { app: bench-arrow-agent, benchmark: kubecon-2026, benchmark.arm: C, benchmark.component: agent, engine: df-engine-otlp }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-arrow
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.163.1
+          args: [ "--config=/conf/config.yaml" ]
+          env: [ { name: K8S_NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } } ]
+          ports: [ { name: metrics, containerPort: 8888 } ]
+          resources: { requests: { cpu: 200m, memory: 256Mi }, limits: { memory: 512Mi } }
+          volumeMounts:
+            - { name: config, mountPath: /conf }
+            - { name: varlogpods, mountPath: /var/log/pods, readOnly: true }
+      volumes:
+        - { name: config, configMap: { name: bench-arrow-agent-config } }
+        - { name: varlogpods, hostPath: { path: /var/log/pods } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-arrow-dfengine
+  namespace: bench-arrow
+  labels: { app: bench-arrow-dfengine, benchmark: kubecon-2026, benchmark.arm: C, benchmark.component: df-engine, engine: df-engine-otlp }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bench-arrow-dfengine } }
+  template:
+    metadata:
+      labels: { app: bench-arrow-dfengine, benchmark: kubecon-2026, benchmark.arm: C, benchmark.component: df-engine, engine: df-engine-otlp }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-arrow
+      containers:
+        - name: df-engine
+          image: ghcr.io/henrikrexed/df-engine:0.61.0
+          args: [ "--config", "/conf/df_engine.yaml" ]
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+          resources: { requests: { cpu: 300m, memory: 512Mi }, limits: { memory: 2Gi } }
+          volumeMounts: [ { name: config, mountPath: /conf } ]
+      volumes: [ { name: config, configMap: { name: bench-arrow-dfengine-config } } ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-arrow-forwarder
+  namespace: bench-arrow
+  labels: { app: bench-arrow-forwarder, benchmark: kubecon-2026, benchmark.arm: C, benchmark.component: forwarder }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bench-arrow-forwarder } }
+  template:
+    metadata:
+      labels: { app: bench-arrow-forwarder, benchmark: kubecon-2026, benchmark.arm: C, benchmark.component: forwarder }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-arrow
+      containers:
+        - name: forwarder
+          image: otel/opentelemetry-collector-contrib:0.163.1
+          args: [ "--config=/conf/config.yaml" ]
+          env: [ { name: DT_INGEST_TOKEN, valueFrom: { secretKeyRef: { name: benchmark-cluster, key: dataIngestToken } } } ]
+          ports: [ { name: otlp-grpc, containerPort: 4317 } ]
+          resources: { requests: { cpu: 200m, memory: 256Mi }, limits: { memory: 1Gi } }
+          volumeMounts: [ { name: config, mountPath: /conf } ]
+      volumes: [ { name: config, configMap: { name: bench-arrow-fwd-config } } ]

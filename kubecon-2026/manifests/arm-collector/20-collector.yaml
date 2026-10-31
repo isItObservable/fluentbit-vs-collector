@@ -1,0 +1,211 @@
+# ============================================================================
+# WS2 — Arm B engine-under-test: OTel Collector contrib 0.163.1.
+# TWO-TIER agent→gateway topology (per board direction 2026-10-19, comment 9141c1b2):
+#
+#   [DaemonSet AGENT]  filelog(node pod logs) + kubeletstats(node/pod/container
+#                      metrics) → memory_limiter, resource/static(attrs),
+#                      k8sattributes → OTLP → [GATEWAY]
+#   [Deployment GATEWAY]  otlp(logs+metrics+traces from agent + otel-demo +
+#                      hipster-shop) + prometheus(istiod :15014) → memory_limiter,
+#                      k8sattributes, resource/static(attrs), cumulativetodelta(metrics)
+#                      → otlphttp/dynatrace (your Dynatrace tenant)
+#
+# Apps point at the GATEWAY (Service bench-collector-otlp). The agent forwards node
+# logs/metrics to the same gateway Service. Engine-under-test = BOTH pods → KPI
+# cost/census must SUM agent+gateway (benchmark.arm=B). oneagent=false ns +
+# inject:false annotations keep both pods un-wrapped (purity).
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: bench-collector, namespace: bench-collector }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: bench-collector }
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes", "nodes/proxy", "nodes/stats", "endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "daemonsets", "deployments"]
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: bench-collector }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: bench-collector }
+subjects:
+  - { kind: ServiceAccount, name: bench-collector, namespace: bench-collector }
+---
+# ---------- AGENT (DaemonSet) config ----------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-collector-agent-config, namespace: bench-collector }
+data:
+  config.yaml: |
+    receivers:
+      filelog:
+        include: [ /var/log/pods/*/*/*.log ]
+        exclude: [ /var/log/pods/bench-collector_*/*/*.log ]
+        start_at: end
+        include_file_path: true
+        operators:
+          - { type: container, id: container-parser }
+      kubeletstats:
+        collection_interval: 15s
+        auth_type: serviceAccount
+        endpoint: https://${env:K8S_NODE_NAME}:10250
+        insecure_skip_verify: true
+        metric_groups: [ node, pod, container ]
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 15 }
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        extract: { metadata: [ k8s.namespace.name, k8s.pod.name, k8s.node.name, k8s.container.name ] }
+      resource/static:
+        attributes:
+          - { key: k8s.cluster.name, value: benchmark-cluster, action: upsert }
+          - { key: benchmark.engine, value: otel-collector-contrib, action: upsert }
+          - { key: benchmark.arm,    value: B,        action: upsert }
+          - { key: benchmark.run,    value: kubecon-2026,  action: upsert }
+          - { key: benchmark.component, value: agent,  action: upsert }
+      batch: { send_batch_size: 8192, send_batch_max_size: 16384, timeout: 5s }
+    exporters:
+      otlp/gateway:
+        endpoint: bench-collector-otlp.bench-collector.svc.cluster.local:4317
+        tls: { insecure: true }
+    service:
+      telemetry:
+        metrics:
+          readers: [ { pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } } } ]
+      pipelines:
+        logs:    { receivers: [filelog],      processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlp/gateway] }
+        metrics: { receivers: [kubeletstats],  processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlp/gateway] }
+---
+# ---------- GATEWAY (Deployment) config ----------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-collector-gateway-config, namespace: bench-collector }
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: istio-control-plane
+              scrape_interval: 15s
+              kubernetes_sd_configs: [ { role: pod, namespaces: { names: [ istio-system ] } } ]
+              relabel_configs:
+                - { source_labels: [__meta_kubernetes_pod_container_port_number], action: keep, regex: "15014" }
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 15 }
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        extract: { metadata: [ k8s.namespace.name, k8s.pod.name, k8s.node.name, k8s.container.name ] }
+      resource/static:
+        attributes:
+          - { key: k8s.cluster.name, value: benchmark-cluster, action: upsert }
+          - { key: benchmark.engine, value: otel-collector-contrib, action: upsert }
+          - { key: benchmark.arm,    value: B,        action: upsert }
+          - { key: benchmark.run,    value: kubecon-2026,  action: upsert }
+          - { key: benchmark.component, value: gateway, action: upsert }
+      cumulativetodelta: { include: { metric_types: [ sum ] } }   # DT-400 guard
+      # Board direction 2026-10-21 (comment 68bebebb): drop Summary-type metrics —
+      # Dynatrace OTLP ingest does not support the summary data point type, so these
+      # would otherwise be rejected / produce noise. Drop before cumulativetodelta.
+      filter/drop_summary:
+        error_mode: ignore
+        metrics:
+          metric:
+            - 'type == METRIC_DATA_TYPE_SUMMARY'
+      batch: { send_batch_size: 8192, send_batch_max_size: 16384, timeout: 5s }
+    exporters:
+      otlphttp/dynatrace:
+        endpoint: https://<YOUR_TENANT>.live.dynatrace.com/api/v2/otlp
+        headers: { Authorization: "Api-Token ${env:DT_INGEST_TOKEN}" }
+    service:
+      telemetry:
+        metrics:
+          level: detailed
+          readers: [ { pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } } } ]
+      pipelines:
+        logs:    { receivers: [otlp],              processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlphttp/dynatrace] }
+        metrics: { receivers: [otlp, prometheus],  processors: [memory_limiter, k8sattributes, resource/static, filter/drop_summary, cumulativetodelta, batch], exporters: [otlphttp/dynatrace] }
+        traces:  { receivers: [otlp],              processors: [memory_limiter, k8sattributes, resource/static, batch], exporters: [otlphttp/dynatrace] }
+---
+# Apps + agent target the GATEWAY via this Service.
+apiVersion: v1
+kind: Service
+metadata: { name: bench-collector-otlp, namespace: bench-collector, labels: { app: bench-collector-gateway } }
+spec:
+  selector: { app: bench-collector-gateway }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bench-collector-agent
+  namespace: bench-collector
+  labels: { app: bench-collector-agent, benchmark: kubecon-2026, benchmark.arm: B, benchmark.component: agent, engine: otel-collector-contrib }
+spec:
+  selector: { matchLabels: { app: bench-collector-agent } }
+  template:
+    metadata:
+      labels: { app: bench-collector-agent, benchmark: kubecon-2026, benchmark.arm: B, benchmark.component: agent, engine: otel-collector-contrib }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-collector
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.163.1
+          args: [ "--config=/conf/config.yaml" ]
+          env:
+            - { name: K8S_NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+          ports: [ { name: metrics, containerPort: 8888 } ]
+          resources: { requests: { cpu: 200m, memory: 256Mi }, limits: { memory: 512Mi } }
+          volumeMounts:
+            - { name: config, mountPath: /conf }
+            - { name: varlogpods, mountPath: /var/log/pods, readOnly: true }
+      volumes:
+        - { name: config, configMap: { name: bench-collector-agent-config } }
+        - { name: varlogpods, hostPath: { path: /var/log/pods } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-collector-gateway
+  namespace: bench-collector
+  labels: { app: bench-collector-gateway, benchmark: kubecon-2026, benchmark.arm: B, benchmark.component: gateway, engine: otel-collector-contrib }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bench-collector-gateway } }
+  template:
+    metadata:
+      labels: { app: bench-collector-gateway, benchmark: kubecon-2026, benchmark.arm: B, benchmark.component: gateway, engine: otel-collector-contrib }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-collector
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.163.1
+          args: [ "--config=/conf/config.yaml" ]
+          env:
+            - { name: DT_INGEST_TOKEN, valueFrom: { secretKeyRef: { name: benchmark-cluster, key: dataIngestToken } } }
+          ports:
+            - { name: metrics, containerPort: 8888 }
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+          resources: { requests: { cpu: 300m, memory: 512Mi }, limits: { memory: 2Gi } }
+          volumeMounts: [ { name: config, mountPath: /conf } ]
+      volumes:
+        - { name: config, configMap: { name: bench-collector-gateway-config } }
