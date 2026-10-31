@@ -1,0 +1,105 @@
+# ============================================================================
+# WS2 — Arm D HOP 1: EDGE collector (parity processing + OTAP egress).
+# ----------------------------------------------------------------------------
+# Topology (D5):  apps →OTLP→ [THIS edge collector] →OTAP(Arrow)→ df_engine
+#                 →OTLP/HTTP→ Dynatrace (DIRECT, the real telemetry).
+#
+# The parity processing set lives HERE (byte-identical to Arm B/C) so df_engine
+# is a pure OTAP relay — df_engine's type_router drops logs on the OTAP
+# path, so all attribute/severity/PII/key-drop/batch work happens once, on hop 1.
+# The ONLY difference vs the plain collector arm is the exporter: `otelarrow`
+# (Arrow stream) to df_engine instead of otlphttp/dynatrace.
+#
+# Plain Deployment (no otel-operator dependency). contrib 0.163.1 ships the
+# otelarrow exporter. oneagent=false ns + inject:false annotations → clean.
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bench-otap-edge-config
+  namespace: bench-otap
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+      resource/static:
+        attributes:
+          - { key: k8s.cluster.name, value: benchmark-cluster, action: upsert }
+          - { key: benchmark.engine, value: otel-arrow-otap,      action: upsert }
+          - { key: benchmark.arm,    value: D,                     action: upsert }
+          - { key: benchmark.run,    value: kubecon-2026,               action: upsert }
+      # convert cumulative monotonic SUMS to delta (exclude histograms —
+      # delta histograms panic the Go otel-arrow adapter decode).
+      cumulativetodelta: { include: { metric_types: [ sum ] } }
+      transform/parity:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(severity_text, "ERROR") where IsMatch(body, "(?i)error")
+              - replace_pattern(body, "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}", "***REDACTED***")
+              - delete_key(attributes, "log.file.path")
+      batch: { send_batch_size: 8192, send_batch_max_size: 16384, timeout: 1s }
+    exporters:
+      # OTAP (OpenTelemetry-Arrow) stream → df_engine receiver:otap. Force Arrow,
+      # NO downgrade: df_engine's otap receiver speaks ONLY Arrow; the exporter's
+      # default downgrade-on-Unimplemented would silently fall back to plain OTLP
+      # and drop every batch (the whole point of the arm). RESULT 2.
+      otelarrow:
+        endpoint: bench-df-engine-otap.bench-otap.svc.cluster.local:4317
+        tls: { insecure: true }
+        arrow: { num_streams: 4, disable_downgrade: true }
+    service:
+      telemetry:
+        metrics: { readers: [ { pull: { exporter: { prometheus: { host: 0.0.0.0, port: 8888 } } } } ] }
+      pipelines:
+        traces:  { receivers: [otlp], processors: [memory_limiter, resource/static, transform/parity, batch], exporters: [otelarrow] }
+        metrics: { receivers: [otlp], processors: [memory_limiter, resource/static, cumulativetodelta, batch], exporters: [otelarrow] }
+        logs:    { receivers: [otlp], processors: [memory_limiter, resource/static, transform/parity, batch], exporters: [otelarrow] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-otap-edge
+  namespace: bench-otap
+  labels: { benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: edge }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bench-otap-edge } }
+  template:
+    metadata:
+      labels: { app: bench-otap-edge, benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: edge }
+      annotations:
+        dynatrace.com/inject: "false"
+        oneagent.dynatrace.com/inject: "false"
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.163.1
+          args: ["--config=/etc/otel/config.yaml"]
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: self-metrics, containerPort: 8888 }
+          resources: { requests: { cpu: 500m, memory: 512Mi }, limits: { cpu: "4", memory: 2Gi } }
+          volumeMounts: [ { name: config, mountPath: /etc/otel } ]
+      volumes: [ { name: config, configMap: { name: bench-otap-edge-config } } ]
+---
+# apps point OTLP at THIS service (bench-otap-otlp:4318), matching deploy-arm.sh.
+apiVersion: v1
+kind: Service
+metadata:
+  name: bench-otap-otlp
+  namespace: bench-otap
+  labels: { benchmark: kubecon-2026, benchmark.arm: D }
+spec:
+  selector: { app: bench-otap-edge }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }

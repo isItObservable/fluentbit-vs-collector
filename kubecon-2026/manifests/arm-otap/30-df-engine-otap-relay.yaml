@@ -1,0 +1,140 @@
+# ============================================================================
+# WS2 — Arm D: df_engine (Rust otap-dataflow v0.61.0) via OTAP + forwarder.
+# Board-confirmed 2026-10-19 (interaction 1bf1dffe): df_engine = Rust otap-dataflow;
+# export path = thin OTLP/HTTP forwarder.
+#
+# Arm D topology (D5):
+#   apps →OTLP→ edge collector (contrib, parity) →OTAP(Arrow)→ df_engine
+#   df_engine (otap-dataflow): receiver:otap → exporter:otlp_grpc → forwarder
+#   forwarder (contrib): otlp_grpc in → cumulativetodelta → otlphttp/dynatrace → DT
+#   + bridge collector (40-...) scrapes df_engine INTERNAL/self metrics → DT (D5, internal-only)
+#
+# df_engine is the measured engine (receives the Arrow/OTAP stream). The forwarder
+# does the OTLP/HTTP+Api-Token translation DT SaaS requires (otap-dataflow exports
+# otlp_grpc only). This forwarder is on the DATA path (board-approved) — distinct
+# from the internal-metrics bridge (40-...), which is NOT on the data path.
+#
+# ⚠️ DRAFT pending image build (blocked on a write:packages PAT): df_engine config
+# follows upstream configs/otap-otlp.yaml (version: otel_dataflow/v1); final field
+# names verified against the built binary. df_engine self-metrics endpoint for the
+# bridge (40-...) also confirmed against the binary (otap-dataflow internal telemetry).
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-df-engine-config, namespace: bench-otap }
+data:
+  df_engine.yaml: |
+    version: otel_dataflow/v1
+    engine: {}
+    groups:
+      default:
+        pipelines:
+          main:
+            policies:
+              channel_capacity: { control: { node: 100, pipeline: 100 }, pdata: 128 }
+            nodes:
+              receiver:
+                type: receiver:otap          # OTAP (Arrow) stream from the edge collector
+                config:
+                  listening_addr: "0.0.0.0:4317"
+                  response_stream_channel_size: 256
+              exporter:
+                type: exporter:otlp_grpc      # → forwarder (OTLP/HTTP translation to DT)
+                config:
+                  grpc_endpoint: "http://bench-otap-fwd.bench-otap.svc.cluster.local:4317"
+            connections:
+              - { from: receiver, to: exporter }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-df-engine
+  namespace: bench-otap
+  labels: { app: bench-df-engine, benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: df-engine, engine: df-engine-otap }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bench-df-engine } }
+  template:
+    metadata:
+      labels: { app: bench-df-engine, benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: df-engine, engine: df-engine-otap }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      containers:
+        - name: df-engine
+          image: ghcr.io/henrikrexed/df-engine:0.61.0
+          args: [ "--config", "/conf/df_engine.yaml" ]
+          ports:
+            - { name: otap-grpc, containerPort: 4317 }
+            - { name: self-metrics, containerPort: 8888 }   # otap-dataflow internal telemetry (bridge target; confirm vs binary)
+          resources: { requests: { cpu: 300m, memory: 512Mi }, limits: { memory: 2Gi } }
+          volumeMounts: [ { name: config, mountPath: /conf } ]
+      volumes: [ { name: config, configMap: { name: bench-df-engine-config } } ]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bench-df-engine-otap, namespace: bench-otap, labels: { app: bench-df-engine } }
+spec:
+  selector: { app: bench-df-engine }
+  ports: [ { name: otap-grpc, port: 4317, targetPort: 4317 } ]
+---
+# ---------- forwarder (contrib): df_engine otlp_grpc → DT OTLP/HTTP ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: bench-otap-fwd, namespace: bench-otap }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-otap-fwd-config, namespace: bench-otap }
+data:
+  config.yaml: |
+    receivers:
+      otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 } } }
+    processors:
+      memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 15 }
+      resource/static:
+        attributes:
+          - { key: benchmark.arm, value: D, action: upsert }
+          - { key: benchmark.run, value: kubecon-2026, action: upsert }
+      cumulativetodelta: { include: { metric_types: [ sum ] } }
+      batch: { send_batch_size: 8192, send_batch_max_size: 16384, timeout: 5s }
+    exporters:
+      otlphttp/dynatrace:
+        endpoint: https://<YOUR_TENANT>.live.dynatrace.com/api/v2/otlp
+        headers: { Authorization: "Api-Token ${env:DT_INGEST_TOKEN}" }
+    service:
+      pipelines:
+        logs:    { receivers: [otlp], processors: [memory_limiter, resource/static, batch], exporters: [otlphttp/dynatrace] }
+        metrics: { receivers: [otlp], processors: [memory_limiter, resource/static, cumulativetodelta, batch], exporters: [otlphttp/dynatrace] }
+        traces:  { receivers: [otlp], processors: [memory_limiter, resource/static, batch], exporters: [otlphttp/dynatrace] }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bench-otap-fwd, namespace: bench-otap, labels: { app: bench-otap-forwarder } }
+spec:
+  selector: { app: bench-otap-forwarder }
+  ports: [ { name: otlp-grpc, port: 4317, targetPort: 4317 } ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-otap-forwarder
+  namespace: bench-otap
+  labels: { app: bench-otap-forwarder, benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: forwarder }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bench-otap-forwarder } }
+  template:
+    metadata:
+      labels: { app: bench-otap-forwarder, benchmark: kubecon-2026, benchmark.arm: D, benchmark.component: forwarder }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-otap-fwd
+      containers:
+        - name: forwarder
+          image: otel/opentelemetry-collector-contrib:0.163.1
+          args: [ "--config=/conf/config.yaml" ]
+          env: [ { name: DT_INGEST_TOKEN, valueFrom: { secretKeyRef: { name: benchmark-cluster, key: dataIngestToken } } } ]
+          ports: [ { name: otlp-grpc, containerPort: 4317 } ]
+          resources: { requests: { cpu: 200m, memory: 256Mi }, limits: { memory: 1Gi } }
+          volumeMounts: [ { name: config, mountPath: /conf } ]
+      volumes: [ { name: config, configMap: { name: bench-otap-fwd-config } } ]

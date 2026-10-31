@@ -1,0 +1,216 @@
+# ============================================================================
+# WS2 — Arm A engine-under-test: Fluent Bit 5.1.4, YAML config.
+# TWO-TIER agent→gateway topology (per board direction 2026-10-19, comment 9141c1b2):
+#
+#   [DaemonSet AGENT]  tail(container/pod logs) → kubernetes filter(enrich) →
+#                      opentelemetry OUTPUT (OTLP) → [GATEWAY]
+#   [Deployment GATEWAY]  opentelemetry IN (logs+metrics+traces from agent +
+#                      otel-demo + hipster-shop) + prometheus_scrape(istiod :15014)
+#                      + fluentbit_metrics (FB internal self-metrics) →
+#                      processors: content_modifier(add benchmark.* attrs for
+#                      filtering), cumulative_to_delta(metrics incl internal),
+#                      opentelemetry_envelope → opentelemetry OUTPUT → Dynatrace.
+#
+# All FB plugins verified present in 5.1.4: in_tail, filter_kubernetes,
+# in_opentelemetry, in_prometheus_scrape, in_fluentbit_metrics, out_opentelemetry,
+# processor_content_modifier, processor_cumulative_to_delta, processor_opentelemetry_envelope.
+# Apps target the GATEWAY (Service bench-fluentbit-otlp). Engine-under-test = BOTH
+# pods → KPI cost/census SUM agent+gateway. oneagent=false ns + inject:false (purity).
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: bench-fluentbit, namespace: bench-fluentbit }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: bench-fluentbit }
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes", "nodes/proxy"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: bench-fluentbit }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: bench-fluentbit }
+subjects:
+  - { kind: ServiceAccount, name: bench-fluentbit, namespace: bench-fluentbit }
+---
+# ---------- AGENT (DaemonSet) — logs only, YAML config ----------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-fluentbit-agent-config, namespace: bench-fluentbit }
+data:
+  fluent-bit.yaml: |
+    service:
+      http_server: on
+      http_listen: 0.0.0.0
+      http_port: 2020
+      log_level: info
+      storage.metrics: on
+    pipeline:
+      inputs:
+        - name: tail
+          tag: kube.*
+          path: /var/log/containers/*.log
+          exclude_path: /var/log/containers/*bench-fluentbit*.log
+          multiline.parser: cri
+          read_from_head: false
+          skip_long_lines: on
+          refresh_interval: 5
+      filters:
+        - name: kubernetes
+          match: kube.*
+          merge_log: on
+          keep_log: off
+      outputs:
+        - name: opentelemetry
+          match: '*'
+          host: bench-fluentbit-otlp.bench-fluentbit.svc.cluster.local
+          port: 4318
+          logs_uri: /v1/logs
+          tls: off
+---
+# ---------- GATEWAY (Deployment) — OTLP in + metrics + internal, YAML config ----------
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: bench-fluentbit-gateway-config, namespace: bench-fluentbit }
+data:
+  fluent-bit.yaml: |
+    service:
+      http_server: on
+      http_listen: 0.0.0.0
+      http_port: 2020
+      log_level: info
+      storage.metrics: on
+    pipeline:
+      inputs:
+        # logs + metrics + traces from the agent and the demo apps (OTLP).
+        - name: opentelemetry
+          tag: otlp.*
+          listen: 0.0.0.0
+          port: 4318
+        # istio control-plane metrics.
+        - name: prometheus_scrape
+          tag: metrics.istiod
+          host: istiod.istio-system.svc.cluster.local
+          port: 15014
+          metrics_path: /metrics
+          scrape_interval: 15s
+        # FB OWN internal/self metrics → converted + enveloped + exported.
+        - name: fluentbit_metrics
+          tag: internal.metrics
+          scrape_interval: 15s
+      # fix: the gateway-side kubernetes filter (board 68bebebb direction)
+      # CANNOT work on OTLP-received logs — filter_kubernetes derives metadata from
+      # the tail file-path tag shape (kube.var.log.containers.*) and errors+skips on
+      # every otlp.* record. App OTLP logs already carry k8s resource attrs from
+      # their OTel SDKs (demo chart resource.opentelemetry.io annotations), and the
+      # agent enriches node-tailed logs before forwarding. Filter removed to stop
+      # per-batch error spam; gap noted in the Arm A run report.
+      outputs:
+        # rework #3 — RESTORED BYTE-EXACT to the WS2 original block that
+        # ran 36m clean (rev1 world). The reworks (#1 split, #2 minimal) did NOT
+        # stop the SIGSEGV → config was not the trigger. Keep this shape while the
+        # real trigger is bisected on the input side.
+        - name: opentelemetry
+          match: '*'
+          host: <YOUR_TENANT>.live.dynatrace.com
+          port: 443
+          tls: on
+          tls.verify: off
+          metrics_uri: /api/v2/otlp/v1/metrics
+          traces_uri: /api/v2/otlp/v1/traces
+          logs_uri: /api/v2/otlp/v1/logs
+          header: Authorization Api-Token ${DT_INGEST_TOKEN}
+          log_response_payload: false
+          # RESOLUTION 2026-10-23 (RCA-resolution-envelope-processor.md):
+          # opentelemetry_envelope REMOVED from both chains — it heap-corrupts FB
+          # 5.1.x (5 crash signatures, 15s-8min MTBC). Without it: 18h+ clean,
+          # 804/804 metric records exported, 0 drops. A/B/A validated on live
+          # traffic. FB-native metrics ship via out_opentelemetry native OTLP
+          # conversion (DT-accepted, HTTP 200). Keep processor keys EXPLICIT.
+          processors:
+            metrics:
+              # DT-400 guard: cumulative monotonic sums → delta.
+              - name: cumulative_to_delta
+            logs:
+              - name: content_modifier
+                context: otel_resource_attributes
+                action: upsert
+                key: benchmark.run
+                value: kubecon-2026
+              - name: content_modifier
+                context: otel_resource_attributes
+                action: upsert
+                key: benchmark.arm
+                value: A
+            traces: []   # no traces processors (FB 5.1.x trace re-encode path)
+---
+# Apps + agent target the GATEWAY via this Service.
+apiVersion: v1
+kind: Service
+metadata: { name: bench-fluentbit-otlp, namespace: bench-fluentbit, labels: { app: bench-fluentbit-gateway } }
+spec:
+  selector: { app: bench-fluentbit-gateway }
+  ports:
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bench-fluentbit-agent
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit-agent, benchmark: kubecon-2026, benchmark.arm: A, benchmark.component: agent, engine: fluent-bit }
+spec:
+  selector: { matchLabels: { app: bench-fluentbit-agent } }
+  template:
+    metadata:
+      labels: { app: bench-fluentbit-agent, app.kubernetes.io/name: fluent-bit, benchmark: kubecon-2026, benchmark.arm: A, benchmark.component: agent, engine: fluent-bit }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-fluentbit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:5.1.5
+          args: [ "--config=/fluent-bit/etc/fluent-bit.yaml" ]
+          ports: [ { name: http, containerPort: 2020 } ]
+          resources: { requests: { cpu: 200m, memory: 128Mi }, limits: { memory: 512Mi } }
+          volumeMounts:
+            - { name: config, mountPath: /fluent-bit/etc/ }
+            - { name: varlog, mountPath: /var/log, readOnly: true }
+            - { name: varlibcontainers, mountPath: /var/lib/docker/containers, readOnly: true }
+      volumes:
+        - { name: config, configMap: { name: bench-fluentbit-agent-config } }
+        - { name: varlog, hostPath: { path: /var/log } }
+        - { name: varlibcontainers, hostPath: { path: /var/lib/docker/containers } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bench-fluentbit-gateway
+  namespace: bench-fluentbit
+  labels: { app: bench-fluentbit-gateway, benchmark: kubecon-2026, benchmark.arm: A, benchmark.component: gateway, engine: fluent-bit }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bench-fluentbit-gateway } }
+  template:
+    metadata:
+      labels: { app: bench-fluentbit-gateway, app.kubernetes.io/name: fluent-bit, benchmark: kubecon-2026, benchmark.arm: A, benchmark.component: gateway, engine: fluent-bit }
+      annotations: { dynatrace.com/inject: "false", oneagent.dynatrace.com/inject: "false", sidecar.istio.io/inject: "false" }
+    spec:
+      serviceAccountName: bench-fluentbit
+      containers:
+        - name: fluent-bit
+          image: fluent/fluent-bit:5.1.5
+          args: [ "--config=/fluent-bit/etc/fluent-bit.yaml" ]
+          env:
+            - { name: DT_INGEST_TOKEN, valueFrom: { secretKeyRef: { name: benchmark-cluster, key: dataIngestToken } } }
+          ports:
+            - { name: http, containerPort: 2020 }
+            - { name: otlp-http, containerPort: 4318 }
+          resources: { requests: { cpu: 300m, memory: 256Mi }, limits: { memory: 1Gi } }
+          volumeMounts:
+            - { name: config, mountPath: /fluent-bit/etc/ }
+      volumes:
+        - { name: config, configMap: { name: bench-fluentbit-gateway-config } }

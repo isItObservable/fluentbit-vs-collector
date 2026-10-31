@@ -1,0 +1,56 @@
+# WS2 — DynaKube for the benchmark cluster (plan §5 step 2).
+# Purpose: report POD RESOURCE USAGE of the engine-under-test + the demo apps,
+# measured by Dynatrace (the independent oracle vs the engine's own self-metrics).
+#
+# MEASUREMENT PURITY (plan §5, ): full-stack OneAgent observes the NODE
+# and injects app pods, but the engine-under-test pod MUST stay un-wrapped. Two
+# guards, belt-and-suspenders:
+#   1. namespaceSelector excludes `oneagent=false` (the bench-* engine ns labels).
+#   2. the engine pod templates also carry `dynatrace.com/inject: "false"` +
+#      `oneagent.dynatrace.com/inject: "false"` annotations (see arm manifests).
+#
+# PREREQ — create the token secret first (never commit a filled copy):
+#   see 10-dynatrace-secret.example.yaml
+#   helm repo add dynatrace https://raw.githubusercontent.com/Dynatrace/dynatrace-operator/main/config/helm/repos/stable
+#   helm upgrade --install dynatrace-operator dynatrace/dynatrace-operator \
+#     -n dynatrace --create-namespace --version 1.11.0 --set installCRD=true --wait
+apiVersion: dynatrace.com/v1beta6
+kind: DynaKube
+metadata:
+  name: benchmark-cluster
+  namespace: dynatrace
+  annotations:
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring: "true"
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring-cluster-name: benchmark-cluster
+    feature.dynatrace.com/k8s-app-enabled: "true"
+    feature.dynatrace.com/label-version-detection: "true"
+spec:
+  apiUrl: https://<YOUR_TENANT>.live.dynatrace.com/api   # your Dynatrace tenant
+  tokens: benchmark-cluster
+  skipCertCheck: true
+  metadataEnrichment:
+    enabled: true
+  # MEASUREMENT-PURE ORACLE (/ proven pattern, re-decided WS2
+  # 2026-10-19): ActiveGate `kubernetes-monitoring` ONLY — NO OneAgent. Per-pod
+  # CPU/mem of the engine + apps land as `dt.kubernetes.container.*` (the exact
+  # Grail metrics the pod-resource dashboards + the validate-gate census
+  # read). This beats OneAgent classicFullStack for this benchmark: host-level
+  # OneAgent deep-monitors EVERY process on the node — including the
+  # engine-under-test — so its CPU/mem would be contaminated by agent overhead
+  # and we'd be measuring the engine+agent, not the engine. With no OneAgent at
+  # all, the engine pod is un-wrapped BY CONSTRUCTION (the `oneagent=false` ns
+  # label + the `dynatrace.com/inject:false` pod annotations remain as harmless
+  # belt-and-suspenders). v1beta6 note: `injectionRules`/top-level
+  # `namespaceSelector` are NOT fields in this CRD version (operator 1.11.0) —
+  # they only exist on the cloudNative/appMon injection modes we deliberately omit.
+  activeGate:
+    capabilities:
+      - kubernetes-monitoring
+      - routing
+      - dynatrace-api
+      - metrics-ingest
+    # PUBLIC ECR pin (gotcha: tenant-tagged AG image 404s; public.ecr.aws pulls).
+    image: public.ecr.aws/dynatrace/dynatrace-activegate:1.337.30.20260507-144959
+    resources:
+      requests: { cpu: 500m, memory: 512Mi }
+      limits:   { cpu: "1",  memory: 1536Mi }

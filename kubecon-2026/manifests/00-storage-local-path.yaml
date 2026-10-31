@@ -1,0 +1,24 @@
+# WS2 — default StorageClass for benchmark-cluster.
+# WS1 () left the cluster with NO StorageClass (`kubectl get sc` → none).
+# otel-demo (valkey/kafka/opensearch PVCs on the full chart) and any stateful
+# demo dependency need a default SC or pods hang Pending. Rancher local-path
+# provisioner — same choice proven on a comparable cluster and the
+# CP-disk-on-local-lvm topology (NOT NFS; CP-on-NFS boot failures).
+#
+# Apply upstream then mark default:
+#   kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.31/deploy/local-path-storage.yaml
+#   kubectl patch storageclass local-path -p \
+#     '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+#
+# This file pins the version and records the default annotation for reproducibility.
+# The deploy helper (bin/deploy-arm.sh --foundation) applies the upstream manifest
+# at the pinned tag and patches the default annotation idempotently.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
