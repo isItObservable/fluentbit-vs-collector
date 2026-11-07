@@ -1,6 +1,14 @@
 # ============================================================================
-# WS2 — Arm A engine-under-test: Fluent Bit 5.1.4, YAML config.
-# TWO-TIER agent→gateway topology (per board direction 2026-10-19, comment 9141c1b2):
+# Arm A engine-under-test: Fluent Bit 5.1.5, YAML config.
+# WIRE COMPRESSION ON (gzip) — the re-run change. Every `opentelemetry` OUTPUT
+# (agent→gateway AND gateway→backend) carries `compress: gzip` so Fluent Bit's
+# wire figure is a FAIR comparison against the Collector (OTLP+zstd) and OTAP
+# (Arrow+zstd). With gzip OFF the FB wire cost was ~28.5 B/span (uncompressed
+# OTLP/HTTP) — an unfair artifact of configuration, not engine overhead. With
+# gzip ON it drops to ~2.27 B/span, within ~11% of the Collector's 2.04. See
+# ../../RESULTS.md "Wire efficiency" and "mc/1M-spans" tables.
+#
+# TWO-TIER agent→gateway topology:
 #
 #   [DaemonSet AGENT]  tail(container/pod logs) → kubernetes filter(enrich) →
 #                      opentelemetry OUTPUT (OTLP) → [GATEWAY]
@@ -70,6 +78,10 @@ data:
           port: 4318
           logs_uri: /v1/logs
           tls: off
+          # compress agent→gateway OTLP/HTTP egress (gzip). FB 5.x out_opentelemetry
+          # supports gzip; the gateway in_opentelemetry decodes Content-Encoding: gzip
+          # transparently. Applies to any FB tier that exports OTLP.
+          compress: gzip
 ---
 # ---------- GATEWAY (Deployment) — OTLP in + metrics + internal, YAML config ----------
 apiVersion: v1
@@ -119,6 +131,11 @@ data:
           port: 443
           tls: on
           tls.verify: off
+          # THE re-run change: gateway→backend OTLP/HTTP egress is gzip-compressed
+          # so the FB wire figure is a fair comparison vs the Collector (OTLP+zstd,
+          # 2.04 B/span) and OTAP edge (Arrow+zstd, 1.27). With gzip OFF the wire was
+          # ~28.5 B/span; with gzip ON it is ~2.27 B/span (~10x on the wire).
+          compress: gzip
           metrics_uri: /api/v2/otlp/v1/metrics
           traces_uri: /api/v2/otlp/v1/traces
           logs_uri: /api/v2/otlp/v1/logs

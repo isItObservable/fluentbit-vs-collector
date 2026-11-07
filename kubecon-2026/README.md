@@ -5,19 +5,33 @@ run **serial and single-engine** (only one in the cluster at a time) against the
 [otel-demo](https://github.com/open-telemetry/opentelemetry-demo) + hipster-shop topology, the
 same 12h soak profile, and the same version pins — so the numbers are defensible.
 
-> **Results:** see [`../RESULTS.md`](../RESULTS.md) for the 4-arm comparison matrix and the
-> old-vs-new findings. **TL;DR:** on today's releases all four pipelines survive a 12h soak with
-> **loss under 0.01 %** and **flat memory**; the two failure modes from the prior benchmark
-> (Fluent Bit mesh SIGSEGV, OTel-Arrow dictionary overflow) **no longer reproduce**.
+> **Results:** see [`./RESULTS.md`](./RESULTS.md) for the 4-arm comparison matrix, the wire /
+> cost economics (mc/1M-spans and wire B/span), and the old-vs-new findings. **TL;DR:** on
+> today's releases all four pipelines survive a 12h soak with **loss under 0.01 %** and **flat
+> memory**; the two failure modes from the prior benchmark (Fluent Bit mesh SIGSEGV, OTel-Arrow
+> dictionary overflow) **no longer reproduce**; and with **every engine compressing the wire**
+> (Fluent Bit gzip, Collector zstd, OTAP Arrow+zstd) the wire gap between them collapses to
+> ~1.8× — not the 22×+ you see when Fluent Bit ships uncompressed.
+>
+> **Companion docs:** [`DESIGN.md`](./DESIGN.md) (Fluent-Bit-gzip + parity wiring design) ·
+> [`DEPLOYMENT.md`](./DEPLOYMENT.md) (app-deployment parity: appProtocol, ambient + waypoints,
+> 100% tracing, benchmark attrs) · [`STEPS.md`](./STEPS.md) (staircase → parity gate → soak →
+> KPI).
 
 ## The four arms
 
 | Arm | Engine | Transport to backend |
 |-----|--------|----------------------|
-| `fluentbit` | Fluent Bit 5.1.5 | OTLP/HTTP |
-| `collector` | OTel Collector contrib 0.163.1 (reference) | OTLP/HTTP |
+| `fluentbit` | Fluent Bit 5.1.5 | OTLP/HTTP **+ gzip** (agent→gateway and gateway→backend) |
+| `collector` | OTel Collector contrib 0.163.1 (reference) | OTLP/HTTP **+ zstd** |
 | `arrow` | df_engine (Rust otap-dataflow) 0.61.0 — OTLP in/out | OTLP |
-| `otap` | df_engine 0.61.0 — OTAP (Arrow stream) in → OTLP out; bridge collector exports only df_engine's internal metrics | OTAP edge → df_engine → backend direct |
+| `otap` | df_engine 0.61.0 — OTAP (Arrow stream) in → OTLP out; bridge collector exports only df_engine's internal metrics | OTAP edge (Arrow + zstd) → df_engine → backend direct |
+
+> **Wire compression is ON for every arm that can do it.** An earlier run shipped Fluent Bit
+> *uncompressed* (~28.5 B/span) while the Collector used zstd and OTAP used Arrow+zstd — so the
+> "Fluent Bit is 10–20× fatter on the wire" headline was a compression-config artifact, not an
+> engine property. This run turns **gzip ON** on Fluent Bit's OTLP output so all four arms are
+> compared like-for-like on the wire. See [`DESIGN.md`](./DESIGN.md).
 
 ## Prerequisites
 
@@ -80,8 +94,31 @@ export BACKEND_RECEIPT_CMD=./backend-receipt-dynatrace.sh   # you provide this f
 ./validate-gate.sh collector
 ```
 
+## The pre-soak PARITY gate (why a healthy engine is not enough)
+
+Beyond the "is the pipeline alive" gate above, a comparison is only valid if **every arm shipped
+comparable telemetry**. An under-meshed arm (fewer Istio mesh spans) or an arm whose app emitted
+far fewer spans would make its cost-per-span look artificially good. So after the 2h rampup, and
+**before** committing to the 12h soak, each arm must clear a **parity gate** measured per
+namespace (`otel-demo` and `hipster-shop`) over the rampup window:
+
+1. **App SDK spans + Istio mesh spans + logs** all PRESENT and ramping with load (Spearman
+   ρ ≥ 0.8 load-correlation).
+2. **Mesh/app span ratio ≈ 72–77 %** — the same mesh coverage profile as the reference df_engine
+   arms (C/D). This is the check that caught Arms A/B being *under-meshed* in the first pass and
+   forced this re-run.
+3. **Per-namespace span + log totals within ±25 %** of the Arm C/D reference window.
+4. (Fluent Bit arm) **compression ON** — gateway wire-bytes/span is single-digit, not the ~28.5
+   uncompressed figure.
+
+GO → clean up rampup load → start the soak. NO-GO → root-cause (do **not** soak on a non-parity
+arm). Full procedure in [`STEPS.md`](./STEPS.md); app-deployment parity wiring in
+[`DEPLOYMENT.md`](./DEPLOYMENT.md).
+
 ## Methodology (one paragraph)
 Serial single-engine; same apps and load every arm; newest-stable version pins frozen on one day;
-full logs + metrics + traces; 2h rampup gate (Spearman ρ ≥ 0.8 load-correlation) → clean →
-**12h soak** at steady 50 VU/app; KPIs = throughput, loss (accepted == sent), and a **tail-flat
-memory leak check** over the soak window. See [`../RESULTS.md`](../RESULTS.md).
+full logs + metrics + traces; a **50→100→150→200 VU/app staircase** (30 min/step) over a 2h rampup
+→ **parity gate** (per-ns app+mesh+logs, ρ ≥ 0.8, mesh ratio 72–77 %, ±25 % vs C/D) → clean →
+**12h soak** at steady 50 VU/app → KPI capture. KPIs = throughput, loss (accepted == sent), a
+**tail-flat memory leak check**, and the **wire / cost economics** (wire B/span, mc/1M-spans). See
+[`STEPS.md`](./STEPS.md) and [`./RESULTS.md`](./RESULTS.md).

@@ -1,0 +1,98 @@
+# ============================================================================
+# Parity wiring EXAMPLE — Istio ambient waypoint + 100% tracing + access logging
+# for the two load-bearing app namespaces (otel-demo and hipster-shop).
+#
+# This is the mesh half of the parity contract (see ../../DEPLOYMENT.md). Apply it
+# ONCE; when you switch arms you re-point the mesh extensionProvider `service` at
+# the new arm's gateway and flip the three benchmark.* customTags below.
+#
+# Replace the benchmark.arm / benchmark.engine values to match the arm you are
+# running:  A/fluentbit · B/otel-collector-contrib · C/otel-arrow-otlp · D/otel-arrow-otap
+#
+# The extensionProviders (bench-otlp for traces, bench-otlp-als for logs) live in
+# the Istio meshConfig, NOT here. Add them to `configmap/istio -n istio-system` and
+# restart istiod + both waypoints + ztunnel:
+#
+#   extensionProviders:
+#   - name: bench-otlp
+#     opentelemetry:
+#       service: bench-fluentbit-otlp.bench-fluentbit.svc.cluster.local   # <-- the active arm's gateway
+#       port: 4318
+#       http: { path: /v1/traces, timeout: 5s }
+#   - name: bench-otlp-als
+#     opentelemetry:
+#       service: bench-fluentbit-otlp.bench-fluentbit.svc.cluster.local   # <-- the active arm's gateway
+#       port: 4318
+#       http: { path: /v1/logs, timeout: 5s }
+#
+# CRITICAL: tracing + accessLogging MUST be in ONE Telemetry CR per namespace scope —
+# two CRs in the same scope cause a silent "last writer wins" and you lose a signal.
+# ============================================================================
+---
+# ---------- hipster-shop ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: waypoint
+  namespace: hipster-shop
+  labels: { istio.io/waypoint-for: service }
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: HBONE
+      allowedRoutes: { namespaces: { from: Same } }
+---
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: bench-tracing
+  namespace: hipster-shop
+spec:
+  tracing:
+    - providers:
+        - name: bench-otlp
+      randomSamplingPercentage: 100
+      customTags:
+        benchmark.arm:    { literal: { value: A } }          # flip per arm
+        benchmark.engine: { literal: { value: fluentbit } }  # flip per arm
+        benchmark.run:    { literal: { value: kubecon-2026 } }
+  accessLogging:
+    - providers:
+        - name: bench-otlp-als
+      disabled: false
+---
+# ---------- otel-demo ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: waypoint
+  namespace: otel-demo
+  labels: { istio.io/waypoint-for: service }
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: HBONE
+      allowedRoutes: { namespaces: { from: Same } }
+---
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: bench-tracing
+  namespace: otel-demo
+spec:
+  tracing:
+    - providers:
+        - name: bench-otlp
+      randomSamplingPercentage: 100
+      customTags:
+        benchmark.arm:    { literal: { value: A } }          # flip per arm
+        benchmark.engine: { literal: { value: fluentbit } }  # flip per arm
+        benchmark.run:    { literal: { value: kubecon-2026 } }
+  accessLogging:
+    - providers:
+        - name: bench-otlp-als
+      disabled: false
